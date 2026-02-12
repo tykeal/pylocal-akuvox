@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2025 Andrew Grimberg <tykeal@bardicgrove.org>
+# SPDX-License-Identifier: Apache-2.0
+version = 1
+
+# Annotate spec kit files and generated files
+[[annotations]]
+path = [
+    ".github/prompts/*",
+    ".specify/**",
+    "rentalsync-bridge/uv.lock",
+    "**.json",
+    ".github/agents/speckit**"
+]
+SPDX-License-Identifier = "Apache-2.0"
+SPDX-FileCopyrightText = "2026 Andrew Grimberg <tykeal@bardicgrove.org>"
