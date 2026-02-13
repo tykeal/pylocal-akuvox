@@ -1,18 +1,19 @@
 <!--
   Sync Impact Report
   ==================================================
-  Version change: 1.0.0 → 1.0.1
+  Version change: 1.0.1 → 1.0.2
   Modified principles:
-    - II. Test-Driven Development: clarified code-level TDD vs
-      phase-level test planning to resolve ambiguity between
-      "tests before code" and "tests may be deferred to later
-      phases"
+    - I. Code Quality: specified cyclomatic complexity threshold
+      as C901 max 10 enforced via ruff (was undefined)
+    - V. Atomic Commits & Compliance: rephrased SPDX header
+      requirement to apply only to commits introducing new files
   Added sections: None
   Removed sections: None
   Templates requiring updates:
     - .specify/templates/plan-template.md ✅ no change needed
     - .specify/templates/spec-template.md ✅ no change needed
-    - .specify/templates/tasks-template.md ✅ no change needed
+    - .specify/templates/tasks-template.md ✅ updated (tests now
+      mandatory per constitution TDD principle)
     - .specify/templates/checklist-template.md ✅ no change needed
     - .specify/templates/agent-file-template.md ✅ no change needed
   Follow-up TODOs: None
@@ -30,8 +31,9 @@
 - Every function and class MUST include a docstring that describes its
   purpose, parameters, return values, and raised exceptions.
 - Type annotations MUST be present on all public function signatures.
-- Code complexity MUST remain low; functions exceeding a cyclomatic
-  complexity threshold MUST be refactored before merge.
+- Code complexity MUST remain low; functions MUST NOT exceed a
+  cyclomatic complexity of 10 (ruff rule C901). This limit MUST
+  be enforced in the project's ruff configuration once created.
 - All new source files MUST include SPDX license headers as defined
   in `REUSE.toml`. Files missing headers MUST NOT be committed.
 
@@ -82,8 +84,9 @@
 
 - Every commit MUST represent exactly one logical change (one feature,
   one fix, or one refactor).
-- All commits MUST include SPDX license headers on new files and MUST
-  carry a DCO sign-off (`git commit -s`).
+- Any commit that introduces new files MUST include SPDX license
+  headers for those files. Every commit MUST carry a DCO sign-off
+  (`git commit -s`).
 - Pre-commit hooks MUST pass on every commit. Bypassing hooks with
   `--no-verify` is **PROHIBITED** under all circumstances.
 - Commit messages MUST follow Conventional Commits with capitalized
@@ -145,4 +148,4 @@
 - Use `AGENTS.md` for runtime development guidance that supplements
   this constitution.
 
-**Version**: 1.0.1 | **Ratified**: 2026-02-13 | **Last Amended**: 2026-02-13
+**Version**: 1.0.2 | **Ratified**: 2026-02-13 | **Last Amended**: 2026-02-13
