@@ -1,24 +1,20 @@
 <!--
   Sync Impact Report
   ==================================================
-  Version change: 0.0.0 (template) → 1.0.0
-  Modified principles: N/A (initial population)
-  Added sections:
-    - I. Code Quality (NON-NEGOTIABLE)
-    - II. Test-Driven Development (NON-NEGOTIABLE)
-    - III. User Experience Consistency
-    - IV. Performance Requirements
-    - V. Atomic Commits & Compliance (NON-NEGOTIABLE)
-    - VI. Phased Development
-    - Development Workflow & Quality Gates
-    - Additional Constraints
+  Version change: 1.0.0 → 1.0.1
+  Modified principles:
+    - II. Test-Driven Development: clarified code-level TDD vs
+      phase-level test planning to resolve ambiguity between
+      "tests before code" and "tests may be deferred to later
+      phases"
+  Added sections: None
   Removed sections: None
   Templates requiring updates:
-    - .specify/templates/plan-template.md ✅ aligned (Constitution Check gate)
-    - .specify/templates/spec-template.md ✅ aligned (user stories + acceptance)
-    - .specify/templates/tasks-template.md ✅ aligned (TDD task ordering)
-    - .specify/templates/checklist-template.md ✅ aligned (generic)
-    - .specify/templates/agent-file-template.md ✅ aligned (generic)
+    - .specify/templates/plan-template.md ✅ no change needed
+    - .specify/templates/spec-template.md ✅ no change needed
+    - .specify/templates/tasks-template.md ✅ no change needed
+    - .specify/templates/checklist-template.md ✅ no change needed
+    - .specify/templates/agent-file-template.md ✅ no change needed
   Follow-up TODOs: None
   ==================================================
 -->
@@ -41,15 +37,19 @@
 
 ### II. Test-Driven Development (NON-NEGOTIABLE)
 
-- Development MUST follow TDD best practices: tests are written
-  **before** the production code they verify.
-- The Red-Green-Refactor cycle is strictly enforced:
+- **Code-level TDD is mandatory.** Every unit of production code
+  MUST be preceded by a failing test that defines the desired
+  behavior. The Red-Green-Refactor cycle is strictly enforced:
   1. Write a failing test that defines the desired behavior.
   2. Implement the minimum code required to make the test pass.
   3. Refactor while keeping all tests green.
-- Tests for a development phase MUST be written during that phase or
-  a subsequent phase — they are NOT required to be written all up
-  front.
+- **Phase-level test planning is incremental.** Not every test
+  category (integration, end-to-end, performance) for a phase
+  MUST be written before that phase begins. Higher-level tests
+  that span multiple stories or depend on infrastructure from
+  later phases MAY be deferred to the phase where their
+  prerequisites exist. Unit-level TDD (the red-green-refactor
+  cycle above) MUST NOT be deferred under any circumstance.
 - CI tests MUST pass before any manual or exploratory testing is
   performed. Manual testing without green CI is prohibited.
 - Test coverage MUST be maintained or increased with every change;
@@ -145,4 +145,4 @@
 - Use `AGENTS.md` for runtime development guidance that supplements
   this constitution.
 
-**Version**: 1.0.0 | **Ratified**: 2026-02-13 | **Last Amended**: 2026-02-13
+**Version**: 1.0.1 | **Ratified**: 2026-02-13 | **Last Amended**: 2026-02-13
