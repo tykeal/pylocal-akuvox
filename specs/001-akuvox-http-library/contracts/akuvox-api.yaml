@@ -1,0 +1,619 @@
+# SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
+# SPDX-License-Identifier: Apache-2.0
+#
+# Akuvox Local HTTP API Contract
+#
+# This documents the Akuvox device API endpoints used by pylocal-akuvox.
+# Derived from official Akuvox Apifox documentation (linux_AC_api and
+# linux_api specs). This is NOT a server spec — it documents the device
+# API that the library consumes as a client.
+---
+openapi: "3.0.1"
+info:
+  title: "Akuvox Local HTTP API (Client Contract)"
+  description: >
+    Contract defining the Akuvox device HTTP API endpoints consumed by
+    pylocal-akuvox. All POST endpoints accept JSON encoded as
+    text/plain. All responses use the standard envelope with retcode,
+    action, message, and optional data fields.
+  version: "1.0.0"
+
+servers:
+  - url: "http://{device_ip}"
+    variables:
+      device_ip:
+        default: "192.168.1.100"
+        description: "LAN IP address of the Akuvox device"
+
+paths:
+  /api/system/info:
+    get:
+      summary: "Get device identification"
+      operationId: getDeviceInfo
+      responses:
+        "200":
+          description: "Device info retrieved"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceInfoResponse"
+        "401":
+          description: "Authentication required"
+
+  /api/system/status:
+    get:
+      summary: "Get device operational status"
+      operationId: getDeviceStatus
+      responses:
+        "200":
+          description: "Device status retrieved"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResponse"
+
+  /api/relay/status:
+    get:
+      summary: "Get current relay states"
+      operationId: getRelayStatus
+      responses:
+        "200":
+          description: "Relay status retrieved"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResponse"
+
+  /api/relay/get:
+    get:
+      summary: "Get relay configuration"
+      operationId: getRelayConfig
+      description: >
+        Returns relay settings such as trigger delay, hold delay,
+        relay name, and HTTP relay access configuration.
+        GET or POST methods accepted.
+      responses:
+        "200":
+          description: "Relay config retrieved"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResponse"
+
+  /api/relay/set:
+    post:
+      summary: "Set relay configuration"
+      operationId: setRelayConfig
+      description: >
+        Update relay settings using autop-format keys,
+        e.g. Config.DoorSetting.RELAY.HoldDelayA. POST only.
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+            example: >-
+              {"target": "relay", "action": "set",
+              "data": {"Config.DoorSetting.RELAY.HoldDelayA": "8"}}
+      responses:
+        "200":
+          description: "Relay config updated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+
+  /api/relay/trig:
+    post:
+      summary: "Trigger a relay"
+      operationId: triggerRelay
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+            example: '{"num": 1, "mode": 0, "level": 0, "delay": 5}'
+      responses:
+        "200":
+          description: "Relay triggered"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+
+  /api/user/get:
+    post:
+      summary: "List users (paginated)"
+      operationId: listUsers
+      requestBody:
+        content:
+          text/plain:
+            schema:
+              type: string
+            example: '{"page": 1}'
+      responses:
+        "200":
+          description: "User list retrieved"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+
+  /api/user/add:
+    post:
+      summary: "Add a local user"
+      operationId: addUser
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+            example: >
+              {"Name": "John", "UserID": "1001",
+               "LiftFloorNum": "0", "WebRelay": "0",
+               "ScheduleRelay": "1001-12;",
+               "PrivatePIN": "1234"}
+      responses:
+        "200":
+          description: "User added"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+
+  /api/user/set:
+    post:
+      summary: "Modify a local user"
+      operationId: modifyUser
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+            example: '{"ID": "1", "PrivatePIN": "5678"}'
+      responses:
+        "200":
+          description: "User modified"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+
+  /api/user/del:
+    post:
+      summary: "Delete a local user"
+      operationId: deleteUser
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+            example: '{"ID": "1"}'
+      responses:
+        "200":
+          description: "User deleted"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+
+  /api/schedule/get:
+    post:
+      summary: "List schedules (paginated)"
+      operationId: listSchedules
+      requestBody:
+        content:
+          text/plain:
+            schema:
+              type: string
+            example: '{"page": 1}'
+      responses:
+        "200":
+          description: "Schedule list retrieved"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleListResponse"
+
+  /api/schedule/add:
+    post:
+      summary: "Add a schedule"
+      operationId: addSchedule
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+            example: >
+              {"Type": "1", "Name": "Weekday Access",
+               "Week": "12345",
+               "Daily": "08:00-18:00"}
+      responses:
+        "200":
+          description: "Schedule added"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResponse"
+
+  /api/schedule/set:
+    post:
+      summary: "Modify a schedule"
+      operationId: modifySchedule
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+            example: '{"ID": "1001", "Name": "Updated Schedule"}'
+      responses:
+        "200":
+          description: "Schedule modified"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResponse"
+
+  /api/schedule/del:
+    post:
+      summary: "Delete a schedule"
+      operationId: deleteSchedule
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+            example: '{"ID": "1001"}'
+      responses:
+        "200":
+          description: "Schedule deleted"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResponse"
+
+  /api/doorlog/get:
+    post:
+      summary: "Get door access logs (paginated)"
+      operationId: getDoorLogs
+      requestBody:
+        content:
+          text/plain:
+            schema:
+              type: string
+            example: '{"page": 1}'
+      responses:
+        "200":
+          description: "Door logs retrieved"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DoorLogResponse"
+
+  /api/calllog/get:
+    post:
+      summary: "Get call logs (paginated)"
+      operationId: getCallLogs
+      requestBody:
+        content:
+          text/plain:
+            schema:
+              type: string
+            example: '{"page": 1}'
+      responses:
+        "200":
+          description: "Call logs retrieved"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallLogResponse"
+
+components:
+  schemas:
+    EnvelopeResponse:
+      type: object
+      properties:
+        retcode:
+          type: integer
+          description: "0 = success, non-zero = error"
+        action:
+          type: string
+        message:
+          type: string
+        data:
+          type: object
+
+    ActionResponse:
+      type: object
+      properties:
+        retcode:
+          type: integer
+        action:
+          type: string
+        message:
+          type: string
+
+    DeviceInfoResponse:
+      type: object
+      properties:
+        retcode:
+          type: integer
+        action:
+          type: string
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            Status:
+              type: object
+              properties:
+                Model:
+                  type: string
+                MAC:
+                  type: string
+                FirmwareVersion:
+                  type: string
+                HardwareVersion:
+                  type: string
+                Uptime:
+                  type: string
+                WebLang:
+                  type: string
+            Lan:
+              type: object
+              properties:
+                IPAddress:
+                  type: string
+                SubnetMask:
+                  type: string
+                Gateway:
+                  type: string
+                LinkStatus:
+                  type: string
+
+    UserListResponse:
+      type: object
+      properties:
+        retcode:
+          type: integer
+        action:
+          type: string
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            curPageNum:
+              type: integer
+            num:
+              type: integer
+            item:
+              type: array
+              items:
+                $ref: "#/components/schemas/UserItem"
+
+    UserItem:
+      type: object
+      required:
+        - ID
+        - Name
+        - UserID
+        - PrivatePIN
+        - CardCode
+        - WebRelay
+        - ScheduleRelay
+        - Source
+        - SourceType
+        - Type
+      properties:
+        ID:
+          type: string
+        Name:
+          type: string
+        UserID:
+          type: string
+        PrivatePIN:
+          type: string
+          description: "PIN code (4-8 digits only; other chars accepted
+            by API but unusable at device)"
+          pattern: "^([0-9]{4,8})?$"
+        CardCode:
+          type: string
+        WebRelay:
+          type: string
+        ScheduleRelay:
+          type: string
+          description: "Schedule-relay pairs as <ScheduleID>-<RelayID>;
+            per schedule. Trailing semicolon required. Example:
+            1001-1;1002-2;"
+          pattern: "^([0-9]+-[0-9]+;)+$"
+        LiftFloorNum:
+          type: string
+        Source:
+          type: string
+        SourceType:
+          type: string
+        Type:
+          type: string
+
+    ScheduleListResponse:
+      type: object
+      properties:
+        retcode:
+          type: integer
+        action:
+          type: string
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            num:
+              type: integer
+            curPageNum:
+              type: integer
+            item:
+              type: array
+              items:
+                $ref: "#/components/schemas/ScheduleItem"
+
+    ScheduleItem:
+      type: object
+      required:
+        - ID
+        - Name
+        - Type
+        - DateStart
+        - DateEnd
+        - TimeStart
+        - TimeEnd
+      properties:
+        ID:
+          type: string
+        Name:
+          type: string
+        Type:
+          type: string
+        DisplayID:
+          type: string
+        DateStart:
+          type: string
+        DateEnd:
+          type: string
+        TimeStart:
+          type: string
+        TimeEnd:
+          type: string
+        Sun:
+          type: string
+        Mon:
+          type: string
+        Tue:
+          type: string
+        Wed:
+          type: string
+        Thur:
+          type: string
+        Fri:
+          type: string
+        Sat:
+          type: string
+        Daily:
+          type: string
+        Week:
+          type: string
+        Mode:
+          type: string
+        SourceType:
+          type: string
+
+    DoorLogResponse:
+      type: object
+      properties:
+        retcode:
+          type: integer
+        action:
+          type: string
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            curPageNum:
+              type: integer
+            num:
+              type: integer
+            item:
+              type: array
+              items:
+                $ref: "#/components/schemas/DoorLogItem"
+
+    DoorLogItem:
+      type: object
+      required:
+        - ID
+        - Date
+        - Time
+        - Name
+        - Code
+        - Type
+        - Relay
+        - Status
+      properties:
+        ID:
+          type: string
+        Date:
+          type: string
+        Time:
+          type: string
+        Name:
+          type: string
+        Code:
+          type: string
+        Type:
+          type: string
+        Relay:
+          type: string
+        Status:
+          type: string
+        AccessMode:
+          type: string
+
+    CallLogResponse:
+      type: object
+      properties:
+        retcode:
+          type: integer
+        action:
+          type: string
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            curPageNum:
+              type: integer
+            num:
+              type: integer
+            item:
+              type: array
+              items:
+                $ref: "#/components/schemas/CallLogItem"
+
+    CallLogItem:
+      type: object
+      required:
+        - ID
+        - Date
+        - Time
+        - Name
+        - Type
+        - LocalIdentity
+        - Num
+      properties:
+        ID:
+          type: string
+        Date:
+          type: string
+        Time:
+          type: string
+        Name:
+          type: string
+        Type:
+          type: string
+          description: "Dialed, Received, Missed, Forwarded, Unknow"
+        LocalIdentity:
+          type: string
+        Num:
+          type: string
+        PicUrl:
+          type: string
