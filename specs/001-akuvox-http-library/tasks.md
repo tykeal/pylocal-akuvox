@@ -38,7 +38,7 @@ tooling per plan.md and research.md R10.
   version and public API re-exports (empty stubs for now)
 - [x] T003 [P] Create empty test structure: tests/`__init__`.py,
   tests/conftest.py (shared fixtures), tests/unit/`__init__`.py
-- [x] T004 [P] Configure ruff in pyproject.toml: enable C901
+- [x] T004 [P] Configure ruff in ruff.toml: enable C901
   with max-complexity=10, enable type-checking rules, set
   target Python 3.14
 - [x] T005 [P] Configure mypy in pyproject.toml: strict mode,

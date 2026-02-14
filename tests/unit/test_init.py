@@ -42,7 +42,7 @@ def test_version_fallback() -> None:
     with patch.object(
         importlib.metadata,
         "version",
-        side_effect=importlib.metadata.PackageNotFoundError,
+        side_effect=importlib.metadata.PackageNotFoundError("pylocal-akuvox"),
     ):
         import importlib as imp
 
