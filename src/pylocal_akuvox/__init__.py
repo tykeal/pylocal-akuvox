@@ -6,6 +6,7 @@
 import importlib.metadata
 
 from pylocal_akuvox.auth import AuthConfig, AuthMethod
+from pylocal_akuvox.device import AkuvoxDevice
 from pylocal_akuvox.exceptions import (
     AkuvoxAuthenticationError,
     AkuvoxConnectionError,
@@ -28,6 +29,7 @@ except importlib.metadata.PackageNotFoundError:
 __all__: list[str] = [
     "AkuvoxAuthenticationError",
     "AkuvoxConnectionError",
+    "AkuvoxDevice",
     "AkuvoxDeviceError",
     "AkuvoxError",
     "AkuvoxParseError",
