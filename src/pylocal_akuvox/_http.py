@@ -163,7 +163,8 @@ class AkuvoxHttpClient:
                 self._auth.username or "",
                 self._auth.password or "",
             ), ()
-        # DIGEST uses aiohttp DigestAuthMiddleware
+        # DIGEST: aiohttp 3.13+ uses DigestAuthMiddleware via middlewares param.
+        # There is no aiohttp.DigestAuth; digest auth requires middleware.
         return None, (
             aiohttp.DigestAuthMiddleware(
                 self._auth.username or "",

@@ -26,6 +26,9 @@ class DeviceInfo:
     def from_api_response(cls, data: dict[str, Any]) -> DeviceInfo:
         """Create DeviceInfo from API response data."""
         status = data.get("Status", {})
+        if not isinstance(status, dict):
+            msg = "Expected 'Status' to be a dict in device info"
+            raise AkuvoxParseError(msg)
         web_lang = status.get("WebLang")
         try:
             web_language = int(web_lang) if web_lang is not None else None

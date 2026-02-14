@@ -15,6 +15,20 @@ dependencies = [
     "aiohttp>=3.11",
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+    "pytest-asyncio>=1.0",
+    "pytest-cov>=6.0",
+    "aioresponses>=0.7",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=1.0",
+    "pytest-cov>=6.0",
+    "aioresponses>=0.7",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",

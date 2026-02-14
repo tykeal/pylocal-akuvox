@@ -5,6 +5,7 @@
 
 import asyncio
 import json
+from typing import Any
 
 import aiohttp
 import pytest
@@ -212,7 +213,7 @@ async def test_concurrent_requests_serialize(
     client: AkuvoxHttpClient,
 ) -> None:
     """Verify concurrent requests are serialized via Lock."""
-    call_order: list[int] = []
+    events: list[str] = []
     response = {
         "retcode": 0,
         "action": "getSystemInfo",
@@ -220,19 +221,37 @@ async def test_concurrent_requests_serialize(
         "data": {},
     }
 
+    original_request = client._request
+
+    async def instrumented_request(
+        method: str, path: str, data: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Record entry/exit to verify non-overlap."""
+        idx = len([e for e in events if e.startswith("enter")])
+        events.append(f"enter-{idx}")
+        result = await original_request(method, path, data)
+        events.append(f"exit-{idx}")
+        return result
+
+    client._request = instrumented_request  # type: ignore[method-assign]
+
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/system/info", payload=response, repeat=True)
 
         async with client:
+            await asyncio.gather(
+                client.get("/api/system/info"),
+                client.get("/api/system/info"),
+                client.get("/api/system/info"),
+            )
 
-            async def make_request(idx: int) -> None:
-                """Send a request and record order."""
-                await client.get("/api/system/info")
-                call_order.append(idx)
-
-            await asyncio.gather(make_request(0), make_request(1), make_request(2))
-
-    assert len(call_order) == 3
+    # With serialization, events must alternate enter/exit (no overlap)
+    assert len(events) == 6
+    for i in range(0, 6, 2):
+        assert events[i].startswith("enter")
+        assert events[i + 1].startswith("exit")
+        # Each exit matches its enter
+        assert events[i].split("-")[1] == events[i + 1].split("-")[1]
 
 
 async def test_post_sends_text_plain(client: AkuvoxHttpClient) -> None:

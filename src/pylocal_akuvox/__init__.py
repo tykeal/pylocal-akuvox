@@ -5,7 +5,6 @@
 
 import importlib.metadata
 
-from pylocal_akuvox._http import AkuvoxHttpClient
 from pylocal_akuvox.auth import AuthConfig, AuthMethod
 from pylocal_akuvox.exceptions import (
     AkuvoxAuthenticationError,
@@ -31,7 +30,6 @@ __all__: list[str] = [
     "AkuvoxConnectionError",
     "AkuvoxDeviceError",
     "AkuvoxError",
-    "AkuvoxHttpClient",
     "AkuvoxParseError",
     "AkuvoxRequestError",
     "AkuvoxUnsupportedError",

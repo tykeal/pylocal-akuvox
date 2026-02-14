@@ -321,6 +321,20 @@ dependencies = [
     { name = "aiohttp" },
 ]
 
+[package.optional-dependencies]
+dev = [
+    { name = "aioresponses" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+]
+test = [
+    { name = "aioresponses" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "aioresponses" },
@@ -330,7 +344,18 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "aiohttp", specifier = ">=3.11" }]
+requires-dist = [
+    { name = "aiohttp", specifier = ">=3.11" },
+    { name = "aioresponses", marker = "extra == 'dev'", specifier = ">=0.7" },
+    { name = "aioresponses", marker = "extra == 'test'", specifier = ">=0.7" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=8.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.0" },
+    { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=1.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0" },
+    { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=6.0" },
+]
+provides-extras = ["dev", "test"]
 
 [package.metadata.requires-dev]
 dev = [

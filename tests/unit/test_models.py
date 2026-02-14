@@ -146,3 +146,12 @@ def test_relay_missing_required_field() -> None:
     data = {"state": "open"}
     with pytest.raises(AkuvoxParseError, match="Missing required field"):
         Relay.from_api_response(data)
+
+
+def test_device_info_null_status_raises_parse_error() -> None:
+    """Verify null Status value raises AkuvoxParseError."""
+    from pylocal_akuvox.exceptions import AkuvoxParseError
+
+    data = {"Status": None}
+    with pytest.raises(AkuvoxParseError, match="Expected 'Status' to be a dict"):
+        DeviceInfo.from_api_response(data)
