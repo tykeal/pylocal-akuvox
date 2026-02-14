@@ -163,17 +163,17 @@ verify DeviceStatus fields populated.
 
 ### Tests for User Story 2
 
-- [ ] T022 [P] [US2] Write unit tests for get_status in
+- [x] T022 [P] [US2] Write unit tests for get_status in
   tests/unit/test_device.py: calls GET /api/system/status,
   returns DeviceStatus with unix_time and uptime, partial
   data returns available fields with None for missing
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] Implement get_status() method on AkuvoxDevice
+- [x] T023 [US2] Implement get_status() method on AkuvoxDevice
   in src/pylocal_akuvox/device.py: calls GET /api/system/status,
   returns DeviceStatus, handles partial data gracefully
-- [ ] T024 [US2] Verify US2 tests pass:
+- [x] T024 [US2] Verify US2 tests pass:
   `uv run pytest tests/unit/test_device.py -x -q`
 
 **Checkpoint**: US2 complete — device status retrieval works
