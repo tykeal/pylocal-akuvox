@@ -89,7 +89,7 @@ class AkuvoxHttpClient:
         data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Execute an HTTP request and parse the response envelope."""
-        if self._session is None:
+        if self._session is None or self._session.closed:
             msg = "Session not open; use async context manager"
             raise AkuvoxConnectionError(msg)
 
