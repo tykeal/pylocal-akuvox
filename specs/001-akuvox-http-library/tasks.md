@@ -192,40 +192,40 @@ presence, modify PIN, delete user, verify removal.
 
 ### Tests for User Story 3
 
-- [ ] T025 [P] [US3] Write unit tests for User model in
+- [x] T025 [P] [US3] Write unit tests for User model in
   tests/unit/test_models.py: User from_api_response maps all
   fields (ID, Name, UserID, PrivatePIN, CardCode, WebRelay,
   ScheduleRelay, LiftFloorNum, Type, Source, SourceType),
   snake_case attrs, optional fields default None
-- [ ] T026 [P] [US3] Write unit tests for PIN validation in
+- [x] T026 [P] [US3] Write unit tests for PIN validation in
   tests/unit/test_users.py: 4-8 digit PINs accepted (incl
   "0000"), <4 or >8 digits rejected, non-digit chars rejected,
   empty/None PIN allowed (optional field), schedule_relay
   format validated as `NNN-NNN;` pattern (data-model.md)
-- [ ] T027 [P] [US3] Write unit tests for user CRUD operations
+- [x] T027 [P] [US3] Write unit tests for user CRUD operations
   in tests/unit/test_users.py: add_user POSTs to
   /api/user/add with required fields (Name, UserID, WebRelay,
   ScheduleRelay, LiftFloorNum), list_users POSTs to
   /api/user/get and paginates, modify_user POSTs to
   /api/user/set with ID, delete_user POSTs to /api/user/del
   with ID, add_user with duplicate Name or PIN returns
-  non-zero retcode mapped to AkuvoxRequestError (edge case:
+  non-zero retcode mapped to AkuvoxDeviceError (edge case:
   duplicate user conflict) (mock with aioresponses)
 
 ### Implementation for User Story 3
 
-- [ ] T028 [US3] Add User model to src/pylocal_akuvox/models.py:
+- [x] T028 [US3] Add User model to src/pylocal_akuvox/models.py:
   all fields from data-model.md User entity, from_api_response
   class method, to_api_payload for add/set operations
-- [ ] T029 [US3] Implement user operations module in
+- [x] T029 [US3] Implement user operations module in
   src/pylocal_akuvox/users.py: validate_pin (4-8 digits),
   validate_schedule_relay (`NNN-NNN;` pattern), add_user,
   list_users (with pagination helper), modify_user, delete_user
   — all using `_http` client (FR-013, FR-014, R4, R7)
-- [ ] T030 [US3] Wire user methods onto AkuvoxDevice in
+- [x] T030 [US3] Wire user methods onto AkuvoxDevice in
   src/pylocal_akuvox/device.py: add_user, list_users,
   modify_user, delete_user delegating to users module
-- [ ] T031 [US3] Verify US3 tests pass and quickstart user
+- [x] T031 [US3] Verify US3 tests pass and quickstart user
   management example works:
   `uv run pytest tests/unit/test_users.py -x -q`
 

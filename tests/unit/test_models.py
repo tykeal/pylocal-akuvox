@@ -5,7 +5,7 @@
 
 import pytest
 
-from pylocal_akuvox.models import DeviceInfo, DeviceStatus, Relay
+from pylocal_akuvox.models import DeviceInfo, DeviceStatus, Relay, User
 
 
 def test_device_info_from_api_response() -> None:
@@ -191,3 +191,145 @@ def test_relay_none_number_raises_parse_error() -> None:
     data = {"number": None, "state": "open"}
     with pytest.raises(AkuvoxParseError, match="Invalid type for relay"):
         Relay.from_api_response(data)
+
+
+# -- T025: User model tests --
+
+
+def test_user_from_api_response_all_fields() -> None:
+    """Verify User maps all PascalCase API fields to snake_case."""
+    data = {
+        "ID": "42",
+        "Name": "Alice",
+        "UserID": "2001",
+        "PrivatePIN": "1234",
+        "CardCode": "ABCD1234",
+        "WebRelay": "1",
+        "ScheduleRelay": "1001-1;",
+        "LiftFloorNum": "3",
+        "Type": "ordinary",
+        "Source": "web",
+        "SourceType": "Local",
+    }
+    user = User.from_api_response(data)
+    assert user.id == "42"
+    assert user.name == "Alice"
+    assert user.user_id == "2001"
+    assert user.private_pin == "1234"
+    assert user.card_code == "ABCD1234"
+    assert user.web_relay == "1"
+    assert user.schedule_relay == "1001-1;"
+    assert user.lift_floor_num == "3"
+    assert user.user_type == "ordinary"
+    assert user.source == "web"
+    assert user.source_type == "Local"
+
+
+def test_user_from_api_response_optional_defaults() -> None:
+    """Verify User optional fields default to None."""
+    data = {
+        "ID": "1",
+        "Name": "Bob",
+        "UserID": "2002",
+        "WebRelay": "0",
+        "ScheduleRelay": "1001-1;",
+    }
+    user = User.from_api_response(data)
+    assert user.private_pin is None
+    assert user.card_code is None
+    assert user.lift_floor_num is None
+    assert user.user_type is None
+    assert user.source is None
+    assert user.source_type is None
+
+
+def test_user_from_api_response_missing_name_raises() -> None:
+    """Verify missing Name raises AkuvoxParseError."""
+    from pylocal_akuvox.exceptions import AkuvoxParseError
+
+    data = {"ID": "1", "UserID": "2002", "WebRelay": "0", "ScheduleRelay": "1001-1;"}
+    with pytest.raises(AkuvoxParseError, match="Missing required field"):
+        User.from_api_response(data)
+
+
+def test_user_from_api_response_missing_user_id_raises() -> None:
+    """Verify missing UserID raises AkuvoxParseError."""
+    from pylocal_akuvox.exceptions import AkuvoxParseError
+
+    data = {"ID": "1", "Name": "Bob", "WebRelay": "0", "ScheduleRelay": "1001-1;"}
+    with pytest.raises(AkuvoxParseError, match="Missing required field"):
+        User.from_api_response(data)
+
+
+def test_user_is_frozen() -> None:
+    """Verify User dataclass is immutable."""
+    data = {
+        "ID": "1",
+        "Name": "Charlie",
+        "UserID": "2003",
+        "WebRelay": "0",
+        "ScheduleRelay": "1001-1;",
+    }
+    user = User.from_api_response(data)
+    with pytest.raises(AttributeError):
+        user.name = "Dave"  # type: ignore[misc]
+
+
+def test_user_to_api_payload_add() -> None:
+    """Verify to_api_payload produces correct PascalCase dict for add."""
+    data = {
+        "ID": "1",
+        "Name": "Alice",
+        "UserID": "2001",
+        "PrivatePIN": "1234",
+        "WebRelay": "0",
+        "ScheduleRelay": "1001-1;",
+        "LiftFloorNum": "0",
+    }
+    user = User.from_api_response(data)
+    payload = user.to_api_payload()
+    assert payload["Name"] == "Alice"
+    assert payload["UserID"] == "2001"
+    assert payload["PrivatePIN"] == "1234"
+    assert payload["WebRelay"] == "0"
+    assert payload["ScheduleRelay"] == "1001-1;"
+    assert payload["LiftFloorNum"] == "0"
+
+
+def test_user_to_api_payload_excludes_none() -> None:
+    """Verify to_api_payload excludes None-valued optional fields."""
+    data = {
+        "Name": "Bob",
+        "UserID": "2002",
+        "WebRelay": "0",
+        "ScheduleRelay": "1001-1;",
+    }
+    user = User.from_api_response(data)
+    payload = user.to_api_payload()
+    assert "ID" not in payload
+    assert "PrivatePIN" not in payload
+    assert "CardCode" not in payload
+    assert "LiftFloorNum" not in payload
+
+
+def test_user_to_api_payload_all_optional_fields() -> None:
+    """Verify to_api_payload includes card_code and user_type when set."""
+    data = {
+        "ID": "1",
+        "Name": "Alice",
+        "UserID": "2001",
+        "PrivatePIN": "1234",
+        "CardCode": "RFID999",
+        "WebRelay": "0",
+        "ScheduleRelay": "1001-1;",
+        "LiftFloorNum": "3",
+        "Type": "admin",
+        "Source": "web",
+        "SourceType": "Local",
+    }
+    user = User.from_api_response(data)
+    payload = user.to_api_payload()
+    assert payload["ID"] == "1"
+    assert payload["CardCode"] == "RFID999"
+    assert payload["Type"] == "admin"
+    assert payload["LiftFloorNum"] == "3"
