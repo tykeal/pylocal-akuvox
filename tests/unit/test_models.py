@@ -166,10 +166,28 @@ def test_device_status_invalid_type_raises_parse_error() -> None:
         DeviceStatus.from_api_response(data)
 
 
+def test_device_status_none_type_raises_parse_error() -> None:
+    """Verify None SystemTime raises AkuvoxParseError via TypeError."""
+    from pylocal_akuvox.exceptions import AkuvoxParseError
+
+    data = {"SystemTime": None, "UpTime": 100}
+    with pytest.raises(AkuvoxParseError, match="Invalid type"):
+        DeviceStatus.from_api_response(data)
+
+
 def test_relay_invalid_number_type_raises_parse_error() -> None:
     """Verify non-integer relay number raises AkuvoxParseError."""
     from pylocal_akuvox.exceptions import AkuvoxParseError
 
     data = {"number": "abc", "state": "open"}
+    with pytest.raises(AkuvoxParseError, match="Invalid type for relay"):
+        Relay.from_api_response(data)
+
+
+def test_relay_none_number_raises_parse_error() -> None:
+    """Verify None relay number raises AkuvoxParseError via TypeError."""
+    from pylocal_akuvox.exceptions import AkuvoxParseError
+
+    data = {"number": None, "state": "open"}
     with pytest.raises(AkuvoxParseError, match="Invalid type for relay"):
         Relay.from_api_response(data)

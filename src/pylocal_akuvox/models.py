@@ -74,7 +74,12 @@ class DeviceStatus:
                 unix_time=int(raw_time),
                 uptime=int(raw_uptime),
             )
-        except (ValueError, TypeError) as exc:
+        except ValueError as exc:
+            # Separate handlers due to ruff 0.15.0 format bug
+            # that strips parens from `except (ValueError, TypeError):`
+            msg = "Invalid type for 'SystemTime' or 'UpTime' in device status"
+            raise AkuvoxParseError(msg) from exc
+        except TypeError as exc:
             msg = "Invalid type for 'SystemTime' or 'UpTime' in device status"
             raise AkuvoxParseError(msg) from exc
 
@@ -97,7 +102,12 @@ class Relay:
 
         try:
             number = int(raw_number)
-        except (ValueError, TypeError) as exc:
+        except ValueError as exc:
+            # Separate handlers due to ruff 0.15.0 format bug
+            # that strips parens from `except (ValueError, TypeError):`
+            msg = f"Invalid type for relay 'number': got {raw_number!r}"
+            raise AkuvoxParseError(msg) from exc
+        except TypeError as exc:
             msg = f"Invalid type for relay 'number': got {raw_number!r}"
             raise AkuvoxParseError(msg) from exc
 
