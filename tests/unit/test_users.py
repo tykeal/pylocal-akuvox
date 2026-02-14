@@ -3,6 +3,9 @@
 
 """Tests for user operations: PIN validation and CRUD."""
 
+import json
+
+import aiohttp
 import pytest
 from aioresponses import aioresponses
 
@@ -138,6 +141,15 @@ async def test_add_user_posts_to_correct_endpoint() -> None:
                 lift_floor_num="0",
             )
 
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/add"))
+        call = m.requests[url_key][0]
+        body = json.loads(call.kwargs.get("data", ""))
+        assert body["Name"] == "Alice"
+        assert body["UserID"] == "2001"
+        assert body["WebRelay"] == "0"
+        assert body["ScheduleRelay"] == "1001-1;"
+        assert body["LiftFloorNum"] == "0"
+
 
 async def test_add_user_with_pin() -> None:
     """Verify add_user includes optional PIN in payload."""
@@ -217,6 +229,13 @@ async def test_modify_user_empty_pin_omitted() -> None:
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.modify_user(id="1", private_pin="", name="Updated")
 
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+        call = m.requests[url_key][0]
+        body = json.loads(call.kwargs.get("data", ""))
+        assert "PrivatePIN" not in body
+        assert body["ID"] == "1"
+        assert body["Name"] == "Updated"
+
 
 async def test_list_users_posts_to_correct_endpoint() -> None:
     """Verify list_users POSTs to /api/user/get and returns User list."""
@@ -290,6 +309,11 @@ async def test_list_users_paginated() -> None:
         )
         async with AkuvoxDevice("192.168.1.100") as device:
             users = await device.list_users(page=1)
+
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/get"))
+        call = m.requests[url_key][0]
+        body = json.loads(call.kwargs.get("data", ""))
+        assert body["page"] == 1
 
     assert len(users) == 1
 
@@ -464,3 +488,62 @@ async def test_modify_user_without_pin() -> None:
                 name="Updated",
                 card_code="CARD123",
             )
+
+
+async def test_add_user_empty_name_raises() -> None:
+    """Verify add_user rejects empty name (required field)."""
+    async with AkuvoxDevice("192.168.1.100") as device:
+        with pytest.raises(AkuvoxValidationError, match="name"):
+            await device.add_user(
+                name="",
+                user_id="2001",
+                web_relay="0",
+                schedule_relay="1001-1;",
+                lift_floor_num="0",
+            )
+
+
+async def test_add_user_empty_user_id_raises() -> None:
+    """Verify add_user rejects empty user_id (required field)."""
+    async with AkuvoxDevice("192.168.1.100") as device:
+        with pytest.raises(AkuvoxValidationError, match="user_id"):
+            await device.add_user(
+                name="Alice",
+                user_id="",
+                web_relay="0",
+                schedule_relay="1001-1;",
+                lift_floor_num="0",
+            )
+
+
+async def test_list_users_non_dict_items_skipped() -> None:
+    """Verify list_users skips non-dict items in the response."""
+    with aioresponses() as m:
+        m.post(
+            f"{BASE_URL}/api/user/get",
+            payload={
+                "retcode": 0,
+                "action": "get",
+                "message": "",
+                "data": {
+                    "num": 2,
+                    "curPageNum": 2,
+                    "item": [
+                        {
+                            "ID": "1",
+                            "Name": "Alice",
+                            "UserID": "2001",
+                            "WebRelay": "0",
+                            "ScheduleRelay": "1001-1;",
+                        },
+                        "not-a-dict",
+                        42,
+                    ],
+                },
+            },
+        )
+        async with AkuvoxDevice("192.168.1.100") as device:
+            users = await device.list_users()
+
+    assert len(users) == 1
+    assert users[0].name == "Alice"

@@ -54,6 +54,12 @@ async def add_user(
     card_code: str | None = None,
 ) -> None:
     """Add a local user to the device."""
+    if not name:
+        msg = "name is required for add_user"
+        raise AkuvoxValidationError(msg)
+    if not user_id:
+        msg = "user_id is required for add_user"
+        raise AkuvoxValidationError(msg)
     validate_pin(private_pin)
     if not schedule_relay:
         msg = "schedule_relay is required for add_user"
@@ -89,7 +95,7 @@ async def list_users(
     items = data.get("item", [])
     if not isinstance(items, list):
         return []
-    return [User.from_api_response(item) for item in items]
+    return [User.from_api_response(item) for item in items if isinstance(item, dict)]
 
 
 async def modify_user(
