@@ -367,7 +367,7 @@ verify device info returned.
   in tests/unit/test_device.py: AkuvoxDevice with
   AuthMethod.NONE sends no headers, ALLOWLIST sends no headers,
   BASIC sends Authorization header via aiohttp.BasicAuth,
-  DIGEST uses aiohttp DigestAuth, verify each mode retrieves
+  DIGEST uses aiohttp DigestAuthMiddleware, verify each mode retrieves
   device info successfully (mock with aioresponses)
 
 ### Implementation for User Story 7
@@ -375,7 +375,7 @@ verify device info returned.
 - [ ] T049 [US7] Integrate auth modes into `_http` client in
   src/pylocal_akuvox/_http.py: map AuthConfig to aiohttp
   auth parameter (None→no auth, AllowList→no auth, Basic→
-  aiohttp.BasicAuth, Digest→aiohttp.DigestAuth) (R3)
+  aiohttp.BasicAuth, Digest→aiohttp.DigestAuthMiddleware) (R3)
 - [ ] T050 [US7] Verify US7 tests pass:
   `uv run pytest tests/unit/test_device.py -x -q`
 
