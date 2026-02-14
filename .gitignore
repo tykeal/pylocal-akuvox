@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-__pycache__
+__pycache__/
 pythonenv*
 .python-version
 .coverage
@@ -31,3 +31,11 @@ data/.encryption_key
 
 # Environment files
 .env
+
+# Build artifacts
+dist/
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/

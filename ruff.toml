@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
+# SPDX-License-Identifier: Apache-2.0
+
+src = ["src", "tests"]
+
+[lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "UP",     # pyupgrade
+    "C901",   # mccabe complexity
+    "D",      # pydocstyle
+    "ANN",    # flake8-annotations
+    "TCH",    # flake8-type-checking
+]
+ignore = [
+    "D203",   # conflicts with D211
+    "D213",   # conflicts with D212
+]
+
+[lint.mccabe]
+max-complexity = 10
+
+[lint.per-file-ignores]
+"tests/**" = ["D", "ANN"]

@@ -1,0 +1,66 @@
+# SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
+# SPDX-License-Identifier: Apache-2.0
+
+[project]
+name = "pylocal-akuvox"
+dynamic = ["version"]
+description = "Async Python library for the Akuvox local HTTP API"
+readme = "README.md"
+authors = [
+    { name = "Andrew Grimberg", email = "tykeal@bardicgrove.org" }
+]
+requires-python = ">=3.14"
+license = "Apache-2.0"
+dependencies = [
+    "aiohttp>=3.11",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=1.0",
+    "pytest-cov>=6.0",
+    "aioresponses>=0.7",
+]
+
+[build-system]
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.uv-dynamic-versioning]
+vcs = "git"
+style = "pep440"
+fallback-version = "0.0.0"
+
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
+
+# -- Tool Configuration --
+# NOTE: Ruff config is in ruff.toml (validate-pyproject schema-store
+# does not support the latest ruff configuration keys)
+
+[tool.mypy]
+strict = true
+python_version = "3.14"
+packages = ["pylocal_akuvox"]
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--cov=pylocal_akuvox --cov-report=term-missing --cov-report=xml:coverage.xml --cov-report=html"
+
+[tool.coverage.run]
+source = ["pylocal_akuvox"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+]

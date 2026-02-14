@@ -15,6 +15,7 @@ ci:
     Signed-off-by: pre-commit-ci[bot] <pre-commit-ci[bot]@pre-commit.ci>
 
     Changes in this pull request are as follows:
+  skip: [pytest-cov]
 
 exclude: |
   (?x)(
@@ -112,7 +113,7 @@ repos:
     rev: 0470f7c8a653e950f7cc5a653204ceb3fde4c02a  # frozen: v0.15.0
     hooks:
       - id: ruff-check
-        args: [--fix, --exit-non-zero-on-fix, --config=pyproject.toml]
+        args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
 
   - repo: https://github.com/fsfe/reuse-tool
@@ -176,3 +177,13 @@ repos:
           - "types-pygments"
           - "types-pytz"
           - "types-requests"
+
+  - repo: local
+    hooks:
+      - id: pytest-cov
+        name: pytest (100% coverage)
+        language: system
+        entry: uv run pytest --no-header -q
+        pass_filenames: false
+        always_run: true
+        types: [python]

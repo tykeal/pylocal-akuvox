@@ -13,3 +13,12 @@ path = [
 ]
 SPDX-License-Identifier = "Apache-2.0"
 SPDX-FileCopyrightText = "2026 Andrew Grimberg <tykeal@bardicgrove.org>"
+
+# Generated/marker files that cannot contain inline headers
+[[annotations]]
+path = [
+    "uv.lock",
+    "src/**/py.typed",
+]
+SPDX-License-Identifier = "Apache-2.0"
+SPDX-FileCopyrightText = "2026 Andrew Grimberg <tykeal@bardicgrove.org>"
