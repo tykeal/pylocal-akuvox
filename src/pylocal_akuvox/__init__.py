@@ -5,6 +5,20 @@
 
 import importlib.metadata
 
+from pylocal_akuvox._http import AkuvoxHttpClient
+from pylocal_akuvox.auth import AuthConfig, AuthMethod
+from pylocal_akuvox.exceptions import (
+    AkuvoxAuthenticationError,
+    AkuvoxConnectionError,
+    AkuvoxDeviceError,
+    AkuvoxError,
+    AkuvoxParseError,
+    AkuvoxRequestError,
+    AkuvoxUnsupportedError,
+    AkuvoxValidationError,
+)
+from pylocal_akuvox.models import DeviceInfo, DeviceStatus, Relay
+
 _DIST_NAME = "pylocal-akuvox"
 
 try:
@@ -12,5 +26,19 @@ try:
 except importlib.metadata.PackageNotFoundError:
     __version__ = "0.0.0"
 
-# Public API re-exports will be added as modules are implemented.
-__all__: list[str] = []
+__all__: list[str] = [
+    "AkuvoxAuthenticationError",
+    "AkuvoxConnectionError",
+    "AkuvoxDeviceError",
+    "AkuvoxError",
+    "AkuvoxHttpClient",
+    "AkuvoxParseError",
+    "AkuvoxRequestError",
+    "AkuvoxUnsupportedError",
+    "AkuvoxValidationError",
+    "AuthConfig",
+    "AuthMethod",
+    "DeviceInfo",
+    "DeviceStatus",
+    "Relay",
+]
