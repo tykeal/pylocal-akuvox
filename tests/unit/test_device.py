@@ -13,7 +13,7 @@ from pylocal_akuvox.exceptions import (
     AkuvoxConnectionError,
     AkuvoxParseError,
 )
-from pylocal_akuvox.models import DeviceInfo
+from pylocal_akuvox.models import DeviceInfo, DeviceStatus
 
 BASE_URL = "http://192.168.1.100"
 
@@ -198,3 +198,79 @@ async def test_missing_required_field_raises_parse_error() -> None:
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxParseError, match="Missing required field"):
                 await device.get_info()
+
+
+# -- T022: get_status tests --
+
+
+async def test_get_status_returns_device_status() -> None:
+    """Verify get_status calls GET /api/system/status and returns DeviceStatus."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/system/status",
+            payload={
+                "retcode": 0,
+                "action": "status",
+                "message": "",
+                "data": {"SystemTime": 1700000000, "UpTime": 86400},
+            },
+        )
+        async with AkuvoxDevice("192.168.1.100") as device:
+            status = await device.get_status()
+
+    assert isinstance(status, DeviceStatus)
+    assert status.unix_time == 1700000000
+    assert status.uptime == 86400
+
+
+async def test_get_status_missing_field_raises_parse_error() -> None:
+    """Verify missing SystemTime raises AkuvoxParseError."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/system/status",
+            payload={
+                "retcode": 0,
+                "action": "status",
+                "message": "",
+                "data": {"UpTime": 100},
+            },
+        )
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxParseError, match="Missing required field"):
+                await device.get_status()
+
+
+async def test_get_status_invalid_type_raises_parse_error() -> None:
+    """Verify non-integer SystemTime raises AkuvoxParseError."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/system/status",
+            payload={
+                "retcode": 0,
+                "action": "status",
+                "message": "",
+                "data": {"SystemTime": "bad", "UpTime": 100},
+            },
+        )
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxParseError, match="Invalid type"):
+                await device.get_status()
+
+
+async def test_get_status_string_ints_coerced() -> None:
+    """Verify string-encoded integers are coerced to int."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/system/status",
+            payload={
+                "retcode": 0,
+                "action": "status",
+                "message": "",
+                "data": {"SystemTime": "1700000000", "UpTime": "3600"},
+            },
+        )
+        async with AkuvoxDevice("192.168.1.100") as device:
+            status = await device.get_status()
+
+    assert status.unix_time == 1700000000
+    assert status.uptime == 3600

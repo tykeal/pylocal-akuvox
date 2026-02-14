@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pylocal_akuvox._http import AkuvoxHttpClient
-from pylocal_akuvox.models import DeviceInfo
+from pylocal_akuvox.models import DeviceInfo, DeviceStatus
 
 if TYPE_CHECKING:
     from pylocal_akuvox.auth import AuthConfig
@@ -44,3 +44,8 @@ class AkuvoxDevice:
         """Retrieve device identification data."""
         data = await self._http.get("/api/system/info")
         return DeviceInfo.from_api_response(data)
+
+    async def get_status(self) -> DeviceStatus:
+        """Retrieve device operational status."""
+        data = await self._http.get("/api/system/status")
+        return DeviceStatus.from_api_response(data)
