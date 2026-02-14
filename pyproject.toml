@@ -3,7 +3,7 @@
 
 [project]
 name = "pylocal-akuvox"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Async Python library for the Akuvox local HTTP API"
 readme = "README.md"
 authors = [
@@ -23,8 +23,19 @@ dev = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.9.30,<0.10.0"]
-build-backend = "uv_build"
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.uv-dynamic-versioning]
+vcs = "git"
+style = "pep440"
+fallback-version = "0.0.0"
+
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 
 # -- Tool Configuration --
 # NOTE: Ruff config is in ruff.toml (validate-pyproject schema-store
