@@ -116,6 +116,9 @@ class AkuvoxHttpClient:
         if resp.status == 400:
             msg = f"Bad request: {resp.status}"
             raise AkuvoxRequestError(msg)
+        if 400 < resp.status < 500:
+            msg = f"HTTP client error: {resp.status}"
+            raise AkuvoxRequestError(msg)
         if resp.status >= 500:
             msg = f"Device error: HTTP {resp.status}"
             raise AkuvoxDeviceError(msg)

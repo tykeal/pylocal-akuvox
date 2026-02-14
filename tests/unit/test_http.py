@@ -142,6 +142,28 @@ async def test_http_400_raises_request_error(
                 await client.get("/api/system/info")
 
 
+async def test_http_403_raises_request_error(
+    client: AkuvoxHttpClient,
+) -> None:
+    """Verify HTTP 403 raises AkuvoxRequestError."""
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", status=403)
+        async with client:
+            with pytest.raises(AkuvoxRequestError, match="HTTP client error"):
+                await client.get("/api/system/info")
+
+
+async def test_http_404_raises_request_error(
+    client: AkuvoxHttpClient,
+) -> None:
+    """Verify HTTP 404 raises AkuvoxRequestError."""
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", status=404)
+        async with client:
+            with pytest.raises(AkuvoxRequestError, match="HTTP client error"):
+                await client.get("/api/system/info")
+
+
 async def test_connection_timeout_raises_connection_error(
     client: AkuvoxHttpClient,
 ) -> None:

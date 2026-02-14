@@ -8,6 +8,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from pylocal_akuvox.exceptions import AkuvoxParseError
+
 
 @dataclass(frozen=True)
 class DeviceInfo:
@@ -31,14 +33,18 @@ class DeviceInfo:
             web_language = None
         except TypeError:
             web_language = None
-        return cls(
-            model=status["Model"],
-            mac_address=status["MAC"],
-            firmware_version=status["FirmwareVersion"],
-            hardware_version=status["HardwareVersion"],
-            uptime=status.get("Uptime"),
-            web_language=web_language,
-        )
+        try:
+            return cls(
+                model=status["Model"],
+                mac_address=status["MAC"],
+                firmware_version=status["FirmwareVersion"],
+                hardware_version=status["HardwareVersion"],
+                uptime=status.get("Uptime"),
+                web_language=web_language,
+            )
+        except KeyError as exc:
+            msg = f"Missing required field {exc} in device info"
+            raise AkuvoxParseError(msg) from exc
 
 
 @dataclass(frozen=True)
@@ -51,10 +57,14 @@ class DeviceStatus:
     @classmethod
     def from_api_response(cls, data: dict[str, Any]) -> DeviceStatus:
         """Create DeviceStatus from API response data."""
-        return cls(
-            unix_time=data["SystemTime"],
-            uptime=data["UpTime"],
-        )
+        try:
+            return cls(
+                unix_time=data["SystemTime"],
+                uptime=data["UpTime"],
+            )
+        except KeyError as exc:
+            msg = f"Missing required field {exc} in device status"
+            raise AkuvoxParseError(msg) from exc
 
 
 @dataclass(frozen=True)
@@ -67,7 +77,11 @@ class Relay:
     @classmethod
     def from_api_response(cls, data: dict[str, Any]) -> Relay:
         """Create Relay from API response data."""
-        return cls(
-            number=data["number"],
-            state=data.get("state"),
-        )
+        try:
+            return cls(
+                number=data["number"],
+                state=data.get("state"),
+            )
+        except KeyError as exc:
+            msg = f"Missing required field {exc} in relay data"
+            raise AkuvoxParseError(msg) from exc

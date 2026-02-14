@@ -3,6 +3,8 @@
 
 """Tests for data models."""
 
+import pytest
+
 from pylocal_akuvox.models import DeviceInfo, DeviceStatus, Relay
 
 
@@ -107,7 +109,7 @@ def test_device_info_is_frozen() -> None:
         }
     }
     info = DeviceInfo.from_api_response(data)
-    with __import__("pytest").raises(AttributeError):
+    with pytest.raises(AttributeError):
         info.model = "X1"  # type: ignore[misc]
 
 
@@ -115,5 +117,32 @@ def test_device_status_is_frozen() -> None:
     """Verify DeviceStatus is immutable."""
     data = {"SystemTime": 100, "UpTime": 200}
     status = DeviceStatus.from_api_response(data)
-    with __import__("pytest").raises(AttributeError):
+    with pytest.raises(AttributeError):
         status.unix_time = 999  # type: ignore[misc]
+
+
+def test_device_info_missing_required_field() -> None:
+    """Verify missing required field raises AkuvoxParseError."""
+    from pylocal_akuvox.exceptions import AkuvoxParseError
+
+    data = {"Status": {"Model": "E16C"}}
+    with pytest.raises(AkuvoxParseError, match="Missing required field"):
+        DeviceInfo.from_api_response(data)
+
+
+def test_device_status_missing_required_field() -> None:
+    """Verify missing required field raises AkuvoxParseError."""
+    from pylocal_akuvox.exceptions import AkuvoxParseError
+
+    data = {"SystemTime": 100}
+    with pytest.raises(AkuvoxParseError, match="Missing required field"):
+        DeviceStatus.from_api_response(data)
+
+
+def test_relay_missing_required_field() -> None:
+    """Verify missing required field raises AkuvoxParseError."""
+    from pylocal_akuvox.exceptions import AkuvoxParseError
+
+    data = {"state": "open"}
+    with pytest.raises(AkuvoxParseError, match="Missing required field"):
+        Relay.from_api_response(data)

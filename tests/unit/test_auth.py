@@ -84,3 +84,15 @@ def test_digest_with_creds() -> None:
     """Verify DIGEST auth accepts valid credentials."""
     config = AuthConfig(method=AuthMethod.DIGEST, username="admin", password="secret")
     assert config.method == AuthMethod.DIGEST
+
+
+def test_basic_rejects_empty_username() -> None:
+    """Verify BASIC auth rejects empty username."""
+    with pytest.raises(AkuvoxValidationError):
+        AuthConfig(method=AuthMethod.BASIC, username="", password="pass")
+
+
+def test_basic_rejects_empty_password() -> None:
+    """Verify BASIC auth rejects empty password."""
+    with pytest.raises(AkuvoxValidationError):
+        AuthConfig(method=AuthMethod.BASIC, username="user", password="")
