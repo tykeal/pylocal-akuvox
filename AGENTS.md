@@ -116,6 +116,17 @@ Each commit MUST represent exactly one logical change:
 - ✅ One refactor per commit
 - ❌ Multiple unrelated changes in one commit
 
+### Task List Updates Are Separate Commits
+
+Changes to task tracking documents (e.g., `tasks.md`) MUST be committed
+separately from the code or documentation they track. Bundling a task
+list update into the same commit as the work it describes breaks commit
+atomicity — even when both changes are classified as documentation.
+
+- ✅ Commit 1: `Feat(core): Add HTTP client` (code + tests)
+- ✅ Commit 2: `Docs(tasks): Mark T015 complete` (tasks.md only)
+- ❌ Single commit with code changes **and** tasks.md update
+
 ## SPDX License Headers
 
 All new source files MUST include SPDX headers:
