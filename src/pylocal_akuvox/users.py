@@ -55,6 +55,9 @@ async def add_user(
 ) -> None:
     """Add a local user to the device."""
     validate_pin(private_pin)
+    if not schedule_relay:
+        msg = "schedule_relay is required for add_user"
+        raise AkuvoxValidationError(msg)
     validate_schedule_relay(schedule_relay)
 
     payload: dict[str, Any] = {
@@ -102,6 +105,10 @@ async def modify_user(
     lift_floor_num: str | None = None,
 ) -> None:
     """Modify an existing user on the device."""
+    # Normalize empty strings to None (omit from payload)
+    private_pin = private_pin or None
+    schedule_relay = schedule_relay or None
+
     validate_pin(private_pin)
     validate_schedule_relay(schedule_relay)
 

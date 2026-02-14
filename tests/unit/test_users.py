@@ -94,7 +94,11 @@ def test_validate_schedule_relay_none_allowed() -> None:
 
 
 def test_validate_schedule_relay_empty_allowed() -> None:
-    """Verify empty string schedule_relay is allowed."""
+    """Verify empty string schedule_relay is allowed in validator.
+
+    The validator allows empty for optional contexts (modify_user).
+    add_user enforces non-empty separately.
+    """
     validate_schedule_relay("")
 
 
@@ -183,6 +187,35 @@ async def test_add_user_invalid_schedule_relay_raises() -> None:
                 schedule_relay="bad-format",
                 lift_floor_num="0",
             )
+
+
+async def test_add_user_empty_schedule_relay_raises() -> None:
+    """Verify add_user rejects empty schedule_relay (required field)."""
+    async with AkuvoxDevice("192.168.1.100") as device:
+        with pytest.raises(AkuvoxValidationError, match="schedule_relay"):
+            await device.add_user(
+                name="Alice",
+                user_id="2001",
+                web_relay="0",
+                schedule_relay="",
+                lift_floor_num="0",
+            )
+
+
+async def test_modify_user_empty_pin_omitted() -> None:
+    """Verify modify_user normalizes empty string PIN to None (omit)."""
+    with aioresponses() as m:
+        m.post(
+            f"{BASE_URL}/api/user/set",
+            payload={
+                "retcode": 0,
+                "action": "set",
+                "message": "",
+                "data": {},
+            },
+        )
+        async with AkuvoxDevice("192.168.1.100") as device:
+            await device.modify_user(id="1", private_pin="", name="Updated")
 
 
 async def test_list_users_posts_to_correct_endpoint() -> None:
