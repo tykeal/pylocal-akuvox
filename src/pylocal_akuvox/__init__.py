@@ -17,7 +17,7 @@ from pylocal_akuvox.exceptions import (
     AkuvoxUnsupportedError,
     AkuvoxValidationError,
 )
-from pylocal_akuvox.models import DeviceInfo, DeviceStatus, Relay
+from pylocal_akuvox.models import DeviceInfo, DeviceStatus, Relay, User
 
 _DIST_NAME = "pylocal-akuvox"
 
@@ -41,4 +41,5 @@ __all__: list[str] = [
     "DeviceInfo",
     "DeviceStatus",
     "Relay",
+    "User",
 ]
