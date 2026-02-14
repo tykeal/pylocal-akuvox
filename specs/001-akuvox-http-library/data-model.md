@@ -76,12 +76,13 @@ by `GET /api/system/info`.
 ### DeviceStatus
 
 Point-in-time snapshot of device operational state returned
-by `GET /api/system/status`.
+by `GET /api/system/status`. Returns system time and uptime
+only; relay states are queried via `/api/relay/status`.
 
 | Field | Type | Required | Description |
 | ----- | ---- | -------- | ----------- |
-| unix_time | int | Yes | Device Unix timestamp |
-| uptime | str | Yes | Device online time |
+| unix_time | int | Yes | Device Unix timestamp (SystemTime) |
+| uptime | int | Yes | Device online time in seconds (UpTime) |
 
 ### Relay
 

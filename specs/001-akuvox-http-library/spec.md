@@ -64,8 +64,8 @@ verifying the response contains expected status fields with valid values.
 **Acceptance Scenarios**:
 
 1. **Given** a connected device, **When** the developer requests device
-   status, **Then** the library returns current relay states and network
-   information.
+   status, **Then** the library returns current system time and device
+   uptime.
 2. **Given** a connected device, **When** the developer requests status
    and the device returns partial data, **Then** the library returns
    available fields and indicates which fields are unavailable rather
@@ -337,8 +337,8 @@ successfully in each case.
 ### Assumptions
 
 - The Akuvox HTTP API endpoints follow the documented patterns from
-  official Akuvox HTTP API manuals (e.g., `/action/relay`,
-  `/action/device_info`).
+  official Akuvox HTTP API manuals (e.g., `/api/relay/trig`,
+  `/api/system/info`).
 - The library targets LAN-only communication; no cloud API or remote
   access is in scope.
 - Default request timeout is 10 seconds, suitable for local network

@@ -128,8 +128,10 @@ device address, call get_info(), verify DeviceInfo fields.
 - [ ] T019 [P] [US1] Write unit tests for connection error
   cases in tests/unit/test_device.py: unreachable IP raises
   AkuvoxConnectionError within timeout, HTTP 401 raises
-  AkuvoxAuthenticationError, non-Akuvox response raises
-  AkuvoxParseError
+  AkuvoxAuthenticationError, non-Akuvox response (HTML or
+  missing envelope fields) raises AkuvoxParseError with raw
+  response included for debugging (edge case: non-Akuvox
+  device at target IP)
 
 ### Implementation for User Story 1
 
@@ -204,7 +206,9 @@ presence, modify PIN, delete user, verify removal.
   ScheduleRelay, LiftFloorNum), list_users POSTs to
   /api/user/get and paginates, modify_user POSTs to
   /api/user/set with ID, delete_user POSTs to /api/user/del
-  with ID (mock with aioresponses)
+  with ID, add_user with duplicate Name or PIN returns
+  non-zero retcode mapped to AkuvoxRequestError (edge case:
+  duplicate user conflict) (mock with aioresponses)
 
 ### Implementation for User Story 3
 
@@ -322,7 +326,9 @@ empty list.
   tests/unit/test_logs.py: get_door_logs POSTs to
   /api/doorlog/get with pagination, get_call_logs POSTs to
   /api/calllog/get with pagination, empty device returns
-  empty list not error (R4, R9)
+  empty list not error, truncated log (total count exceeds
+  returned entries) indicated in response metadata (edge
+  case: log storage capacity) (R4, R9)
 
 ### Implementation for User Story 6
 
