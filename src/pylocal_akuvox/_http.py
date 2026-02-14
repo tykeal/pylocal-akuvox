@@ -105,12 +105,7 @@ class AkuvoxHttpClient:
         try:
             async with self._session.request(method, url, **kwargs) as resp:
                 return await self._handle_response(resp)
-        except (
-            aiohttp.ClientConnectorError,
-            aiohttp.ClientOSError,
-            aiohttp.ClientError,
-            TimeoutError,
-        ) as err:
+        except (aiohttp.ClientError, TimeoutError) as err:
             msg = f"Connection to {self._base_url} failed: {err}"
             raise AkuvoxConnectionError(msg) from err
 
