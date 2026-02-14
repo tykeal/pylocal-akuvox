@@ -209,7 +209,7 @@ presence, modify PIN, delete user, verify removal.
   /api/user/get and paginates, modify_user POSTs to
   /api/user/set with ID, delete_user POSTs to /api/user/del
   with ID, add_user with duplicate Name or PIN returns
-  non-zero retcode mapped to AkuvoxRequestError (edge case:
+  non-zero retcode mapped to AkuvoxDeviceError (edge case:
   duplicate user conflict) (mock with aioresponses)
 
 ### Implementation for User Story 3
