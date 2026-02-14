@@ -1,0 +1,41 @@
+# SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
+# SPDX-License-Identifier: Apache-2.0
+
+[project]
+name = "pylocal-akuvox"
+version = "0.1.0"
+description = "Async Python library for the Akuvox local HTTP API"
+readme = "README.md"
+authors = [
+    { name = "Andrew Grimberg", email = "tykeal@bardicgrove.org" }
+]
+requires-python = ">=3.14"
+license = "Apache-2.0"
+dependencies = [
+    "aiohttp>=3.11",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=1.0",
+    "aioresponses>=0.7",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.30,<0.10.0"]
+build-backend = "uv_build"
+
+# -- Tool Configuration --
+# NOTE: Ruff config is in ruff.toml (validate-pyproject schema-store
+# does not support the latest ruff configuration keys)
+
+[tool.mypy]
+strict = true
+python_version = "3.14"
+packages = ["pylocal_akuvox"]
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
