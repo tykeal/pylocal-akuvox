@@ -30,22 +30,22 @@ implementation and testing.
 **Purpose**: Initialize project structure, packaging, and
 tooling per plan.md and research.md R10.
 
-- [ ] T001 Initialize uv project with pyproject.toml at
+- [x] T001 Initialize uv project with pyproject.toml at
   repo root: Python >=3.14, src-layout, project name
   `pylocal-akuvox`, add aiohttp as runtime dependency,
   pytest + pytest-asyncio + aioresponses as dev dependencies
-- [ ] T002 Create src/pylocal_akuvox/`__init__`.py with package
+- [x] T002 Create src/pylocal_akuvox/`__init__`.py with package
   version and public API re-exports (empty stubs for now)
-- [ ] T003 [P] Create empty test structure: tests/`__init__`.py,
+- [x] T003 [P] Create empty test structure: tests/`__init__`.py,
   tests/conftest.py (shared fixtures), tests/unit/`__init__`.py
-- [ ] T004 [P] Configure ruff in pyproject.toml: enable C901
+- [x] T004 [P] Configure ruff in pyproject.toml: enable C901
   with max-complexity=10, enable type-checking rules, set
   target Python 3.14
-- [ ] T005 [P] Configure mypy in pyproject.toml: strict mode,
+- [x] T005 [P] Configure mypy in pyproject.toml: strict mode,
   src-layout package discovery
-- [ ] T006 [P] Configure pytest in pyproject.toml: asyncio_mode
+- [x] T006 [P] Configure pytest in pyproject.toml: asyncio_mode
   = auto, testpaths = ["tests"]
-- [ ] T007 Verify project builds and empty test suite passes:
+- [x] T007 Verify project builds and empty test suite passes:
   `uv run pytest tests/ -x -q`
 
 **Checkpoint**: Project skeleton builds, lints, and tests pass.
