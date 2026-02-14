@@ -48,6 +48,9 @@ class AkuvoxHttpClient:
 
     async def __aenter__(self) -> AkuvoxHttpClient:
         """Open the HTTP session."""
+        if self._session is not None and not self._session.closed:
+            msg = "Session already open; nested context usage is not supported"
+            raise AkuvoxConnectionError(msg)
         aiohttp_auth, middlewares = self._resolve_auth()
         self._session = aiohttp.ClientSession(
             timeout=self._timeout,
@@ -89,6 +92,9 @@ class AkuvoxHttpClient:
         if self._session is None:
             msg = "Session not open; use async context manager"
             raise AkuvoxConnectionError(msg)
+
+        if not path.startswith("/"):
+            path = f"/{path}"
 
         url = f"{self._base_url}{path}"
         kwargs: dict[str, Any] = {}

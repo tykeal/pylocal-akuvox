@@ -345,7 +345,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiohttp", specifier = ">=3.11" },
+    { name = "aiohttp", specifier = ">=3.13" },
     { name = "aioresponses", marker = "extra == 'dev'", specifier = ">=0.7" },
     { name = "aioresponses", marker = "extra == 'test'", specifier = ">=0.7" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },

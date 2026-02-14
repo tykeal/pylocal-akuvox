@@ -12,7 +12,7 @@ authors = [
 requires-python = ">=3.14"
 license = "Apache-2.0"
 dependencies = [
-    "aiohttp>=3.11",
+    "aiohttp>=3.13",
 ]
 
 [project.optional-dependencies]

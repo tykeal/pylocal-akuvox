@@ -356,3 +356,27 @@ async def test_aexit_idempotent(client: AkuvoxHttpClient) -> None:
     """Verify __aexit__ is safe when session is already None."""
     await client.__aexit__(None, None, None)
     assert client._session is None
+
+
+async def test_reenter_raises_connection_error(
+    client: AkuvoxHttpClient,
+) -> None:
+    """Verify re-entering open session raises AkuvoxConnectionError."""
+    async with client:
+        with pytest.raises(AkuvoxConnectionError, match="Session already open"):
+            await client.__aenter__()
+
+
+async def test_path_without_leading_slash(client: AkuvoxHttpClient) -> None:
+    """Verify path without leading slash is normalized."""
+    response = {
+        "retcode": 0,
+        "action": "getSystemInfo",
+        "message": "Success",
+        "data": {"Status": {"Model": "E16C"}},
+    }
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", payload=response)
+        async with client:
+            result = await client.get("api/system/info")
+    assert result == {"Status": {"Model": "E16C"}}
