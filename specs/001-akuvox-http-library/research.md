@@ -30,8 +30,9 @@ range). The AC-specific spec has 47 endpoints; the general spec has
 
 **Rationale**: aiohttp provides async HTTP client with built-in support
 for HTTP Basic and Digest authentication via `aiohttp.BasicAuth` and
-`aiohttp.DigestAuth`. It is the standard async HTTP library in the
-Home Assistant ecosystem. It has zero additional transitive runtime
+`aiohttp.DigestAuthMiddleware` (added in aiohttp 3.13). It is the
+standard async HTTP library in the Home Assistant ecosystem.
+It has zero additional transitive runtime
 dependencies beyond the stdlib and a few small packages (multidict,
 yarl, aiosignal, frozenlist, aiohappyeyeballs). This satisfies SC-003
 (≤2 runtime deps) since aiohttp is the only direct dependency needed.
@@ -49,7 +50,8 @@ yarl, aiosignal, frozenlist, aiohappyeyeballs). This satisfies SC-003
 
 **Decision**: Implement four auth modes: None (no headers),
 AllowList (no headers, device validates source IP), Basic Auth
-(via `aiohttp.BasicAuth`), Digest Auth (via `aiohttp.DigestAuth`).
+(via `aiohttp.BasicAuth`), Digest Auth (via
+`aiohttp.DigestAuthMiddleware`, available in aiohttp 3.13+).
 Token auth is explicitly excluded (reserved/unimplemented by Akuvox).
 
 **Rationale**: The OpenAPI specs have empty `securitySchemes` — auth
