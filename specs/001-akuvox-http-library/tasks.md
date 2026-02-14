@@ -59,15 +59,15 @@ on. MUST be complete before any user story begins.
 
 ### Tests for Foundational
 
-- [ ] T008 [P] Write unit tests for exception hierarchy in
+- [x] T008 [P] Write unit tests for exception hierarchy in
   tests/unit/test_exceptions.py: verify AkuvoxError base,
   all 7 subtypes inherit correctly, each has message attr,
   repr is actionable (FR-006, SC-002)
-- [ ] T009 [P] Write unit tests for AuthConfig and AuthMethod
+- [x] T009 [P] Write unit tests for AuthConfig and AuthMethod
   in tests/unit/test_auth.py: NONE/ALLOWLIST reject creds,
   BASIC/DIGEST require both username and password, Token
   value rejected (FR-002, data-model.md validation rules)
-- [ ] T010 [P] Write unit tests for response envelope parsing
+- [x] T010 [P] Write unit tests for response envelope parsing
   in tests/unit/test_http.py: retcode 0 returns data,
   retcode != 0 raises AkuvoxDeviceError, non-JSON raises
   AkuvoxParseError, HTTP 401 raises AkuvoxAuthenticationError,
@@ -75,34 +75,34 @@ on. MUST be complete before any user story begins.
   raises AkuvoxConnectionError, "x-200 Api unsupported"
   retcode raises AkuvoxUnsupportedError (FR-011), two
   concurrent requests serialize via Lock (FR-010) (R6)
-- [ ] T011 [P] Write unit tests for all data models in
+- [x] T011 [P] Write unit tests for all data models in
   tests/unit/test_models.py: DeviceInfo, DeviceStatus, Relay
   field mapping from PascalCase API to snake_case Python,
   required fields, optional fields default to None
 
 ### Implementation for Foundational
 
-- [ ] T012 [P] Implement exception hierarchy in
+- [x] T012 [P] Implement exception hierarchy in
   src/pylocal_akuvox/exceptions.py: AkuvoxError base with
   7 subtypes per data-model.md Exception Hierarchy section
-- [ ] T013 [P] Implement AuthConfig dataclass and AuthMethod
+- [x] T013 [P] Implement AuthConfig dataclass and AuthMethod
   enum in src/pylocal_akuvox/auth.py: validation in
   `__post_init__`, NONE/ALLOWLIST/BASIC/DIGEST values, Token
   excluded (FR-002, R3)
-- [ ] T014 [P] Implement core data models as frozen dataclasses
+- [x] T014 [P] Implement core data models as frozen dataclasses
   in src/pylocal_akuvox/models.py: DeviceInfo, DeviceStatus,
   Relay with from_api_response class methods for PascalCase
   to snake_case mapping (data-model.md)
-- [ ] T015 Implement internal HTTP client wrapper in
+- [x] T015 Implement internal HTTP client wrapper in
   src/pylocal_akuvox/_http.py: aiohttp.ClientSession lifecycle,
   asyncio.Lock for request serialization (FR-010, R5),
   text/plain content-type for POST (R1), response envelope
   parsing with exception mapping (R6), configurable timeout
   default 10s (FR-007)
-- [ ] T016 Update src/pylocal_akuvox/`__init__`.py with public
+- [x] T016 Update src/pylocal_akuvox/`__init__`.py with public
   re-exports: AkuvoxDevice, AuthConfig, AuthMethod, all
   exception types, all model types
-- [ ] T017 Verify all foundational tests pass:
+- [x] T017 Verify all foundational tests pass:
   `uv run pytest tests/unit/ -x -q`
 
 **Checkpoint**: Foundation ready — exception hierarchy, auth
@@ -367,7 +367,7 @@ verify device info returned.
   in tests/unit/test_device.py: AkuvoxDevice with
   AuthMethod.NONE sends no headers, ALLOWLIST sends no headers,
   BASIC sends Authorization header via aiohttp.BasicAuth,
-  DIGEST uses aiohttp DigestAuth, verify each mode retrieves
+  DIGEST uses aiohttp DigestAuthMiddleware, verify each mode retrieves
   device info successfully (mock with aioresponses)
 
 ### Implementation for User Story 7
@@ -375,7 +375,7 @@ verify device info returned.
 - [ ] T049 [US7] Integrate auth modes into `_http` client in
   src/pylocal_akuvox/_http.py: map AuthConfig to aiohttp
   auth parameter (None→no auth, AllowList→no auth, Basic→
-  aiohttp.BasicAuth, Digest→aiohttp.DigestAuth) (R3)
+  aiohttp.BasicAuth, Digest→aiohttp.DigestAuthMiddleware) (R3)
 - [ ] T050 [US7] Verify US7 tests pass:
   `uv run pytest tests/unit/test_device.py -x -q`
 

@@ -12,7 +12,21 @@ authors = [
 requires-python = ">=3.14"
 license = "Apache-2.0"
 dependencies = [
-    "aiohttp>=3.11",
+    "aiohttp>=3.13",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+    "pytest-asyncio>=1.0",
+    "pytest-cov>=6.0",
+    "aioresponses>=0.7",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=1.0",
+    "pytest-cov>=6.0",
+    "aioresponses>=0.7",
 ]
 
 [dependency-groups]
@@ -47,6 +61,10 @@ strict = true
 python_version = "3.14"
 packages = ["pylocal_akuvox"]
 mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = ["aiohttp", "aiohttp.*", "aioresponses", "aioresponses.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
