@@ -5,8 +5,10 @@
 
 import importlib.metadata
 
+_DIST_NAME = "pylocal-akuvox"
+
 try:
-    __version__ = importlib.metadata.version(__name__)
+    __version__ = importlib.metadata.version(_DIST_NAME)
 except importlib.metadata.PackageNotFoundError:
     __version__ = "0.0.0"
 

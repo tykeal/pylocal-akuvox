@@ -24,6 +24,19 @@ def test_all_is_list() -> None:
     assert isinstance(pylocal_akuvox.__all__, list)
 
 
+def test_version_from_metadata() -> None:
+    """Verify version is read from package metadata."""
+    with patch.object(
+        importlib.metadata,
+        "version",
+        return_value="1.2.3",
+    ):
+        import importlib as imp
+
+        mod = imp.reload(pylocal_akuvox)
+        assert mod.__version__ == "1.2.3"
+
+
 def test_version_fallback() -> None:
     """Verify fallback version when package metadata is missing."""
     with patch.object(
