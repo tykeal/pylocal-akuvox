@@ -72,7 +72,9 @@ on. MUST be complete before any user story begins.
   retcode != 0 raises AkuvoxDeviceError, non-JSON raises
   AkuvoxParseError, HTTP 401 raises AkuvoxAuthenticationError,
   HTTP 400 raises AkuvoxRequestError, connection timeout
-  raises AkuvoxConnectionError (R6)
+  raises AkuvoxConnectionError, "x-200 Api unsupported"
+  retcode raises AkuvoxUnsupportedError (FR-011), two
+  concurrent requests serialize via Lock (FR-010) (R6)
 - [ ] T011 [P] Write unit tests for all data models in
   tests/unit/test_models.py: DeviceInfo, DeviceStatus, Relay
   field mapping from PascalCase API to snake_case Python,
@@ -152,9 +154,9 @@ device info, handles errors. SC-001 (≤5 lines) validated.
 
 ## Phase 4: User Story 2 — Retrieve Device Status (P2)
 
-**Goal**: Developer queries device status (relay states,
-uptime, network info). Read-only operation validating the
-connection layer. (FR-005, SC-005)
+**Goal**: Developer queries device status (system time and
+uptime). Read-only operation validating the connection layer.
+(FR-005, SC-005)
 
 **Independent Test**: Call get_status() on a connected device,
 verify DeviceStatus fields populated.
@@ -279,7 +281,9 @@ to verify, modify time ranges, delete, verify removal.
 - [ ] T036 [P] [US5] Write unit tests for AccessSchedule model
   in tests/unit/test_models.py: from_api_response maps all
   fields (ID, Name, Type, DateStart, DateEnd, TimeStart,
-  TimeEnd, Week, Daily, DisplayID, SourceType, Mode)
+  TimeEnd, Week, Daily, DisplayID, SourceType, Mode),
+  individual day fields (Sun-Sat) mapped if present in API
+  response alongside Week string
 - [ ] T037 [P] [US5] Write unit tests for schedule validation
   and CRUD in tests/unit/test_schedules.py: type must be 0/1/2,
   time format HH:MM validated, date format YYYYMMDD validated,
@@ -388,7 +392,8 @@ validated.
   methods and classes per SC-004: 100% coverage verified
   by interrogate
 - [ ] T052 [P] Run full lint and type check suite:
-  `uv run ruff check src/ tests/` and `uv run mypy src/`
+  `uv run ruff check src/ tests/` and `uv run mypy src/`,
+  verify `uv tree` shows ≤2 runtime deps (FR-008, SC-003)
 - [ ] T053 Validate quickstart.md examples against mocked
   device in tests/unit/test_quickstart.py: each code example
   from quickstart.md runs without error

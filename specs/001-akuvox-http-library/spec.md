@@ -50,8 +50,8 @@ returned with expected fields populated.
 ### User Story 2 - Retrieve Device Status (Priority: P2)
 
 A developer queries the current status of an Akuvox device to determine
-relay states, network configuration, and operational health. This enables
-monitoring and diagnostic use cases.
+system time, uptime, and operational health. This enables monitoring and
+diagnostic use cases.
 
 **Why this priority**: Status monitoring is essential for integration with
 home automation dashboards and alerting systems. It is a read-only
@@ -273,7 +273,7 @@ successfully in each case.
   minimum: device model, firmware version, and MAC address.
 - **FR-004**: The library MUST activate door relays by relay number.
 - **FR-005**: The library MUST retrieve current device status including
-  relay states and network information.
+  system time and uptime.
 - **FR-006**: The library MUST raise distinct, well-named exception types
   for connection failures, authentication failures, invalid operations,
   and unexpected device responses.
@@ -317,7 +317,8 @@ successfully in each case.
 - **Relay**: Represents a controllable relay on the device. Attributes
   include relay number and current state (open/closed).
 - **DeviceStatus**: Represents a point-in-time snapshot of the device's
-  operational state including relay states and network information.
+  operational state including system time and uptime. Relay states are
+  queried separately.
 - **AuthConfig**: Represents the authentication configuration for a
   device connection. Attributes include authentication method (none,
   allowlist, basic, digest) and optional credentials. Token mode is

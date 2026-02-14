@@ -47,7 +47,7 @@ must not block event loop (Constitution IV)
 | III. UX Consistency | ✅ PASS | Single device object; exception hierarchy |
 | IV. Performance | ✅ PASS | LAN benchmarks SC-005/SC-009; async-only |
 | V. Atomic Commits | ✅ PASS | SPDX, DCO sign-off, pre-commit enforced |
-| VI. Phased Dev | ✅ PASS | 4 phases matching story priorities |
+| VI. Phased Dev | ✅ PASS | 10 task phases per tasks.md |
 
 ## Project Structure
 
