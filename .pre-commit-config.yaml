@@ -15,6 +15,7 @@ ci:
     Signed-off-by: pre-commit-ci[bot] <pre-commit-ci[bot]@pre-commit.ci>
 
     Changes in this pull request are as follows:
+  skip: [pytest-cov]
 
 exclude: |
   (?x)(
@@ -176,3 +177,13 @@ repos:
           - "types-pygments"
           - "types-pytz"
           - "types-requests"
+
+  - repo: local
+    hooks:
+      - id: pytest-cov
+        name: pytest (100% coverage)
+        language: system
+        entry: uv run pytest --no-header -q
+        pass_filenames: false
+        always_run: true
+        types: [python]

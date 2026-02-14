@@ -19,6 +19,7 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=1.0",
+    "pytest-cov>=6.0",
     "aioresponses>=0.7",
 ]
 
@@ -50,3 +51,16 @@ mypy_path = "src"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "--cov=pylocal_akuvox --cov-report=term-missing --cov-report=xml:coverage.xml --cov-report=html"
+
+[tool.coverage.run]
+source = ["pylocal_akuvox"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+]
