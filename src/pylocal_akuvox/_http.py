@@ -132,8 +132,7 @@ class AkuvoxHttpClient:
         try:
             body = await resp.json(content_type=None)
         except (json.JSONDecodeError, aiohttp.ContentTypeError) as err:
-            raw = await resp.text()
-            msg = f"Invalid JSON response: {raw[:200]}"
+            msg = "Invalid JSON response"
             raise AkuvoxParseError(msg) from err
 
         if not isinstance(body, dict) or "retcode" not in body:
