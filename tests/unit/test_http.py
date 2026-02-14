@@ -358,6 +358,15 @@ async def test_aexit_idempotent(client: AkuvoxHttpClient) -> None:
     assert client._session is None
 
 
+async def test_request_on_closed_session_raises(client: AkuvoxHttpClient) -> None:
+    """Verify request on externally closed session raises AkuvoxConnectionError."""
+    async with client:
+        assert client._session is not None
+        await client._session.close()
+        with pytest.raises(AkuvoxConnectionError, match="Session not open"):
+            await client.get("/api/system/info")
+
+
 async def test_reenter_raises_connection_error(
     client: AkuvoxHttpClient,
 ) -> None:

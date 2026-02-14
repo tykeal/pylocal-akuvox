@@ -122,12 +122,12 @@ device address, call get_info(), verify DeviceInfo fields.
 
 ### Tests for User Story 1
 
-- [ ] T018 [P] [US1] Write unit tests for AkuvoxDevice
+- [x] T018 [P] [US1] Write unit tests for AkuvoxDevice
   connect/disconnect lifecycle in tests/unit/test_device.py:
   async context manager creates and closes session, get_info
   calls GET /api/system/info, returns DeviceInfo with model,
   firmware_version, mac_address (mock with aioresponses)
-- [ ] T019 [P] [US1] Write unit tests for connection error
+- [x] T019 [P] [US1] Write unit tests for connection error
   cases in tests/unit/test_device.py: unreachable IP raises
   AkuvoxConnectionError within timeout, HTTP 401 raises
   AkuvoxAuthenticationError, non-Akuvox response (HTML or
@@ -137,13 +137,13 @@ device address, call get_info(), verify DeviceInfo fields.
 
 ### Implementation for User Story 1
 
-- [ ] T020 [US1] Implement AkuvoxDevice class in
+- [x] T020 [US1] Implement AkuvoxDevice class in
   src/pylocal_akuvox/device.py: `__init__`(host, auth=None,
   timeout=10), async context manager (`__aenter__`/`__aexit__`),
   `_http` client integration, get_info() method calling
   GET /api/system/info and returning DeviceInfo (FR-001,
   FR-003, FR-009, FR-012)
-- [ ] T021 [US1] Verify US1 tests pass and quickstart connect
+- [x] T021 [US1] Verify US1 tests pass and quickstart connect
   example works against mocked device:
   `uv run pytest tests/unit/test_device.py -x -q`
 
