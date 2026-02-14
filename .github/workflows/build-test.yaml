@@ -91,7 +91,6 @@ jobs:
         uses: lfreleng-actions/python-build-action@8f567398591014dd5627961aaa9ec17816b072f0  # v1.0.2
         with:
           clear_cache: ${{ github.event.inputs.clear_cache || 'false' }}
-          path_prefix: 'rentalsync-bridge/'
 
   python-tests:
     name: 'Python Tests'
@@ -119,7 +118,6 @@ jobs:
         uses: lfreleng-actions/python-test-action@92d4110d44ebc18fa4575c6b00203ff67d01a1cb  # v1.0.1
         with:
           python_version: ${{ matrix.python-version }}
-          path_prefix: 'rentalsync-bridge/'
 
   python-audit:
     name: 'Python Audit'
@@ -147,7 +145,6 @@ jobs:
         uses: lfreleng-actions/python-audit-action@ec8d84ca14c0413a2b2c6612a3e15b9803f9de75  # v0.2.5
         with:
           python_version: "${{ matrix.python-version }}"
-          path_prefix: 'rentalsync-bridge/'
 
   sbom:
     name: 'Generate SBOM'
@@ -167,7 +164,6 @@ jobs:
         with:
           include_dev: "false"
           sbom_format: "both"
-          path_prefix: 'rentalsync-bridge/'
 
       - name: "Upload SBOM artifacts"
         # yamllint disable-line rule:line-length
