@@ -33,6 +33,8 @@ class DeviceInfo:
         try:
             web_language = int(web_lang) if web_lang is not None else None
         except ValueError:
+            # Separate handlers due to ruff 0.15.0 format bug
+            # that strips parens from `except (ValueError, TypeError):`
             web_language = None
         except TypeError:
             web_language = None
@@ -61,12 +63,19 @@ class DeviceStatus:
     def from_api_response(cls, data: dict[str, Any]) -> DeviceStatus:
         """Create DeviceStatus from API response data."""
         try:
-            return cls(
-                unix_time=data["SystemTime"],
-                uptime=data["UpTime"],
-            )
+            raw_time = data["SystemTime"]
+            raw_uptime = data["UpTime"]
         except KeyError as exc:
             msg = f"Missing required field {exc} in device status"
+            raise AkuvoxParseError(msg) from exc
+
+        try:
+            return cls(
+                unix_time=int(raw_time),
+                uptime=int(raw_uptime),
+            )
+        except (ValueError, TypeError) as exc:
+            msg = "Invalid type for 'SystemTime' or 'UpTime' in device status"
             raise AkuvoxParseError(msg) from exc
 
 
@@ -81,10 +90,18 @@ class Relay:
     def from_api_response(cls, data: dict[str, Any]) -> Relay:
         """Create Relay from API response data."""
         try:
-            return cls(
-                number=data["number"],
-                state=data.get("state"),
-            )
+            raw_number = data["number"]
         except KeyError as exc:
             msg = f"Missing required field {exc} in relay data"
             raise AkuvoxParseError(msg) from exc
+
+        try:
+            number = int(raw_number)
+        except (ValueError, TypeError) as exc:
+            msg = f"Invalid type for relay 'number': got {raw_number!r}"
+            raise AkuvoxParseError(msg) from exc
+
+        return cls(
+            number=number,
+            state=data.get("state"),
+        )

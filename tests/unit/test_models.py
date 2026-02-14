@@ -155,3 +155,21 @@ def test_device_info_null_status_raises_parse_error() -> None:
     data = {"Status": None}
     with pytest.raises(AkuvoxParseError, match="Expected 'Status' to be a dict"):
         DeviceInfo.from_api_response(data)
+
+
+def test_device_status_invalid_type_raises_parse_error() -> None:
+    """Verify non-integer SystemTime raises AkuvoxParseError."""
+    from pylocal_akuvox.exceptions import AkuvoxParseError
+
+    data = {"SystemTime": "not-a-number", "UpTime": 100}
+    with pytest.raises(AkuvoxParseError, match="Invalid type"):
+        DeviceStatus.from_api_response(data)
+
+
+def test_relay_invalid_number_type_raises_parse_error() -> None:
+    """Verify non-integer relay number raises AkuvoxParseError."""
+    from pylocal_akuvox.exceptions import AkuvoxParseError
+
+    data = {"number": "abc", "state": "open"}
+    with pytest.raises(AkuvoxParseError, match="Invalid type for relay"):
+        Relay.from_api_response(data)
