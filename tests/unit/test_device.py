@@ -281,6 +281,9 @@ async def test_get_status_string_ints_coerced() -> None:
 
 # -- T048: Auth mode integration tests --
 
+_PATCH_CONNECTOR = "pylocal_akuvox._http.aiohttp.TCPConnector"
+_PATCH_SESSION = "pylocal_akuvox._http.aiohttp.ClientSession"
+
 
 async def _async_noop() -> None:
     """No-op async function for mock session close."""
@@ -300,14 +303,13 @@ def _assert_session_kwargs(
         assert kwargs["auth"] is None
     if expect_digest:
         assert len(kwargs["middlewares"]) == 1
-        assert isinstance(kwargs["middlewares"][0], aiohttp.DigestAuthMiddleware)
     else:
         assert kwargs["middlewares"] == ()
 
 
 async def test_auth_default_creates_session_without_auth() -> None:
     """Verify default auth=None creates session without credentials."""
-    with patch("aiohttp.ClientSession") as mock_cls:
+    with patch(_PATCH_CONNECTOR), patch(_PATCH_SESSION) as mock_cls:
         mock_session = mock_cls.return_value
         mock_session.closed = False
         mock_session.close = _async_noop
@@ -318,7 +320,7 @@ async def test_auth_default_creates_session_without_auth() -> None:
 async def test_auth_none_creates_session_without_auth() -> None:
     """Verify AuthMethod.NONE creates session without credentials."""
     auth = AuthConfig(method=AuthMethod.NONE)
-    with patch("aiohttp.ClientSession") as mock_cls:
+    with patch(_PATCH_CONNECTOR), patch(_PATCH_SESSION) as mock_cls:
         mock_session = mock_cls.return_value
         mock_session.closed = False
         mock_session.close = _async_noop
@@ -329,7 +331,7 @@ async def test_auth_none_creates_session_without_auth() -> None:
 async def test_auth_allowlist_creates_session_without_auth() -> None:
     """Verify AuthMethod.ALLOWLIST creates session without credentials."""
     auth = AuthConfig(method=AuthMethod.ALLOWLIST)
-    with patch("aiohttp.ClientSession") as mock_cls:
+    with patch(_PATCH_CONNECTOR), patch(_PATCH_SESSION) as mock_cls:
         mock_session = mock_cls.return_value
         mock_session.closed = False
         mock_session.close = _async_noop
@@ -340,7 +342,7 @@ async def test_auth_allowlist_creates_session_without_auth() -> None:
 async def test_auth_basic_creates_session_with_basic_auth() -> None:
     """Verify AuthMethod.BASIC creates session with BasicAuth."""
     auth = AuthConfig(method=AuthMethod.BASIC, username="admin", password="pass")
-    with patch("aiohttp.ClientSession") as mock_cls:
+    with patch(_PATCH_CONNECTOR), patch(_PATCH_SESSION) as mock_cls:
         mock_session = mock_cls.return_value
         mock_session.closed = False
         mock_session.close = _async_noop
@@ -354,8 +356,9 @@ async def test_auth_digest_creates_session_with_middleware() -> None:
     """Verify AuthMethod.DIGEST creates session with DigestAuthMiddleware."""
     auth = AuthConfig(method=AuthMethod.DIGEST, username="admin", password="pass")
     with (
+        patch(_PATCH_CONNECTOR),
         patch("pylocal_akuvox._http.aiohttp.DigestAuthMiddleware") as mock_digest_mw,
-        patch("aiohttp.ClientSession") as mock_cls,
+        patch(_PATCH_SESSION) as mock_cls,
     ):
         mock_session = mock_cls.return_value
         mock_session.closed = False
