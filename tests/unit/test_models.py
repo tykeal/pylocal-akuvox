@@ -5,7 +5,13 @@
 
 import pytest
 
-from pylocal_akuvox.models import DeviceInfo, DeviceStatus, Relay, User
+from pylocal_akuvox.models import (
+    AccessSchedule,
+    DeviceInfo,
+    DeviceStatus,
+    Relay,
+    User,
+)
 
 
 def test_device_info_from_api_response() -> None:
@@ -359,3 +365,139 @@ def test_user_to_api_payload_excludes_web_relay_when_none() -> None:
     user = User.from_api_response(data)
     payload = user.to_api_payload()
     assert "WebRelay" not in payload
+
+
+# === AccessSchedule model tests (T036) ===
+
+
+def test_access_schedule_from_api_response_all_fields() -> None:
+    """Verify AccessSchedule maps all PascalCase fields."""
+    data = {
+        "ID": "1001",
+        "Name": "Weekday Access",
+        "Type": "1",
+        "DateStart": "20260101",
+        "DateEnd": "20261231",
+        "TimeStart": "08:00",
+        "TimeEnd": "18:00",
+        "Week": "12345",
+        "Daily": "08:00-18:00",
+        "DisplayID": "D1",
+        "SourceType": "1",
+        "Mode": "1",
+        "Sun": "0",
+        "Mon": "1",
+        "Tue": "1",
+        "Wed": "1",
+        "Thur": "1",
+        "Fri": "1",
+        "Sat": "0",
+    }
+    schedule = AccessSchedule.from_api_response(data)
+    assert schedule.id == "1001"
+    assert schedule.name == "Weekday Access"
+    assert schedule.schedule_type == "1"
+    assert schedule.date_start == "20260101"
+    assert schedule.date_end == "20261231"
+    assert schedule.time_start == "08:00"
+    assert schedule.time_end == "18:00"
+    assert schedule.week == "12345"
+    assert schedule.daily == "08:00-18:00"
+    assert schedule.display_id == "D1"
+    assert schedule.source_type == "1"
+    assert schedule.mode == "1"
+    assert schedule.sun == "0"
+    assert schedule.mon == "1"
+    assert schedule.tue == "1"
+    assert schedule.wed == "1"
+    assert schedule.thur == "1"
+    assert schedule.fri == "1"
+    assert schedule.sat == "0"
+
+
+def test_access_schedule_from_api_response_minimal() -> None:
+    """Verify AccessSchedule with only required Type field."""
+    data = {"Type": "0"}
+    schedule = AccessSchedule.from_api_response(data)
+    assert schedule.schedule_type == "0"
+    assert schedule.id is None
+    assert schedule.name is None
+    assert schedule.week is None
+    assert schedule.daily is None
+    assert schedule.sun is None
+
+
+def test_access_schedule_missing_type_raises() -> None:
+    """Verify missing Type raises AkuvoxParseError."""
+    with pytest.raises(Exception, match="Missing required field.*Type"):
+        AccessSchedule.from_api_response({"Name": "Test"})
+
+
+def test_access_schedule_to_api_payload() -> None:
+    """Verify to_api_payload includes non-None fields."""
+    schedule = AccessSchedule(
+        schedule_type="1",
+        id="1001",
+        name="Test",
+        week="12345",
+        daily="08:00-18:00",
+    )
+    payload = schedule.to_api_payload()
+    assert payload == {
+        "Type": "1",
+        "ID": "1001",
+        "Name": "Test",
+        "Week": "12345",
+        "Daily": "08:00-18:00",
+    }
+
+
+def test_access_schedule_to_api_payload_minimal() -> None:
+    """Verify to_api_payload with only required fields."""
+    schedule = AccessSchedule(schedule_type="2")
+    payload = schedule.to_api_payload()
+    assert payload == {"Type": "2"}
+
+
+def test_access_schedule_to_api_payload_all_fields() -> None:
+    """Verify to_api_payload includes date and time fields."""
+    schedule = AccessSchedule(
+        schedule_type="0",
+        id="100",
+        name="Full",
+        date_start="20260101",
+        date_end="20261231",
+        time_start="08:00",
+        time_end="18:00",
+        week="12345",
+        daily="08:00-18:00",
+    )
+    payload = schedule.to_api_payload()
+    assert payload["DateStart"] == "20260101"
+    assert payload["DateEnd"] == "20261231"
+    assert payload["TimeStart"] == "08:00"
+    assert payload["TimeEnd"] == "18:00"
+    assert payload["Week"] == "12345"
+    assert payload["Daily"] == "08:00-18:00"
+
+
+def test_access_schedule_day_fields_mapped() -> None:
+    """Verify individual day fields (Sun-Sat) are mapped."""
+    data = {
+        "Type": "1",
+        "Sun": "1",
+        "Mon": "0",
+        "Tue": "1",
+        "Wed": "0",
+        "Thur": "1",
+        "Fri": "0",
+        "Sat": "1",
+    }
+    schedule = AccessSchedule.from_api_response(data)
+    assert schedule.sun == "1"
+    assert schedule.mon == "0"
+    assert schedule.tue == "1"
+    assert schedule.wed == "0"
+    assert schedule.thur == "1"
+    assert schedule.fri == "0"
+    assert schedule.sat == "1"

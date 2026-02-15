@@ -12,7 +12,7 @@ from pylocal_akuvox.models import DeviceInfo, DeviceStatus
 
 if TYPE_CHECKING:
     from pylocal_akuvox.auth import AuthConfig
-    from pylocal_akuvox.models import User
+    from pylocal_akuvox.models import AccessSchedule, User
 
 
 class AkuvoxDevice:
@@ -135,3 +135,71 @@ class AkuvoxDevice:
         from pylocal_akuvox import relay
 
         return await relay.get_relay_status(self._http)
+
+    async def add_schedule(
+        self,
+        *,
+        schedule_type: str,
+        name: str | None = None,
+        week: str | None = None,
+        daily: str | None = None,
+        date_start: str | None = None,
+        date_end: str | None = None,
+        time_start: str | None = None,
+        time_end: str | None = None,
+    ) -> None:
+        """Add an access schedule to the device."""
+        from pylocal_akuvox import schedules
+
+        await schedules.add_schedule(
+            self._http,
+            schedule_type=schedule_type,
+            name=name,
+            week=week,
+            daily=daily,
+            date_start=date_start,
+            date_end=date_end,
+            time_start=time_start,
+            time_end=time_end,
+        )
+
+    async def list_schedules(self, *, page: int | None = None) -> list[AccessSchedule]:
+        """List schedules from the device."""
+        from pylocal_akuvox import schedules
+
+        return await schedules.list_schedules(self._http, page=page)
+
+    async def modify_schedule(
+        self,
+        *,
+        id: str,
+        name: str | None = None,
+        schedule_type: str | None = None,
+        week: str | None = None,
+        daily: str | None = None,
+        date_start: str | None = None,
+        date_end: str | None = None,
+        time_start: str | None = None,
+        time_end: str | None = None,
+    ) -> None:
+        """Modify an existing schedule on the device."""
+        from pylocal_akuvox import schedules
+
+        await schedules.modify_schedule(
+            self._http,
+            id=id,
+            name=name,
+            schedule_type=schedule_type,
+            week=week,
+            daily=daily,
+            date_start=date_start,
+            date_end=date_end,
+            time_start=time_start,
+            time_end=time_end,
+        )
+
+    async def delete_schedule(self, *, id: str) -> None:
+        """Delete a schedule from the device."""
+        from pylocal_akuvox import schedules
+
+        await schedules.delete_schedule(self._http, id=id)
