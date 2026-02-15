@@ -366,8 +366,27 @@ async def run_all(args: argparse.Namespace) -> None:
             async with AkuvoxDevice(
                 args.host, auth=auth, timeout=args.timeout
             ) as device:
-                # Schedule add + delete first — the /api/schedule/set
-                # endpoint works correctly on E18 firmware.
+                # User add + delete FIRST — before any other
+                # requests to avoid CGI state corruption.
+                internal_id = await test_add_user(device)
+                if internal_id:
+                    await test_delete_user(device, internal_id)
+                    print_header("VERIFY USER DELETION")
+                    users = await device.list_users()
+                    found = any(u.id == internal_id for u in users)
+                    if not found:
+                        print("  ✓ User successfully removed")
+                    else:
+                        print("  ✗ User still present after delete!")
+
+            # Device needs cooldown between request groups
+            print("\n  ⏳ Waiting for device to settle…")
+            await asyncio.sleep(_MUTATION_SETTLE_SECS * 3)
+
+            async with AkuvoxDevice(
+                args.host, auth=auth, timeout=args.timeout
+            ) as device:
+                # Schedule add + delete
                 sched_id = await test_add_schedule(device)
                 if sched_id:
                     await test_delete_schedule(device, sched_id)
@@ -378,20 +397,6 @@ async def run_all(args: argparse.Namespace) -> None:
                         print("  ✓ Schedule successfully removed")
                     else:
                         print("  ✗ Schedule still present after delete!")
-
-            # Device needs cooldown between request groups
-            print("\n  ⏳ Waiting for device to settle…")
-            await asyncio.sleep(_MUTATION_SETTLE_SECS * 3)
-
-            async with AkuvoxDevice(
-                args.host, auth=auth, timeout=args.timeout
-            ) as device:
-                # User CRUD is skipped — /api/user/set is broken on
-                # E18 firmware 18.30.10.72 (routes to schedule
-                # handler, creating corrupt Type=-1 records).
-                print_header("SKIP USER CRUD (E18 firmware bug)")
-                print("  ⚠ /api/user/set routes to schedule handler")
-                print("  ⚠ Skipping user add/delete to avoid corruption")
 
                 # Relay trigger (safe: auto-close after 1s)
                 await test_trigger_relay(device)
