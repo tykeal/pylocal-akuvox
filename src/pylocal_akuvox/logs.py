@@ -19,11 +19,11 @@ async def get_door_logs(
     page: int | None = None,
 ) -> list[DoorLogEntry]:
     """Retrieve door access logs from the device."""
-    body: dict[str, Any] = {}
+    params: dict[str, Any] = {}
     if page is not None:
-        body["page"] = page
+        params["page"] = page
 
-    data = await http.post("/api/doorlog/get", data=body or None)
+    data = await http.get("/api/doorlog/get", params=params or None)
     items = data.get("item", [])
     if not isinstance(items, list):
         return []
@@ -38,11 +38,11 @@ async def get_call_logs(
     page: int | None = None,
 ) -> list[CallLogEntry]:
     """Retrieve call logs from the device."""
-    body: dict[str, Any] = {}
+    params: dict[str, Any] = {}
     if page is not None:
-        body["page"] = page
+        params["page"] = page
 
-    data = await http.post("/api/calllog/get", data=body or None)
+    data = await http.get("/api/calllog/get", params=params or None)
     items = data.get("item", [])
     if not isinstance(items, list):
         return []

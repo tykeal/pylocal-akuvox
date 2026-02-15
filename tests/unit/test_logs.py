@@ -99,9 +99,9 @@ _ERROR_RESPONSE: dict[str, object] = {
 
 @pytest.mark.asyncio
 async def test_get_door_logs_posts_correct_endpoint() -> None:
-    """Verify get_door_logs POSTs to /api/doorlog/get."""
+    """Verify get_door_logs GETs /api/doorlog/get."""
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/doorlog/get", payload=_DOOR_LOG_RESPONSE)
+        m.get(f"{BASE_URL}/api/doorlog/get", payload=_DOOR_LOG_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_door_logs()
     assert len(logs) == 2
@@ -115,26 +115,25 @@ async def test_get_door_logs_posts_correct_endpoint() -> None:
 
 @pytest.mark.asyncio
 async def test_get_door_logs_with_pagination() -> None:
-    """Verify get_door_logs sends page parameter."""
+    """Verify get_door_logs sends page query parameter."""
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/doorlog/get", payload=_DOOR_LOG_RESPONSE)
+        url = f"{BASE_URL}/api/doorlog/get?page=1"
+        m.get(url, payload=_DOOR_LOG_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_door_logs(page=1)
     assert len(logs) == 2
     url_key = (
-        "POST",
-        aiohttp.client.URL(f"{BASE_URL}/api/doorlog/get"),
+        "GET",
+        aiohttp.client.URL(url),
     )
-    call = m.requests[url_key][0]
-    body = call.kwargs.get("json")
-    assert body["page"] == 1
+    assert url_key in m.requests
 
 
 @pytest.mark.asyncio
 async def test_get_door_logs_empty_returns_empty_list() -> None:
     """Verify empty device returns empty list not error."""
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/doorlog/get", payload=_EMPTY_LOG_RESPONSE)
+        m.get(f"{BASE_URL}/api/doorlog/get", payload=_EMPTY_LOG_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_door_logs()
     assert logs == []
@@ -150,7 +149,7 @@ async def test_get_door_logs_no_item_key_returns_empty() -> None:
         "data": {"num": 0},
     }
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/doorlog/get", payload=response)
+        m.get(f"{BASE_URL}/api/doorlog/get", payload=response)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_door_logs()
     assert logs == []
@@ -160,7 +159,7 @@ async def test_get_door_logs_no_item_key_returns_empty() -> None:
 async def test_get_door_logs_error_raises_device_error() -> None:
     """Verify device error raises AkuvoxDeviceError."""
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/doorlog/get", payload=_ERROR_RESPONSE)
+        m.get(f"{BASE_URL}/api/doorlog/get", payload=_ERROR_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxDeviceError):
                 await device.get_door_logs()
@@ -171,9 +170,9 @@ async def test_get_door_logs_error_raises_device_error() -> None:
 
 @pytest.mark.asyncio
 async def test_get_call_logs_posts_correct_endpoint() -> None:
-    """Verify get_call_logs POSTs to /api/calllog/get."""
+    """Verify get_call_logs GETs /api/calllog/get."""
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/calllog/get", payload=_CALL_LOG_RESPONSE)
+        m.get(f"{BASE_URL}/api/calllog/get", payload=_CALL_LOG_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_call_logs()
     assert len(logs) == 2
@@ -188,26 +187,25 @@ async def test_get_call_logs_posts_correct_endpoint() -> None:
 
 @pytest.mark.asyncio
 async def test_get_call_logs_with_pagination() -> None:
-    """Verify get_call_logs sends page parameter."""
+    """Verify get_call_logs sends page query parameter."""
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/calllog/get", payload=_CALL_LOG_RESPONSE)
+        url = f"{BASE_URL}/api/calllog/get?page=2"
+        m.get(url, payload=_CALL_LOG_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_call_logs(page=2)
     assert len(logs) == 2
     url_key = (
-        "POST",
-        aiohttp.client.URL(f"{BASE_URL}/api/calllog/get"),
+        "GET",
+        aiohttp.client.URL(url),
     )
-    call = m.requests[url_key][0]
-    body = call.kwargs.get("json")
-    assert body["page"] == 2
+    assert url_key in m.requests
 
 
 @pytest.mark.asyncio
 async def test_get_call_logs_empty_returns_empty_list() -> None:
     """Verify empty device returns empty list not error."""
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/calllog/get", payload=_EMPTY_LOG_RESPONSE)
+        m.get(f"{BASE_URL}/api/calllog/get", payload=_EMPTY_LOG_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_call_logs()
     assert logs == []
@@ -223,7 +221,7 @@ async def test_get_call_logs_no_item_key_returns_empty() -> None:
         "data": {"num": 0},
     }
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/calllog/get", payload=response)
+        m.get(f"{BASE_URL}/api/calllog/get", payload=response)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_call_logs()
     assert logs == []
@@ -233,7 +231,7 @@ async def test_get_call_logs_no_item_key_returns_empty() -> None:
 async def test_get_call_logs_error_raises_device_error() -> None:
     """Verify device error raises AkuvoxDeviceError."""
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/calllog/get", payload=_ERROR_RESPONSE)
+        m.get(f"{BASE_URL}/api/calllog/get", payload=_ERROR_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxDeviceError):
                 await device.get_call_logs()
@@ -249,7 +247,7 @@ async def test_get_door_logs_non_list_item_returns_empty() -> None:
         "data": {"num": 0, "item": "not-a-list"},
     }
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/doorlog/get", payload=response)
+        m.get(f"{BASE_URL}/api/doorlog/get", payload=response)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_door_logs()
     assert logs == []
@@ -265,7 +263,7 @@ async def test_get_call_logs_non_list_item_returns_empty() -> None:
         "data": {"num": 0, "item": "not-a-list"},
     }
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/calllog/get", payload=response)
+        m.get(f"{BASE_URL}/api/calllog/get", payload=response)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_call_logs()
     assert logs == []
