@@ -104,7 +104,7 @@ async def list_users(
     return [User.from_api_response(item) for item in items if isinstance(item, dict)]
 
 
-async def _get_user_by_id(http: AkuvoxHttpClient, user_id: str) -> dict[str, Any]:
+async def _get_user_by_id(http: AkuvoxHttpClient, internal_id: str) -> dict[str, Any]:
     """Fetch a single user's raw data by internal ID.
 
     Iterates through all pages (device returns 10 per page).
@@ -118,10 +118,10 @@ async def _get_user_by_id(http: AkuvoxHttpClient, user_id: str) -> dict[str, Any
         if not isinstance(items, list) or len(items) == 0:
             break
         for item in items:
-            if isinstance(item, dict) and item.get("ID") == user_id:
+            if isinstance(item, dict) and item.get("ID") == internal_id:
                 return item
         page += 1
-    msg = f"User ID {user_id} not found"
+    msg = f"User ID {internal_id} not found"
     raise AkuvoxDeviceError(msg)
 
 

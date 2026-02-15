@@ -9,10 +9,11 @@ SPDX-License-Identifier: Apache-2.0
 
 **Decision**: The Akuvox local HTTP API uses a REST-like pattern at
 `http://<device-ip>/api/<resource>/<action>` with JSON request and
-response bodies. POST endpoints accept `application/json` content
-type. GET endpoints return data directly; POST mutation endpoints
-require a wrapped body: `{"action":"X","data":{"item":[{...}]}}`.
-All responses follow a uniform envelope:
+response bodies. POST endpoints accept `application/json` request
+bodies. GET endpoints pass parameters via query string and do not
+require a request body. Mutation POST requests require a wrapped
+body: `{"action":"X","data":{"item":[{...}]}}`. All **responses**
+follow a uniform envelope:
 `{ "retcode": int, "action": str, "message": str, "data": {...} }`.
 GET endpoints return `retcode: 0` on success; mutation endpoints
 return `retcode >= 0` on success (`retcode: 1` is typical) and

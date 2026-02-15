@@ -80,7 +80,7 @@ class AkuvoxHttpClient:
     async def post(
         self, path: str, data: dict[str, Any] | None = None
     ) -> dict[str, Any]:
-        """Send a POST request with JSON as text/plain."""
+        """Send a POST request with JSON payload."""
         async with self._lock:
             return await self._request("POST", path, data=data)
 

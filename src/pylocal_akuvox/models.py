@@ -117,7 +117,7 @@ class Relay:
         )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class User:
     """Local user account stored on the device."""
 
