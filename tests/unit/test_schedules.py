@@ -288,6 +288,7 @@ async def test_add_schedule_posts_correct_endpoint() -> None:
         )
         call = m.requests[url_key][0]
         body = call.kwargs.get("json")
+        assert body["target"] == "schedule"
         assert body["action"] == "add"
         item = body["data"]["item"][0]
         assert item["Type"] == "1"
@@ -499,6 +500,7 @@ async def test_modify_schedule_read_modify_write() -> None:
         )
         call = m.requests[url_key][0]
         body = call.kwargs.get("json")
+        assert body["target"] == "schedule"
         assert body["action"] == "set"
         item = body["data"]["item"][0]
         assert item["Name"] == "Updated"
@@ -655,6 +657,7 @@ async def test_delete_schedule_posts_correct_endpoint() -> None:
         )
         call = m.requests[url_key][0]
         body = call.kwargs.get("json")
+        assert body["target"] == "schedule"
         assert body["action"] == "del"
         assert body["data"]["item"][0]["ID"] == "1001"
 

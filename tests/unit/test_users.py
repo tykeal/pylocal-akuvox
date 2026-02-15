@@ -178,6 +178,7 @@ async def test_add_user_posts_to_correct_endpoint() -> None:
         url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
         call = m.requests[url_key][0]
         body = call.kwargs.get("json")
+        assert body["target"] == "user"
         assert body["action"] == "add"
         item = body["data"]["item"][0]
         assert item["Name"] == "Alice"
@@ -264,6 +265,7 @@ async def test_modify_user_empty_pin_omitted() -> None:
         url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
         call = m.requests[url_key][0]
         body = call.kwargs.get("json")
+        assert body["target"] == "user"
         assert body["action"] == "set"
         item = body["data"]["item"][0]
         # Empty PIN normalized to None - field not updated, original value preserved

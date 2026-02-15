@@ -24,8 +24,12 @@ _DAILY_PATTERN = re.compile(
 
 
 def _mutation_body(action: str, item: dict[str, Any]) -> dict[str, Any]:
-    """Wrap a schedule payload in the device mutation envelope."""
-    return {"action": action, "data": {"item": [item]}}
+    """Wrap a schedule payload in the device mutation envelope.
+
+    The ``target`` field is required by E18 firmware to route the
+    request to the correct CGI handler.
+    """
+    return {"target": "schedule", "action": action, "data": {"item": [item]}}
 
 
 def validate_schedule_type(schedule_type: str) -> None:

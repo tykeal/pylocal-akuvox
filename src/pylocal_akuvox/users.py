@@ -19,8 +19,12 @@ _SCHEDULE_RELAY_PATTERN = re.compile(r"^([0-9]+-[0-9]+;)+$")
 
 
 def _mutation_body(action: str, item: dict[str, Any]) -> dict[str, Any]:
-    """Wrap a user payload in the device mutation envelope."""
-    return {"action": action, "data": {"item": [item]}}
+    """Wrap a user payload in the device mutation envelope.
+
+    The ``target`` field is required by E18 firmware to route the
+    request to the correct CGI handler.
+    """
+    return {"target": "user", "action": action, "data": {"item": [item]}}
 
 
 def validate_pin(pin: str | None) -> None:
