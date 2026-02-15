@@ -224,12 +224,15 @@ async def test_concurrent_requests_serialize(
     original_request = client._request
 
     async def instrumented_request(
-        method: str, path: str, data: dict[str, Any] | None = None
+        method: str,
+        path: str,
+        data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Record entry/exit to verify non-overlap."""
         idx = len([e for e in events if e.startswith("enter")])
         events.append(f"enter-{idx}")
-        result = await original_request(method, path, data)
+        result = await original_request(method, path, data, params)
         events.append(f"exit-{idx}")
         return result
 
@@ -389,3 +392,18 @@ async def test_path_without_leading_slash(client: AkuvoxHttpClient) -> None:
         async with client:
             result = await client.get("api/system/info")
     assert result == {"Status": {"Model": "E16C"}}
+
+
+async def test_get_with_params(client: AkuvoxHttpClient) -> None:
+    """Verify get() passes query params to the request."""
+    response = {
+        "retcode": 0,
+        "action": "get",
+        "message": "",
+        "data": {"num": 0, "item": []},
+    }
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get?page=2", payload=response)
+        async with client:
+            result = await client.get("/api/user/get", params={"page": 2})
+    assert result == {"num": 0, "item": []}

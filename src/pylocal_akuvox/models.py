@@ -123,9 +123,9 @@ class User:
 
     name: str
     user_id: str
-    web_relay: str
     schedule_relay: str
     id: str | None = None
+    web_relay: str | None = None
     private_pin: str | None = None
     card_code: str | None = None
     lift_floor_num: str | None = None
@@ -140,9 +140,9 @@ class User:
             return cls(
                 name=data["Name"],
                 user_id=data["UserID"],
-                web_relay=data["WebRelay"],
                 schedule_relay=data["ScheduleRelay"],
                 id=data.get("ID"),
+                web_relay=data.get("WebRelay"),
                 private_pin=data.get("PrivatePIN") or None,
                 card_code=data.get("CardCode") or None,
                 lift_floor_num=data.get("LiftFloorNum"),
@@ -159,11 +159,12 @@ class User:
         payload: dict[str, str] = {
             "Name": self.name,
             "UserID": self.user_id,
-            "WebRelay": self.web_relay,
             "ScheduleRelay": self.schedule_relay,
         }
         if self.id is not None:
             payload["ID"] = self.id
+        if self.web_relay is not None:
+            payload["WebRelay"] = self.web_relay
         if self.private_pin is not None:
             payload["PrivatePIN"] = self.private_pin
         if self.card_code is not None:

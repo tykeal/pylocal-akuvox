@@ -238,9 +238,9 @@ async def test_modify_user_empty_pin_omitted() -> None:
 
 
 async def test_list_users_posts_to_correct_endpoint() -> None:
-    """Verify list_users POSTs to /api/user/get and returns User list."""
+    """Verify list_users GETs from /api/user/get and returns User list."""
     with aioresponses() as m:
-        m.post(
+        m.get(
             f"{BASE_URL}/api/user/get",
             payload={
                 "retcode": 0,
@@ -284,10 +284,10 @@ async def test_list_users_posts_to_correct_endpoint() -> None:
 
 
 async def test_list_users_paginated() -> None:
-    """Verify list_users with page parameter sends page in payload."""
+    """Verify list_users with page parameter sends page as query param."""
     with aioresponses() as m:
-        m.post(
-            f"{BASE_URL}/api/user/get",
+        m.get(
+            f"{BASE_URL}/api/user/get?page=1",
             payload={
                 "retcode": 0,
                 "action": "get",
@@ -310,10 +310,8 @@ async def test_list_users_paginated() -> None:
         async with AkuvoxDevice("192.168.1.100") as device:
             users = await device.list_users(page=1)
 
-        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/get"))
-        call = m.requests[url_key][0]
-        body = json.loads(call.kwargs.get("data", ""))
-        assert body["page"] == 1
+        url_key = ("GET", aiohttp.client.URL(f"{BASE_URL}/api/user/get?page=1"))
+        assert url_key in m.requests
 
     assert len(users) == 1
 
@@ -321,7 +319,7 @@ async def test_list_users_paginated() -> None:
 async def test_list_users_empty_returns_empty_list() -> None:
     """Verify list_users with no users returns empty list."""
     with aioresponses() as m:
-        m.post(
+        m.get(
             f"{BASE_URL}/api/user/get",
             payload={
                 "retcode": 0,
@@ -430,7 +428,7 @@ async def test_add_user_with_card_code() -> None:
 async def test_list_users_non_list_items_returns_empty() -> None:
     """Verify list_users returns empty list if items is not a list."""
     with aioresponses() as m:
-        m.post(
+        m.get(
             f"{BASE_URL}/api/user/get",
             payload={
                 "retcode": 0,
@@ -519,7 +517,7 @@ async def test_add_user_empty_user_id_raises() -> None:
 async def test_list_users_non_dict_items_skipped() -> None:
     """Verify list_users skips non-dict items in the response."""
     with aioresponses() as m:
-        m.post(
+        m.get(
             f"{BASE_URL}/api/user/get",
             payload={
                 "retcode": 0,

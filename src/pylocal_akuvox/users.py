@@ -87,11 +87,11 @@ async def list_users(
     page: int | None = None,
 ) -> list[User]:
     """List users from the device, optionally paginated."""
-    payload: dict[str, Any] = {}
+    params: dict[str, Any] = {}
     if page is not None:
-        payload["page"] = page
+        params["page"] = page
 
-    data = await http.post("/api/user/get", data=payload)
+    data = await http.get("/api/user/get", params=params or None)
     items = data.get("item", [])
     if not isinstance(items, list):
         return []
