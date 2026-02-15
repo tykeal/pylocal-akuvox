@@ -148,11 +148,10 @@ async def test_get_door_logs(device: AkuvoxDevice) -> None:
     entries = await device.get_door_logs()
     print(f"  Found {len(entries)} door log entry(ies)")
     for entry in entries[:5]:
-        status = entry.status or "?"
         print(
             f"    ID={entry.id}  {entry.date} {entry.time}  "
             f"Name={entry.name}  Type={entry.door_type}  "
-            f"Status={status}"
+            f"Status={entry.status}"
         )
     if len(entries) > 5:
         print(f"    ... and {len(entries) - 5} more")

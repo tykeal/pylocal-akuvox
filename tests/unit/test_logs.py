@@ -98,7 +98,7 @@ _ERROR_RESPONSE: dict[str, object] = {
 
 
 @pytest.mark.asyncio
-async def test_get_door_logs_posts_correct_endpoint() -> None:
+async def test_get_door_logs_correct_endpoint() -> None:
     """Verify get_door_logs GETs /api/doorlog/get."""
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/doorlog/get", payload=_DOOR_LOG_RESPONSE)
@@ -169,7 +169,7 @@ async def test_get_door_logs_error_raises_device_error() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_call_logs_posts_correct_endpoint() -> None:
+async def test_get_call_logs_correct_endpoint() -> None:
     """Verify get_call_logs GETs /api/calllog/get."""
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/calllog/get", payload=_CALL_LOG_RESPONSE)
