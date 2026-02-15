@@ -105,15 +105,22 @@ async def list_users(
 
 
 async def _get_user_by_id(http: AkuvoxHttpClient, user_id: str) -> dict[str, Any]:
-    """Fetch a single user's raw data by internal ID."""
+    """Fetch a single user's raw data by internal ID.
+
+    Iterates through all pages (device returns 10 per page).
+    """
     from pylocal_akuvox.exceptions import AkuvoxDeviceError
 
-    data = await http.get("/api/user/get")
-    items = data.get("item", [])
-    if isinstance(items, list):
+    page = 1
+    while True:
+        data = await http.get("/api/user/get", params={"page": page})
+        items = data.get("item", [])
+        if not isinstance(items, list) or len(items) == 0:
+            break
         for item in items:
             if isinstance(item, dict) and item.get("ID") == user_id:
                 return item
+        page += 1
     msg = f"User ID {user_id} not found"
     raise AkuvoxDeviceError(msg)
 

@@ -46,6 +46,13 @@ _SET_OK_RESPONSE: dict[str, object] = {
     "data": {},
 }
 
+_EMPTY_PAGE_RESPONSE: dict[str, object] = {
+    "retcode": 0,
+    "action": "get",
+    "message": "OK",
+    "data": {"num": 1, "item": []},
+}
+
 # -- T026: PIN validation tests --
 
 
@@ -248,7 +255,7 @@ async def test_add_user_empty_schedule_relay_raises() -> None:
 async def test_modify_user_empty_pin_omitted() -> None:
     """Verify modify_user normalizes empty string PIN to None (omit)."""
     with aioresponses() as m:
-        m.get(f"{BASE_URL}/api/user/get", payload=_USER_GET_RESPONSE)
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
         m.post(
             f"{BASE_URL}/api/user/set",
             payload=_SET_OK_RESPONSE,
@@ -370,7 +377,7 @@ async def test_list_users_empty_returns_empty_list() -> None:
 async def test_modify_user_posts_to_correct_endpoint() -> None:
     """Verify modify_user fetches user then POSTs to /api/user/set."""
     with aioresponses() as m:
-        m.get(f"{BASE_URL}/api/user/get", payload=_USER_GET_RESPONSE)
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
         m.post(
             f"{BASE_URL}/api/user/set",
             payload=_SET_OK_RESPONSE,
@@ -471,7 +478,7 @@ async def test_list_users_non_list_items_returns_empty() -> None:
 async def test_modify_user_all_fields() -> None:
     """Verify modify_user sends all optional fields when provided."""
     with aioresponses() as m:
-        m.get(f"{BASE_URL}/api/user/get", payload=_USER_GET_RESPONSE)
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
         m.post(
             f"{BASE_URL}/api/user/set",
             payload=_SET_OK_RESPONSE,
@@ -492,7 +499,7 @@ async def test_modify_user_all_fields() -> None:
 async def test_modify_user_without_pin() -> None:
     """Verify modify_user works without private_pin."""
     with aioresponses() as m:
-        m.get(f"{BASE_URL}/api/user/get", payload=_USER_GET_RESPONSE)
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
         m.post(
             f"{BASE_URL}/api/user/set",
             payload=_SET_OK_RESPONSE,
@@ -510,7 +517,8 @@ async def test_modify_user_not_found_raises() -> None:
     from pylocal_akuvox.exceptions import AkuvoxDeviceError
 
     with aioresponses() as m:
-        m.get(f"{BASE_URL}/api/user/get", payload=_USER_GET_RESPONSE)
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
+        m.get(f"{BASE_URL}/api/user/get?page=2", payload=_EMPTY_PAGE_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxDeviceError, match="not found"):
                 await device.modify_user(id="999", name="Ghost")
@@ -527,7 +535,7 @@ async def test_modify_user_malformed_item_raises() -> None:
         "data": {"num": 0, "item": "not-a-list"},
     }
     with aioresponses() as m:
-        m.get(f"{BASE_URL}/api/user/get", payload=bad_response)
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=bad_response)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxDeviceError, match="not found"):
                 await device.modify_user(id="1", name="Ghost")
