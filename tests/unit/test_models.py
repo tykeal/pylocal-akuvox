@@ -584,7 +584,9 @@ def test_door_log_entry_missing_required_field() -> None:
         "Relay": "1",
         "Status": "Succ",
     }
-    with pytest.raises(Exception, match="Name"):
+    from pylocal_akuvox.exceptions import AkuvoxParseError
+
+    with pytest.raises(AkuvoxParseError, match="Name"):
         DoorLogEntry.from_api_response(data)
 
 
@@ -641,7 +643,9 @@ def test_call_log_entry_missing_required_field() -> None:
         "LocalIdentity": "sip:100@192.168.1.1",
         "Num": "3",
     }
-    with pytest.raises(Exception, match="Type"):
+    from pylocal_akuvox.exceptions import AkuvoxParseError
+
+    with pytest.raises(AkuvoxParseError, match="Type"):
         CallLogEntry.from_api_response(data)
 
 
