@@ -52,7 +52,12 @@ async def trigger_relay(
         "level": level,
         "delay": delay,
     }
-    await http.post("/api/relay/trig", data=payload)
+    body: dict[str, Any] = {
+        "target": "relay",
+        "action": "trig",
+        "data": payload,
+    }
+    await http.post("/api/relay/trig", data=body)
 
 
 async def get_relay_status(
