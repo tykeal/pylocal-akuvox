@@ -583,7 +583,7 @@ async def test_modify_schedule_paginates_to_find() -> None:
         assert item["ID"] == "2002"
 
 
-# -- T037: delete_schedule CRUD tests --
+# -- T037: modify_schedule CRUD tests (additional) --
 
 
 async def test_modify_schedule_without_name() -> None:
