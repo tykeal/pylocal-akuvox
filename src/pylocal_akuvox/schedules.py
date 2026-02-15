@@ -100,6 +100,14 @@ async def add_schedule(
     time_end: str | None = None,
 ) -> None:
     """Add an access schedule to the device."""
+    # Normalize empty strings to None (omit from payload)
+    week = week or None
+    daily = daily or None
+    date_start = date_start or None
+    date_end = date_end or None
+    time_start = time_start or None
+    time_end = time_end or None
+
     validate_schedule_type(schedule_type)
     validate_week(week)
     validate_daily(daily)
