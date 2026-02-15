@@ -573,6 +573,9 @@ examples:
 
     args = parser.parse_args()
 
+    if args.no_verify_ssl and not args.ssl:
+        args.ssl = True
+
     if args.auth in ("basic", "digest"):
         if not args.user:
             parser.error(f"--auth {args.auth} requires --user")

@@ -442,28 +442,22 @@ def test_use_ssl_uses_https() -> None:
     assert c._base_url == "https://192.168.1.100"
 
 
-async def test_ssl_no_verify_creates_permissive_context() -> None:
+def test_ssl_no_verify_creates_permissive_context() -> None:
     """Verify ssl+no verify creates SSLContext with CERT_NONE."""
     c = AkuvoxHttpClient(host="192.168.1.100", use_ssl=True, verify_ssl=False)
-    async with c:
-        connector = c._session.connector  # type: ignore[union-attr]
-        ctx = connector._ssl
-        assert isinstance(ctx, ssl.SSLContext)
-        assert ctx.verify_mode == ssl.CERT_NONE
-        assert ctx.check_hostname is False
+    ctx = c._build_ssl_context()
+    assert isinstance(ctx, ssl.SSLContext)
+    assert ctx.verify_mode == ssl.CERT_NONE
+    assert ctx.check_hostname is False
 
 
-async def test_ssl_verify_default_no_custom_context() -> None:
-    """Verify ssl+verify_ssl=True uses default SSL validation."""
+def test_ssl_verify_default_returns_none() -> None:
+    """Verify ssl+verify_ssl=True returns None (default validation)."""
     c = AkuvoxHttpClient(host="192.168.1.100", use_ssl=True, verify_ssl=True)
-    async with c:
-        connector = c._session.connector  # type: ignore[union-attr]
-        assert not isinstance(connector._ssl, ssl.SSLContext)
+    assert c._build_ssl_context() is None
 
 
-async def test_no_ssl_ignores_verify_flag() -> None:
-    """Verify plain http does not set custom SSLContext."""
+def test_no_ssl_ignores_verify_flag() -> None:
+    """Verify plain http returns None regardless of verify_ssl."""
     c = AkuvoxHttpClient(host="192.168.1.100", use_ssl=False, verify_ssl=False)
-    async with c:
-        connector = c._session.connector  # type: ignore[union-attr]
-        assert not isinstance(connector._ssl, ssl.SSLContext)
+    assert c._build_ssl_context() is None
