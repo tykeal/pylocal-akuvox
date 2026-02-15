@@ -3,7 +3,7 @@
 
 """Tests for AkuvoxDevice connect/disconnect lifecycle and error cases."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import aiohttp
 import pytest
@@ -282,16 +282,17 @@ async def test_get_status_string_ints_coerced() -> None:
 # -- T048: Auth mode integration tests --
 
 
+async def _async_noop() -> None:
+    """No-op async function for mock session close."""
+
+
 def _assert_session_kwargs(
-    mock_cls: object,
+    mock_cls: MagicMock,
     *,
     expect_basic: bool = False,
     expect_digest: bool = False,
 ) -> None:
     """Check ClientSession was created with expected auth configuration."""
-    from unittest.mock import MagicMock
-
-    assert isinstance(mock_cls, MagicMock)
     _, kwargs = mock_cls.call_args
     if expect_basic:
         assert isinstance(kwargs["auth"], aiohttp.BasicAuth)
@@ -358,30 +359,33 @@ async def test_auth_digest_creates_session_with_middleware() -> None:
         mock_session.close = _async_noop
         async with AkuvoxDevice("192.168.1.100", auth=auth):
             _assert_session_kwargs(mock_cls, expect_digest=True)
+            mw = mock_cls.call_args[1]["middlewares"][0]
+            assert mw._login_str == "admin"
+            assert mw._password_bytes == b"pass"
+
+
+_E2E_INFO_PAYLOAD: dict[str, object] = {
+    "retcode": 0,
+    "action": "info",
+    "message": "",
+    "data": {
+        "Status": {
+            "Model": "E21V",
+            "MAC": "AA:BB:CC:DD:EE:FF",
+            "FirmwareVersion": "2.0.0.1",
+            "HardwareVersion": "1.0",
+            "Uptime": "3 days",
+            "WebLang": 0,
+        }
+    },
+}
 
 
 async def test_auth_basic_get_info_end_to_end() -> None:
     """Verify BASIC auth device retrieves info via real request path."""
     auth = AuthConfig(method=AuthMethod.BASIC, username="admin", password="pass")
     with aioresponses() as m:
-        m.get(
-            f"{BASE_URL}/api/system/info",
-            payload={
-                "retcode": 0,
-                "action": "info",
-                "message": "",
-                "data": {
-                    "Status": {
-                        "Model": "E21V",
-                        "MAC": "AA:BB:CC:DD:EE:FF",
-                        "FirmwareVersion": "2.0.0.1",
-                        "HardwareVersion": "1.0",
-                        "Uptime": "3 days",
-                        "WebLang": 0,
-                    }
-                },
-            },
-        )
+        m.get(f"{BASE_URL}/api/system/info", payload=_E2E_INFO_PAYLOAD)
         async with AkuvoxDevice("192.168.1.100", auth=auth) as device:
             assert device._http._session is not None
             assert isinstance(device._http._session.auth, aiohttp.BasicAuth)
@@ -389,5 +393,12 @@ async def test_auth_basic_get_info_end_to_end() -> None:
     assert info.model == "E21V"
 
 
-async def _async_noop() -> None:
-    """No-op async function for mock session close."""
+async def test_auth_digest_get_info_end_to_end() -> None:
+    """Verify DIGEST auth device retrieves info via real request path."""
+    auth = AuthConfig(method=AuthMethod.DIGEST, username="admin", password="pass")
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", payload=_E2E_INFO_PAYLOAD)
+        async with AkuvoxDevice("192.168.1.100", auth=auth) as device:
+            assert device._http._session is not None
+            info = await device.get_info()
+    assert info.model == "E21V"
