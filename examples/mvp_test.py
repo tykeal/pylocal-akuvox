@@ -144,7 +144,7 @@ async def test_list_schedules(device: AkuvoxDevice) -> None:
 
 async def test_add_user(device: AkuvoxDevice) -> str | None:
     """Test: Add a test user. Returns the user's internal ID if found."""
-    print_header("ADD USER (/api/user/add)")
+    print_header("ADD USER (/api/user/set action:add)")
     test_name = "pylocal-test"
     test_user_id = "9999"
 
@@ -189,7 +189,7 @@ async def test_modify_user(device: AkuvoxDevice, internal_id: str) -> None:
 
 async def test_delete_user(device: AkuvoxDevice, internal_id: str) -> None:
     """Test: Delete the test user."""
-    print_header("DELETE USER (/api/user/del)")
+    print_header("DELETE USER (/api/user/set action:del)")
     await device.delete_user(id=internal_id)
     print(f"  Deleted user ID={internal_id}")
     print("  ✓ delete_user() OK")
@@ -212,7 +212,7 @@ async def test_trigger_relay(device: AkuvoxDevice) -> None:
 
 async def test_add_schedule(device: AkuvoxDevice) -> str | None:
     """Test: Add a test schedule. Returns schedule ID if found."""
-    print_header("ADD SCHEDULE (/api/schedule/add)")
+    print_header("ADD SCHEDULE (/api/schedule/set action:add)")
     test_name = "pylocal-test-sched"
 
     try:
@@ -258,7 +258,7 @@ async def test_modify_schedule(device: AkuvoxDevice, internal_id: str) -> None:
 
 async def test_delete_schedule(device: AkuvoxDevice, internal_id: str) -> None:
     """Test: Delete the test schedule."""
-    print_header("DELETE SCHEDULE (/api/schedule/del)")
+    print_header("DELETE SCHEDULE (/api/schedule/set action:del)")
     await device.delete_schedule(id=internal_id)
     print(f"  Deleted schedule ID={internal_id}")
     print("  ✓ delete_schedule() OK")
@@ -366,30 +366,10 @@ async def run_all(args: argparse.Namespace) -> None:
             async with AkuvoxDevice(
                 args.host, auth=auth, timeout=args.timeout
             ) as device:
-                # User CRUD
-                internal_id = await test_add_user(device)
-                if internal_id:
-                    await test_modify_user(device, internal_id)
-                    await test_delete_user(device, internal_id)
-                    print_header("VERIFY USER DELETION")
-                    users = await device.list_users()
-                    found = any(u.id == internal_id for u in users)
-                    if not found:
-                        print("  ✓ User successfully removed")
-                    else:
-                        print("  ✗ User still present after delete!")
-
-            # Device needs cooldown between request groups
-            print("\n  ⏳ Waiting for device to settle…")
-            await asyncio.sleep(_MUTATION_SETTLE_SECS * 3)
-
-            async with AkuvoxDevice(
-                args.host, auth=auth, timeout=args.timeout
-            ) as device:
-                # Schedule CRUD
+                # Schedule add + delete first — the /api/schedule/set
+                # endpoint works correctly on E18 firmware.
                 sched_id = await test_add_schedule(device)
                 if sched_id:
-                    await test_modify_schedule(device, sched_id)
                     await test_delete_schedule(device, sched_id)
                     print_header("VERIFY SCHEDULE DELETION")
                     scheds = await device.list_schedules()
@@ -398,6 +378,20 @@ async def run_all(args: argparse.Namespace) -> None:
                         print("  ✓ Schedule successfully removed")
                     else:
                         print("  ✗ Schedule still present after delete!")
+
+            # Device needs cooldown between request groups
+            print("\n  ⏳ Waiting for device to settle…")
+            await asyncio.sleep(_MUTATION_SETTLE_SECS * 3)
+
+            async with AkuvoxDevice(
+                args.host, auth=auth, timeout=args.timeout
+            ) as device:
+                # User CRUD is skipped — /api/user/set is broken on
+                # E18 firmware 18.30.10.72 (routes to schedule
+                # handler, creating corrupt Type=-1 records).
+                print_header("SKIP USER CRUD (E18 firmware bug)")
+                print("  ⚠ /api/user/set routes to schedule handler")
+                print("  ⚠ Skipping user add/delete to avoid corruption")
 
                 # Relay trigger (safe: auto-close after 1s)
                 await test_trigger_relay(device)
