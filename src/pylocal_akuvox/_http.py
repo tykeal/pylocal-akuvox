@@ -59,10 +59,11 @@ class AkuvoxHttpClient:
             msg = "Session already open; nested context usage is not supported"
             raise AkuvoxConnectionError(msg)
         aiohttp_auth, middlewares = self._resolve_auth()
-        connector = aiohttp.TCPConnector(
-            force_close=True,
-            ssl=self._build_ssl_context(),
-        )
+        ssl_context = self._build_ssl_context()
+        connector_kwargs: dict[str, object] = {"force_close": True}
+        if ssl_context is not None:
+            connector_kwargs["ssl"] = ssl_context
+        connector = aiohttp.TCPConnector(**connector_kwargs)
         self._session = aiohttp.ClientSession(
             timeout=self._timeout,
             auth=aiohttp_auth,

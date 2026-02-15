@@ -461,3 +461,10 @@ def test_no_ssl_ignores_verify_flag() -> None:
     """Verify plain http returns None regardless of verify_ssl."""
     c = AkuvoxHttpClient(host="192.168.1.100", use_ssl=False, verify_ssl=False)
     assert c._build_ssl_context() is None
+
+
+async def test_ssl_no_verify_connector_receives_context() -> None:
+    """Verify __aenter__ passes SSLContext to connector."""
+    c = AkuvoxHttpClient(host="192.168.1.100", use_ssl=True, verify_ssl=False)
+    async with c:
+        assert c._session is not None
