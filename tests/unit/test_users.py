@@ -261,7 +261,7 @@ async def test_modify_user_empty_pin_omitted() -> None:
         body = json.loads(call.kwargs.get("data", ""))
         assert body["action"] == "set"
         item = body["data"]["item"][0]
-        # Empty PIN normalized to None — original empty string preserved
+        # Empty PIN normalized to None - field not updated, original value preserved
         assert item["ID"] == "1"
         assert item["Name"] == "Updated"
 
