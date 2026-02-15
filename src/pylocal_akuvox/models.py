@@ -270,8 +270,8 @@ class DoorLogEntry:
     name: str
     code: str
     door_type: str
-    relay: str
     status: str
+    relay: str | None = None
     access_mode: str | None = None
 
     @classmethod
@@ -285,8 +285,8 @@ class DoorLogEntry:
                 name=data["Name"],
                 code=data["Code"],
                 door_type=data["Type"],
-                relay=data["Relay"],
                 status=data["Status"],
+                relay=data.get("Relay"),
                 access_mode=data.get("AccessMode"),
             )
         except KeyError as exc:
