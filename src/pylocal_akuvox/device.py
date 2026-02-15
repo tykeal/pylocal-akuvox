@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pylocal_akuvox._http import AkuvoxHttpClient
 from pylocal_akuvox.models import DeviceInfo, DeviceStatus
@@ -114,3 +114,24 @@ class AkuvoxDevice:
         from pylocal_akuvox import users
 
         await users.delete_user(self._http, id=id)
+
+    async def trigger_relay(
+        self,
+        *,
+        num: int,
+        mode: int = 0,
+        level: int = 0,
+        delay: int = 0,
+    ) -> None:
+        """Trigger a relay to unlock a door or gate."""
+        from pylocal_akuvox import relay
+
+        await relay.trigger_relay(
+            self._http, num=num, mode=mode, level=level, delay=delay
+        )
+
+    async def get_relay_status(self) -> dict[str, Any]:
+        """Retrieve current relay states from the device."""
+        from pylocal_akuvox import relay
+
+        return await relay.get_relay_status(self._http)
