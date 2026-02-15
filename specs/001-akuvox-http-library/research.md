@@ -9,9 +9,14 @@ SPDX-License-Identifier: Apache-2.0
 
 **Decision**: The Akuvox local HTTP API uses a REST-like pattern at
 `http://<device-ip>/api/<resource>/<action>` with JSON request and
-response bodies. POST endpoints accept JSON as `text/plain` content
-type (not `application/json`). All responses follow a uniform envelope:
+response bodies. POST endpoints accept `application/json` content
+type. GET endpoints return data directly; POST mutation endpoints
+require a wrapped body: `{"action":"X","data":{"item":[{...}]}}`.
+All responses follow a uniform envelope:
 `{ "retcode": int, "action": str, "message": str, "data": {...} }`.
+GET endpoints return `retcode: 0` on success; mutation endpoints
+return `retcode >= 0` on success (`retcode: 1` is typical) and
+`retcode < 0` on failure.
 
 **Rationale**: Confirmed from two Apifox-generated OpenAPI specs
 (`linux_AC_api` for access controllers, `linux_api` for full device
@@ -80,7 +85,7 @@ are handled natively by aiohttp.
 | Get relay status | GET | `/api/relay/status` |
 | Trigger relay | POST | `/api/relay/trig` |
 | Set relay config | POST | `/api/relay/set` |
-| List users | POST | `/api/user/get` |
+| List users | GET | `/api/user/get` |
 | Add user | POST | `/api/user/add` |
 | Modify user | POST | `/api/user/set` |
 | Delete user | POST | `/api/user/del` |
@@ -91,10 +96,13 @@ are handled natively by aiohttp.
 | Get door logs | POST | `/api/doorlog/get` |
 | Get call logs | POST | `/api/calllog/get` |
 
-**Rationale**: Direct mapping from Apifox specs. POST endpoints send
-JSON as `text/plain`. GET endpoints take no body. Paginated endpoints
-(users, schedules, logs) accept a `page` parameter; page size is fixed
-at 10 items by the device.
+**Rationale**: Direct mapping from Apifox specs, corrected based on
+real E18 device testing. GET endpoints (info, status, user/get) take
+no body; query params used for pagination (`?page=N`). POST mutation
+endpoints require `application/json` content type with body wrapped
+in `{"action":"X","data":{"item":[{...}]}}`. The `user/set` endpoint
+requires a complete user record (read-modify-write pattern). Page
+size is fixed at 10 items by the device.
 
 **Alternatives considered**: None — these are the documented endpoints.
 
