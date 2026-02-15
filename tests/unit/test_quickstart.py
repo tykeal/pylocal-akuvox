@@ -264,8 +264,10 @@ async def test_auth_modes() -> None:
 
 async def test_error_handling_validation() -> None:
     """SC-002: validation errors raised for invalid input."""
-    try:
-        async with AkuvoxDevice("192.168.1.100") as device:
+    import pytest
+
+    async with AkuvoxDevice("192.168.1.100") as device:
+        with pytest.raises(AkuvoxValidationError, match="4.*8 digits"):
             await device.add_user(
                 name="Bob",
                 user_id="2002",
@@ -274,8 +276,3 @@ async def test_error_handling_validation() -> None:
                 schedule_relay="1001-1;",
                 lift_floor_num="0",
             )
-    except AkuvoxValidationError:
-        pass
-    else:
-        msg = "Expected AkuvoxValidationError for invalid PIN"
-        raise AssertionError(msg)
