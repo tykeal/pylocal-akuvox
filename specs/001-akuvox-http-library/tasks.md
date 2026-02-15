@@ -367,8 +367,8 @@ verify device info returned.
   in tests/unit/test_device.py: AkuvoxDevice with
   AuthMethod.NONE sends no headers, ALLOWLIST sends no headers,
   BASIC sends Authorization header via aiohttp.BasicAuth,
-  DIGEST uses aiohttp DigestAuthMiddleware, verify each mode retrieves
-  device info successfully (mock with aioresponses)
+  DIGEST uses aiohttp DigestAuthMiddleware, verify session wiring
+  via mock.patch and end-to-end via aioresponses
 
 ### Implementation for User Story 7
 
