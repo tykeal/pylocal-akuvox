@@ -333,3 +333,29 @@ def test_user_to_api_payload_all_optional_fields() -> None:
     assert payload["CardCode"] == "RFID999"
     assert payload["Type"] == "admin"
     assert payload["LiftFloorNum"] == "3"
+
+
+def test_user_from_api_response_missing_web_relay() -> None:
+    """Verify from_api_response handles missing WebRelay gracefully."""
+    data = {
+        "ID": "5",
+        "Name": "Cloud User",
+        "UserID": "9001",
+        "ScheduleRelay": "40313-1",
+        "SourceType": "2",
+    }
+    user = User.from_api_response(data)
+    assert user.web_relay is None
+    assert user.name == "Cloud User"
+
+
+def test_user_to_api_payload_excludes_web_relay_when_none() -> None:
+    """Verify to_api_payload omits WebRelay when it is None."""
+    data = {
+        "Name": "Cloud User",
+        "UserID": "9001",
+        "ScheduleRelay": "40313-1",
+    }
+    user = User.from_api_response(data)
+    payload = user.to_api_payload()
+    assert "WebRelay" not in payload

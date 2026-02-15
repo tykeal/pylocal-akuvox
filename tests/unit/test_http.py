@@ -4,7 +4,6 @@
 """Tests for HTTP client wrapper and response envelope parsing."""
 
 import asyncio
-import json
 from typing import Any
 
 import aiohttp
@@ -76,7 +75,7 @@ async def test_non_dict_data_returns_empty_dict(client: AkuvoxHttpClient) -> Non
 
 
 async def test_successful_post(client: AkuvoxHttpClient) -> None:
-    """Verify successful POST sends JSON as text/plain."""
+    """Verify successful POST sends JSON as application/json."""
     response = {
         "retcode": 0,
         "action": "trigRelay",
@@ -87,15 +86,35 @@ async def test_successful_post(client: AkuvoxHttpClient) -> None:
         m.post(f"{BASE_URL}/api/relay/trig", payload=response)
         async with client:
             result = await client.post("/api/relay/trig", data={"num": 1})
+
+        call = m.requests[("POST", aiohttp.client.URL(f"{BASE_URL}/api/relay/trig"))][0]
+        # json= kwarg tells aiohttp to send application/json
+        assert call.kwargs.get("json") == {"num": 1}
     assert result == {}
 
 
-async def test_retcode_nonzero_raises_device_error(
+async def test_retcode_positive_nonzero_succeeds(
     client: AkuvoxHttpClient,
 ) -> None:
-    """Verify non-zero retcode raises AkuvoxDeviceError."""
+    """Verify positive retcode (e.g. 1) is treated as success."""
     response = {
         "retcode": 1,
+        "action": "add",
+        "message": "OK",
+    }
+    with aioresponses() as m:
+        m.post(f"{BASE_URL}/api/user/add", payload=response)
+        async with client:
+            result = await client.post("/api/user/add", data={})
+    assert result == {}
+
+
+async def test_retcode_negative_raises_device_error(
+    client: AkuvoxHttpClient,
+) -> None:
+    """Verify negative retcode raises AkuvoxDeviceError."""
+    response = {
+        "retcode": -1,
         "action": "trigRelay",
         "message": "Error occurred",
     }
@@ -224,12 +243,15 @@ async def test_concurrent_requests_serialize(
     original_request = client._request
 
     async def instrumented_request(
-        method: str, path: str, data: dict[str, Any] | None = None
+        method: str,
+        path: str,
+        data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Record entry/exit to verify non-overlap."""
         idx = len([e for e in events if e.startswith("enter")])
         events.append(f"enter-{idx}")
-        result = await original_request(method, path, data)
+        result = await original_request(method, path, data, params)
         events.append(f"exit-{idx}")
         return result
 
@@ -254,8 +276,8 @@ async def test_concurrent_requests_serialize(
         assert events[i].split("-")[1] == events[i + 1].split("-")[1]
 
 
-async def test_post_sends_text_plain(client: AkuvoxHttpClient) -> None:
-    """Verify POST sends JSON encoded as text/plain content type."""
+async def test_post_sends_json(client: AkuvoxHttpClient) -> None:
+    """Verify POST sends JSON with application/json content type."""
     response = {
         "retcode": 0,
         "action": "addUser",
@@ -268,9 +290,7 @@ async def test_post_sends_text_plain(client: AkuvoxHttpClient) -> None:
             await client.post("/api/user/add", data={"Name": "Test"})
 
         call = m.requests[("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/add"))][0]
-        body = call.kwargs.get("data", "")
-        parsed = json.loads(body)
-        assert parsed == {"Name": "Test"}
+        assert call.kwargs.get("json") == {"Name": "Test"}
 
 
 async def test_context_manager_lifecycle(
@@ -389,3 +409,18 @@ async def test_path_without_leading_slash(client: AkuvoxHttpClient) -> None:
         async with client:
             result = await client.get("api/system/info")
     assert result == {"Status": {"Model": "E16C"}}
+
+
+async def test_get_with_params(client: AkuvoxHttpClient) -> None:
+    """Verify get() passes query params to the request."""
+    response = {
+        "retcode": 0,
+        "action": "get",
+        "message": "",
+        "data": {"num": 0, "item": []},
+    }
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get?page=2", payload=response)
+        async with client:
+            result = await client.get("/api/user/get", params={"page": 2})
+    assert result == {"num": 0, "item": []}

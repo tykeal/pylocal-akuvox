@@ -18,6 +18,11 @@ _PIN_PATTERN = re.compile(r"^[0-9]{4,8}$")
 _SCHEDULE_RELAY_PATTERN = re.compile(r"^([0-9]+-[0-9]+;)+$")
 
 
+def _mutation_body(action: str, item: dict[str, Any]) -> dict[str, Any]:
+    """Wrap a user payload in the device mutation envelope."""
+    return {"action": action, "data": {"item": [item]}}
+
+
 def validate_pin(pin: str | None) -> None:
     """Validate PIN is 4-8 digits only.
 
@@ -47,7 +52,7 @@ async def add_user(
     *,
     name: str,
     user_id: str,
-    web_relay: str,
+    web_relay: str | None = None,
     schedule_relay: str,
     lift_floor_num: str,
     private_pin: str | None = None,
@@ -69,16 +74,17 @@ async def add_user(
     payload: dict[str, Any] = {
         "Name": name,
         "UserID": user_id,
-        "WebRelay": web_relay,
         "ScheduleRelay": schedule_relay,
         "LiftFloorNum": lift_floor_num,
     }
+    if web_relay is not None:
+        payload["WebRelay"] = web_relay
     if private_pin:
         payload["PrivatePIN"] = private_pin
     if card_code:
         payload["CardCode"] = card_code
 
-    await http.post("/api/user/add", data=payload)
+    await http.post("/api/user/add", data=_mutation_body("add", payload))
 
 
 async def list_users(
@@ -87,15 +93,36 @@ async def list_users(
     page: int | None = None,
 ) -> list[User]:
     """List users from the device, optionally paginated."""
-    payload: dict[str, Any] = {}
+    params: dict[str, Any] = {}
     if page is not None:
-        payload["page"] = page
+        params["page"] = page
 
-    data = await http.post("/api/user/get", data=payload)
+    data = await http.get("/api/user/get", params=params or None)
     items = data.get("item", [])
     if not isinstance(items, list):
         return []
     return [User.from_api_response(item) for item in items if isinstance(item, dict)]
+
+
+async def _get_user_by_id(http: AkuvoxHttpClient, internal_id: str) -> dict[str, Any]:
+    """Fetch a single user's raw data by internal ID.
+
+    Iterates through all pages (device returns 10 per page).
+    """
+    from pylocal_akuvox.exceptions import AkuvoxDeviceError
+
+    page = 1
+    while True:
+        data = await http.get("/api/user/get", params={"page": page})
+        items = data.get("item", [])
+        if not isinstance(items, list) or len(items) == 0:
+            break
+        for item in items:
+            if isinstance(item, dict) and item.get("ID") == internal_id:
+                return item
+        page += 1
+    msg = f"User ID {internal_id} not found"
+    raise AkuvoxDeviceError(msg)
 
 
 async def modify_user(
@@ -110,31 +137,36 @@ async def modify_user(
     schedule_relay: str | None = None,
     lift_floor_num: str | None = None,
 ) -> None:
-    """Modify an existing user on the device."""
-    # Normalize empty strings to None (omit from payload)
+    """Modify an existing user on the device.
+
+    The device requires a full user record for set operations,
+    so this fetches the current record and merges changes.
+    """
+    # Normalize empty strings to None (skip update for these fields)
     private_pin = private_pin or None
     schedule_relay = schedule_relay or None
 
     validate_pin(private_pin)
     validate_schedule_relay(schedule_relay)
 
-    payload: dict[str, Any] = {"ID": id}
+    # Fetch current user record and apply overrides
+    current = await _get_user_by_id(http, id)
     if name is not None:
-        payload["Name"] = name
+        current["Name"] = name
     if user_id is not None:
-        payload["UserID"] = user_id
+        current["UserID"] = user_id
     if private_pin is not None:
-        payload["PrivatePIN"] = private_pin
+        current["PrivatePIN"] = private_pin
     if card_code is not None:
-        payload["CardCode"] = card_code
+        current["CardCode"] = card_code
     if web_relay is not None:
-        payload["WebRelay"] = web_relay
+        current["WebRelay"] = web_relay
     if schedule_relay is not None:
-        payload["ScheduleRelay"] = schedule_relay
+        current["ScheduleRelay"] = schedule_relay
     if lift_floor_num is not None:
-        payload["LiftFloorNum"] = lift_floor_num
+        current["LiftFloorNum"] = lift_floor_num
 
-    await http.post("/api/user/set", data=payload)
+    await http.post("/api/user/set", data=_mutation_body("set", current))
 
 
 async def delete_user(
@@ -143,4 +175,4 @@ async def delete_user(
     id: str,
 ) -> None:
     """Delete a user from the device."""
-    await http.post("/api/user/del", data={"ID": id})
+    await http.post("/api/user/del", data=_mutation_body("del", {"ID": id}))

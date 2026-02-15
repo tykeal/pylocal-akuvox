@@ -56,7 +56,7 @@ class AkuvoxDevice:
         *,
         name: str,
         user_id: str,
-        web_relay: str,
+        web_relay: str | None = None,
         schedule_relay: str,
         lift_floor_num: str,
         private_pin: str | None = None,

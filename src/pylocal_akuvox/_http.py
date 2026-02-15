@@ -70,15 +70,17 @@ class AkuvoxHttpClient:
             await self._session.close()
         self._session = None
 
-    async def get(self, path: str) -> dict[str, Any]:
+    async def get(
+        self, path: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Send a GET request and return parsed envelope data."""
         async with self._lock:
-            return await self._request("GET", path)
+            return await self._request("GET", path, params=params)
 
     async def post(
         self, path: str, data: dict[str, Any] | None = None
     ) -> dict[str, Any]:
-        """Send a POST request with JSON as text/plain."""
+        """Send a POST request with JSON payload."""
         async with self._lock:
             return await self._request("POST", path, data=data)
 
@@ -87,6 +89,7 @@ class AkuvoxHttpClient:
         method: str,
         path: str,
         data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Execute an HTTP request and parse the response envelope."""
         if self._session is None or self._session.closed:
@@ -99,8 +102,9 @@ class AkuvoxHttpClient:
         url = f"{self._base_url}{path}"
         kwargs: dict[str, Any] = {}
         if data is not None:
-            kwargs["data"] = json.dumps(data)
-            kwargs["headers"] = {"Content-Type": "text/plain"}
+            kwargs["json"] = data
+        if params is not None:
+            kwargs["params"] = params
 
         try:
             async with self._session.request(method, url, **kwargs) as resp:
@@ -140,7 +144,7 @@ class AkuvoxHttpClient:
         if _UNSUPPORTED_MSG in message:
             raise AkuvoxUnsupportedError(message)
 
-        if retcode != 0:
+        if retcode < 0:
             raise AkuvoxDeviceError(message)
 
         data = body.get("data", {})
