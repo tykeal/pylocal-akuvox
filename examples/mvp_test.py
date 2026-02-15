@@ -178,6 +178,9 @@ async def test_add_user(device: AkuvoxDevice) -> str | None:
     return None
 
 
+# Not called in the current test flow — modify operations are
+# reserved for future testing once firmware behavior is fully
+# characterized.  Kept as a ready-to-use helper.
 async def test_modify_user(device: AkuvoxDevice, internal_id: str) -> None:
     """Test: Modify the test user's PIN."""
     print_header("MODIFY USER (/api/user/set)")
@@ -242,6 +245,9 @@ async def test_add_schedule(device: AkuvoxDevice) -> str | None:
     return None
 
 
+# Not called in the current test flow — modify operations are
+# reserved for future testing once firmware behavior is fully
+# characterized.  Kept as a ready-to-use helper.
 async def test_modify_schedule(device: AkuvoxDevice, internal_id: str) -> None:
     """Test: Modify the test schedule."""
     print_header("MODIFY SCHEDULE (/api/schedule/set)")
