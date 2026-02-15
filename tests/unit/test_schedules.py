@@ -13,6 +13,7 @@ from pylocal_akuvox.exceptions import (
     AkuvoxValidationError,
 )
 from pylocal_akuvox.schedules import (
+    validate_daily,
     validate_date,
     validate_schedule_type,
     validate_time,
@@ -224,6 +225,47 @@ def test_validate_week_empty_allowed() -> None:
     validate_week("")
 
 
+# -- T037: Daily validation --
+
+
+def test_validate_daily_valid() -> None:
+    """Verify valid HH:MM-HH:MM daily is accepted."""
+    validate_daily("08:00-18:00")
+
+
+def test_validate_daily_none() -> None:
+    """Verify None daily is allowed (optional)."""
+    validate_daily(None)
+
+
+def test_validate_daily_empty_allowed() -> None:
+    """Verify empty string daily is allowed (optional)."""
+    validate_daily("")
+
+
+def test_validate_daily_midnight_range() -> None:
+    """Verify midnight range is accepted."""
+    validate_daily("00:00-23:59")
+
+
+def test_validate_daily_invalid_format() -> None:
+    """Verify non-range format raises AkuvoxValidationError."""
+    with pytest.raises(AkuvoxValidationError, match="HH:MM-HH:MM"):
+        validate_daily("08:00")
+
+
+def test_validate_daily_invalid_hour() -> None:
+    """Verify invalid hour in daily raises AkuvoxValidationError."""
+    with pytest.raises(AkuvoxValidationError, match="HH:MM-HH:MM"):
+        validate_daily("25:00-18:00")
+
+
+def test_validate_daily_invalid_chars() -> None:
+    """Verify non-numeric daily raises AkuvoxValidationError."""
+    with pytest.raises(AkuvoxValidationError, match="HH:MM-HH:MM"):
+        validate_daily("ab:cd-ef:gh")
+
+
 # -- T037: add_schedule CRUD tests --
 
 
@@ -306,6 +348,15 @@ async def test_add_schedule_invalid_week_rejected() -> None:
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="digits 0-6"):
                 await device.add_schedule(schedule_type="1", week="789")
+        assert len(m.requests) == 0
+
+
+async def test_add_schedule_invalid_daily_rejected() -> None:
+    """Verify add_schedule rejects invalid daily format."""
+    with aioresponses() as m:
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxValidationError, match="HH:MM-HH:MM"):
+                await device.add_schedule(schedule_type="1", daily="bad")
         assert len(m.requests) == 0
 
 

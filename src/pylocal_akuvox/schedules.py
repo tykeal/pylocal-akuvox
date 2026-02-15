@@ -18,6 +18,9 @@ _VALID_TYPES = {"0", "1", "2"}
 _TIME_PATTERN = re.compile(r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
 _DATE_PATTERN = re.compile(r"^[0-9]{8}$")
 _WEEK_PATTERN = re.compile(r"^[0-6]+$")
+_DAILY_PATTERN = re.compile(
+    r"^([01][0-9]|2[0-3]):[0-5][0-9]-([01][0-9]|2[0-3]):[0-5][0-9]$"
+)
 
 
 def _mutation_body(action: str, item: dict[str, Any]) -> dict[str, Any]:
@@ -59,6 +62,15 @@ def validate_week(week: str | None) -> None:
         raise AkuvoxValidationError(msg)
 
 
+def validate_daily(daily: str | None) -> None:
+    """Validate daily is HH:MM-HH:MM format."""
+    if daily is None or daily == "":
+        return
+    if not _DAILY_PATTERN.match(daily):
+        msg = "daily must be HH:MM-HH:MM format"
+        raise AkuvoxValidationError(msg)
+
+
 async def add_schedule(
     http: AkuvoxHttpClient,
     *,
@@ -74,6 +86,7 @@ async def add_schedule(
     """Add an access schedule to the device."""
     validate_schedule_type(schedule_type)
     validate_week(week)
+    validate_daily(daily)
     validate_date(date_start, "date_start")
     validate_date(date_end, "date_end")
     validate_time(time_start, "time_start")
@@ -163,6 +176,7 @@ async def modify_schedule(
     if schedule_type is not None:
         validate_schedule_type(schedule_type)
     validate_week(week)
+    validate_daily(daily)
     validate_date(date_start, "date_start")
     validate_date(date_end, "date_end")
     validate_time(time_start, "time_start")

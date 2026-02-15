@@ -429,7 +429,9 @@ def test_access_schedule_from_api_response_minimal() -> None:
 
 def test_access_schedule_missing_type_raises() -> None:
     """Verify missing Type raises AkuvoxParseError."""
-    with pytest.raises(Exception, match="Missing required field.*Type"):
+    from pylocal_akuvox.exceptions import AkuvoxParseError
+
+    with pytest.raises(AkuvoxParseError, match="Missing required field.*Type"):
         AccessSchedule.from_api_response({"Name": "Test"})
 
 
@@ -460,7 +462,7 @@ def test_access_schedule_to_api_payload_minimal() -> None:
 
 
 def test_access_schedule_to_api_payload_all_fields() -> None:
-    """Verify to_api_payload includes date and time fields."""
+    """Verify to_api_payload includes date, time, and day fields."""
     schedule = AccessSchedule(
         schedule_type="0",
         id="100",
@@ -471,6 +473,16 @@ def test_access_schedule_to_api_payload_all_fields() -> None:
         time_end="18:00",
         week="12345",
         daily="08:00-18:00",
+        display_id="D1",
+        source_type="1",
+        mode="1",
+        sun="0",
+        mon="1",
+        tue="1",
+        wed="1",
+        thur="1",
+        fri="1",
+        sat="0",
     )
     payload = schedule.to_api_payload()
     assert payload["DateStart"] == "20260101"
@@ -479,6 +491,16 @@ def test_access_schedule_to_api_payload_all_fields() -> None:
     assert payload["TimeEnd"] == "18:00"
     assert payload["Week"] == "12345"
     assert payload["Daily"] == "08:00-18:00"
+    assert payload["DisplayID"] == "D1"
+    assert payload["SourceType"] == "1"
+    assert payload["Mode"] == "1"
+    assert payload["Sun"] == "0"
+    assert payload["Mon"] == "1"
+    assert payload["Tue"] == "1"
+    assert payload["Wed"] == "1"
+    assert payload["Thur"] == "1"
+    assert payload["Fri"] == "1"
+    assert payload["Sat"] == "0"
 
 
 def test_access_schedule_day_fields_mapped() -> None:

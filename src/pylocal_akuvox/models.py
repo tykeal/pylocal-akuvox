@@ -234,20 +234,27 @@ class AccessSchedule:
         payload: dict[str, str] = {
             "Type": self.schedule_type,
         }
-        if self.id is not None:
-            payload["ID"] = self.id
-        if self.name is not None:
-            payload["Name"] = self.name
-        if self.date_start is not None:
-            payload["DateStart"] = self.date_start
-        if self.date_end is not None:
-            payload["DateEnd"] = self.date_end
-        if self.time_start is not None:
-            payload["TimeStart"] = self.time_start
-        if self.time_end is not None:
-            payload["TimeEnd"] = self.time_end
-        if self.week is not None:
-            payload["Week"] = self.week
-        if self.daily is not None:
-            payload["Daily"] = self.daily
+        _optional: list[tuple[str | None, str]] = [
+            (self.id, "ID"),
+            (self.name, "Name"),
+            (self.date_start, "DateStart"),
+            (self.date_end, "DateEnd"),
+            (self.time_start, "TimeStart"),
+            (self.time_end, "TimeEnd"),
+            (self.week, "Week"),
+            (self.daily, "Daily"),
+            (self.display_id, "DisplayID"),
+            (self.source_type, "SourceType"),
+            (self.mode, "Mode"),
+            (self.sun, "Sun"),
+            (self.mon, "Mon"),
+            (self.tue, "Tue"),
+            (self.wed, "Wed"),
+            (self.thur, "Thur"),
+            (self.fri, "Fri"),
+            (self.sat, "Sat"),
+        ]
+        for value, key in _optional:
+            if value is not None:
+                payload[key] = value
         return payload
