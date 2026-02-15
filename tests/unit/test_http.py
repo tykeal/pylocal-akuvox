@@ -76,7 +76,7 @@ async def test_non_dict_data_returns_empty_dict(client: AkuvoxHttpClient) -> Non
 
 
 async def test_successful_post(client: AkuvoxHttpClient) -> None:
-    """Verify successful POST sends JSON as text/plain."""
+    """Verify successful POST sends JSON as application/json."""
     response = {
         "retcode": 0,
         "action": "trigRelay",
@@ -90,12 +90,28 @@ async def test_successful_post(client: AkuvoxHttpClient) -> None:
     assert result == {}
 
 
-async def test_retcode_nonzero_raises_device_error(
+async def test_retcode_positive_nonzero_succeeds(
     client: AkuvoxHttpClient,
 ) -> None:
-    """Verify non-zero retcode raises AkuvoxDeviceError."""
+    """Verify positive retcode (e.g. 1) is treated as success."""
     response = {
         "retcode": 1,
+        "action": "add",
+        "message": "OK",
+    }
+    with aioresponses() as m:
+        m.post(f"{BASE_URL}/api/user/add", payload=response)
+        async with client:
+            result = await client.post("/api/user/add", data={})
+    assert result == {}
+
+
+async def test_retcode_negative_raises_device_error(
+    client: AkuvoxHttpClient,
+) -> None:
+    """Verify negative retcode raises AkuvoxDeviceError."""
+    response = {
+        "retcode": -1,
         "action": "trigRelay",
         "message": "Error occurred",
     }

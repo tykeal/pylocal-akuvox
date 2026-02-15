@@ -17,6 +17,35 @@ from pylocal_akuvox.users import validate_pin, validate_schedule_relay
 
 BASE_URL = "http://192.168.1.100"
 
+# Mock response for user-get used by modify_user read-modify-write
+_USER_GET_RESPONSE: dict[str, object] = {
+    "retcode": 0,
+    "action": "get",
+    "message": "OK",
+    "data": {
+        "num": 1,
+        "item": [
+            {
+                "ID": "1",
+                "Name": "Alice",
+                "UserID": "2001",
+                "WebRelay": "0",
+                "ScheduleRelay": "1001-1;",
+                "LiftFloorNum": "0",
+                "PrivatePIN": "",
+                "CardCode": "",
+            },
+        ],
+    },
+}
+
+_SET_OK_RESPONSE: dict[str, object] = {
+    "retcode": 1,
+    "action": "set",
+    "message": "OK",
+    "data": {},
+}
+
 # -- T026: PIN validation tests --
 
 
@@ -144,11 +173,13 @@ async def test_add_user_posts_to_correct_endpoint() -> None:
         url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/add"))
         call = m.requests[url_key][0]
         body = json.loads(call.kwargs.get("data", ""))
-        assert body["Name"] == "Alice"
-        assert body["UserID"] == "2001"
-        assert body["WebRelay"] == "0"
-        assert body["ScheduleRelay"] == "1001-1;"
-        assert body["LiftFloorNum"] == "0"
+        assert body["action"] == "add"
+        item = body["data"]["item"][0]
+        assert item["Name"] == "Alice"
+        assert item["UserID"] == "2001"
+        assert item["WebRelay"] == "0"
+        assert item["ScheduleRelay"] == "1001-1;"
+        assert item["LiftFloorNum"] == "0"
 
 
 async def test_add_user_with_pin() -> None:
@@ -217,14 +248,10 @@ async def test_add_user_empty_schedule_relay_raises() -> None:
 async def test_modify_user_empty_pin_omitted() -> None:
     """Verify modify_user normalizes empty string PIN to None (omit)."""
     with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get", payload=_USER_GET_RESPONSE)
         m.post(
             f"{BASE_URL}/api/user/set",
-            payload={
-                "retcode": 0,
-                "action": "set",
-                "message": "",
-                "data": {},
-            },
+            payload=_SET_OK_RESPONSE,
         )
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.modify_user(id="1", private_pin="", name="Updated")
@@ -232,9 +259,11 @@ async def test_modify_user_empty_pin_omitted() -> None:
         url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
         call = m.requests[url_key][0]
         body = json.loads(call.kwargs.get("data", ""))
-        assert "PrivatePIN" not in body
-        assert body["ID"] == "1"
-        assert body["Name"] == "Updated"
+        assert body["action"] == "set"
+        item = body["data"]["item"][0]
+        # Empty PIN normalized to None — original empty string preserved
+        assert item["ID"] == "1"
+        assert item["Name"] == "Updated"
 
 
 async def test_list_users_posts_to_correct_endpoint() -> None:
@@ -339,16 +368,12 @@ async def test_list_users_empty_returns_empty_list() -> None:
 
 
 async def test_modify_user_posts_to_correct_endpoint() -> None:
-    """Verify modify_user POSTs to /api/user/set with ID."""
+    """Verify modify_user fetches user then POSTs to /api/user/set."""
     with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get", payload=_USER_GET_RESPONSE)
         m.post(
             f"{BASE_URL}/api/user/set",
-            payload={
-                "retcode": 0,
-                "action": "set",
-                "message": "",
-                "data": {},
-            },
+            payload=_SET_OK_RESPONSE,
         )
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.modify_user(id="1", private_pin="5678")
@@ -446,14 +471,10 @@ async def test_list_users_non_list_items_returns_empty() -> None:
 async def test_modify_user_all_fields() -> None:
     """Verify modify_user sends all optional fields when provided."""
     with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get", payload=_USER_GET_RESPONSE)
         m.post(
             f"{BASE_URL}/api/user/set",
-            payload={
-                "retcode": 0,
-                "action": "set",
-                "message": "",
-                "data": {},
-            },
+            payload=_SET_OK_RESPONSE,
         )
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.modify_user(
@@ -471,14 +492,10 @@ async def test_modify_user_all_fields() -> None:
 async def test_modify_user_without_pin() -> None:
     """Verify modify_user works without private_pin."""
     with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get", payload=_USER_GET_RESPONSE)
         m.post(
             f"{BASE_URL}/api/user/set",
-            payload={
-                "retcode": 0,
-                "action": "set",
-                "message": "",
-                "data": {},
-            },
+            payload=_SET_OK_RESPONSE,
         )
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.modify_user(
@@ -486,6 +503,34 @@ async def test_modify_user_without_pin() -> None:
                 name="Updated",
                 card_code="CARD123",
             )
+
+
+async def test_modify_user_not_found_raises() -> None:
+    """Verify modify_user raises when user ID not found."""
+    from pylocal_akuvox.exceptions import AkuvoxDeviceError
+
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get", payload=_USER_GET_RESPONSE)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxDeviceError, match="not found"):
+                await device.modify_user(id="999", name="Ghost")
+
+
+async def test_modify_user_malformed_item_raises() -> None:
+    """Verify modify_user raises when item list is not a list."""
+    from pylocal_akuvox.exceptions import AkuvoxDeviceError
+
+    bad_response: dict[str, object] = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {"num": 0, "item": "not-a-list"},
+    }
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get", payload=bad_response)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxDeviceError, match="not found"):
+                await device.modify_user(id="1", name="Ghost")
 
 
 async def test_add_user_empty_name_raises() -> None:
@@ -540,7 +585,8 @@ async def test_add_user_without_web_relay() -> None:
         )
         call = m.requests[url_key][0]
         body = json.loads(call.kwargs.get("data", ""))
-        assert "WebRelay" not in body
+        item = body["data"]["item"][0]
+        assert "WebRelay" not in item
 
 
 async def test_list_users_non_dict_items_skipped() -> None:

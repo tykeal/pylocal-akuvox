@@ -103,7 +103,7 @@ class AkuvoxHttpClient:
         kwargs: dict[str, Any] = {}
         if data is not None:
             kwargs["data"] = json.dumps(data)
-            kwargs["headers"] = {"Content-Type": "text/plain"}
+            kwargs["headers"] = {"Content-Type": "application/json"}
         if params is not None:
             kwargs["params"] = params
 
@@ -145,7 +145,7 @@ class AkuvoxHttpClient:
         if _UNSUPPORTED_MSG in message:
             raise AkuvoxUnsupportedError(message)
 
-        if retcode != 0:
+        if retcode < 0:
             raise AkuvoxDeviceError(message)
 
         data = body.get("data", {})
