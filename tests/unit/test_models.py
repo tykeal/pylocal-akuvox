@@ -7,8 +7,10 @@ import pytest
 
 from pylocal_akuvox.models import (
     AccessSchedule,
+    CallLogEntry,
     DeviceInfo,
     DeviceStatus,
+    DoorLogEntry,
     Relay,
     User,
 )
@@ -523,3 +525,153 @@ def test_access_schedule_day_fields_mapped() -> None:
     assert schedule.thur == "1"
     assert schedule.fri == "0"
     assert schedule.sat == "1"
+
+
+# -- T042: DoorLogEntry model tests --
+
+
+def test_door_log_entry_from_api_response() -> None:
+    """Verify DoorLogEntry maps PascalCase API fields."""
+    data = {
+        "ID": "42",
+        "Date": "2026-01-15",
+        "Time": "09:30:00",
+        "Name": "Alice",
+        "Code": "1234",
+        "Type": "PIN",
+        "Relay": "1",
+        "Status": "Succ",
+    }
+    entry = DoorLogEntry.from_api_response(data)
+    assert entry.id == "42"
+    assert entry.date == "2026-01-15"
+    assert entry.time == "09:30:00"
+    assert entry.name == "Alice"
+    assert entry.code == "1234"
+    assert entry.door_type == "PIN"
+    assert entry.relay == "1"
+    assert entry.status == "Succ"
+    assert entry.access_mode is None
+
+
+def test_door_log_entry_with_access_mode() -> None:
+    """Verify DoorLogEntry maps optional AccessMode field."""
+    data = {
+        "ID": "43",
+        "Date": "2026-01-15",
+        "Time": "10:00:00",
+        "Name": "Bob",
+        "Code": "5678",
+        "Type": "Card",
+        "Relay": "2",
+        "Status": "Failed",
+        "AccessMode": "1",
+    }
+    entry = DoorLogEntry.from_api_response(data)
+    assert entry.access_mode == "1"
+    assert entry.status == "Failed"
+
+
+def test_door_log_entry_missing_required_field() -> None:
+    """Verify AkuvoxParseError on missing required field."""
+    data = {
+        "ID": "42",
+        "Date": "2026-01-15",
+        "Time": "09:30:00",
+        # Name missing
+        "Code": "1234",
+        "Type": "PIN",
+        "Relay": "1",
+        "Status": "Succ",
+    }
+    with pytest.raises(Exception, match="Name"):
+        DoorLogEntry.from_api_response(data)
+
+
+# -- T042: CallLogEntry model tests --
+
+
+def test_call_log_entry_from_api_response() -> None:
+    """Verify CallLogEntry maps PascalCase API fields."""
+    data = {
+        "ID": "100",
+        "Date": "2026-01-15",
+        "Time": "14:30:00",
+        "Name": "Front Door",
+        "Type": "Received",
+        "LocalIdentity": "sip:100@192.168.1.1",
+        "Num": "3",
+    }
+    entry = CallLogEntry.from_api_response(data)
+    assert entry.id == "100"
+    assert entry.date == "2026-01-15"
+    assert entry.time == "14:30:00"
+    assert entry.name == "Front Door"
+    assert entry.call_type == "Received"
+    assert entry.local_identity == "sip:100@192.168.1.1"
+    assert entry.count == "3"
+    assert entry.pic_url is None
+
+
+def test_call_log_entry_with_pic_url() -> None:
+    """Verify CallLogEntry maps optional PicUrl field."""
+    data = {
+        "ID": "101",
+        "Date": "2026-01-15",
+        "Time": "15:00:00",
+        "Name": "Back Door",
+        "Type": "Missed",
+        "LocalIdentity": "sip:200@192.168.1.1",
+        "Num": "1",
+        "PicUrl": "http://device/pics/101.jpg",
+    }
+    entry = CallLogEntry.from_api_response(data)
+    assert entry.pic_url == "http://device/pics/101.jpg"
+    assert entry.call_type == "Missed"
+
+
+def test_call_log_entry_missing_required_field() -> None:
+    """Verify AkuvoxParseError on missing required field."""
+    data = {
+        "ID": "100",
+        "Date": "2026-01-15",
+        "Time": "14:30:00",
+        "Name": "Front Door",
+        # Type missing
+        "LocalIdentity": "sip:100@192.168.1.1",
+        "Num": "3",
+    }
+    with pytest.raises(Exception, match="Type"):
+        CallLogEntry.from_api_response(data)
+
+
+def test_call_log_entry_all_call_types() -> None:
+    """Verify all documented call type values are accepted."""
+    base = {
+        "ID": "1",
+        "Date": "2026-01-15",
+        "Time": "12:00:00",
+        "Name": "Test",
+        "LocalIdentity": "sip:1@host",
+        "Num": "1",
+    }
+    for call_type in ("Dialed", "Received", "Missed", "Forwarded", "Unknow"):
+        entry = CallLogEntry.from_api_response({**base, "Type": call_type})
+        assert entry.call_type == call_type
+
+
+def test_door_log_entry_status_values() -> None:
+    """Verify both Succ and Failed status values are accepted."""
+    base = {
+        "ID": "1",
+        "Date": "2026-01-15",
+        "Time": "12:00:00",
+        "Name": "Test",
+        "Code": "0000",
+        "Type": "PIN",
+        "Relay": "1",
+    }
+    succ = DoorLogEntry.from_api_response({**base, "Status": "Succ"})
+    assert succ.status == "Succ"
+    fail = DoorLogEntry.from_api_response({**base, "Status": "Failed"})
+    assert fail.status == "Failed"

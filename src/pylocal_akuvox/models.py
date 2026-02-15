@@ -258,3 +258,69 @@ class AccessSchedule:
             if value is not None:
                 payload[key] = value
         return payload
+
+
+@dataclass(frozen=True, kw_only=True)
+class DoorLogEntry:
+    """Read-only record from the device door access log."""
+
+    id: str
+    date: str
+    time: str
+    name: str
+    code: str
+    door_type: str
+    relay: str
+    status: str
+    access_mode: str | None = None
+
+    @classmethod
+    def from_api_response(cls, data: dict[str, Any]) -> DoorLogEntry:
+        """Create DoorLogEntry from API response data."""
+        try:
+            return cls(
+                id=data["ID"],
+                date=data["Date"],
+                time=data["Time"],
+                name=data["Name"],
+                code=data["Code"],
+                door_type=data["Type"],
+                relay=data["Relay"],
+                status=data["Status"],
+                access_mode=data.get("AccessMode"),
+            )
+        except KeyError as exc:
+            msg = f"Missing required field {exc} in door log"
+            raise AkuvoxParseError(msg) from exc
+
+
+@dataclass(frozen=True, kw_only=True)
+class CallLogEntry:
+    """Read-only record from the device call log."""
+
+    id: str
+    date: str
+    time: str
+    name: str
+    call_type: str
+    local_identity: str
+    count: str
+    pic_url: str | None = None
+
+    @classmethod
+    def from_api_response(cls, data: dict[str, Any]) -> CallLogEntry:
+        """Create CallLogEntry from API response data."""
+        try:
+            return cls(
+                id=data["ID"],
+                date=data["Date"],
+                time=data["Time"],
+                name=data["Name"],
+                call_type=data["Type"],
+                local_identity=data["LocalIdentity"],
+                count=data["Num"],
+                pic_url=data.get("PicUrl"),
+            )
+        except KeyError as exc:
+            msg = f"Missing required field {exc} in call log"
+            raise AkuvoxParseError(msg) from exc
