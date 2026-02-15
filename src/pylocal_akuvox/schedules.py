@@ -40,7 +40,10 @@ def validate_schedule_type(schedule_type: str) -> None:
 
 
 def validate_time(value: str | None, field: str) -> None:
-    """Validate time is HH:MM format."""
+    """Validate time is HH:MM format.
+
+    None and empty string are allowed (optional field).
+    """
     if value is None or value == "":
         return
     if not _TIME_PATTERN.match(value):
@@ -49,7 +52,10 @@ def validate_time(value: str | None, field: str) -> None:
 
 
 def validate_date(value: str | None, field: str) -> None:
-    """Validate date is YYYYMMDD format."""
+    """Validate date is YYYYMMDD format.
+
+    None and empty string are allowed (optional field).
+    """
     if value is None or value == "":
         return
     if not _DATE_PATTERN.match(value):
@@ -58,7 +64,10 @@ def validate_date(value: str | None, field: str) -> None:
 
 
 def validate_week(week: str | None) -> None:
-    """Validate week codes are digits 0-6."""
+    """Validate week codes are digits 0-6.
+
+    None and empty string are allowed (optional field).
+    """
     if week is None or week == "":
         return
     if not _WEEK_PATTERN.match(week):
@@ -67,7 +76,10 @@ def validate_week(week: str | None) -> None:
 
 
 def validate_daily(daily: str | None) -> None:
-    """Validate daily is HH:MM-HH:MM format."""
+    """Validate daily is HH:MM-HH:MM format.
+
+    None and empty string are allowed (optional field).
+    """
     if daily is None or daily == "":
         return
     if not _DAILY_PATTERN.match(daily):
@@ -177,6 +189,14 @@ async def modify_schedule(
     Fetches the current record and merges changes, since the
     device requires a full record for set operations.
     """
+    # Normalize empty strings to None (skip update for these fields)
+    week = week or None
+    daily = daily or None
+    date_start = date_start or None
+    date_end = date_end or None
+    time_start = time_start or None
+    time_end = time_end or None
+
     if schedule_type is not None:
         validate_schedule_type(schedule_type)
     validate_week(week)
