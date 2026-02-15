@@ -353,15 +353,18 @@ async def test_auth_basic_creates_session_with_basic_auth() -> None:
 async def test_auth_digest_creates_session_with_middleware() -> None:
     """Verify AuthMethod.DIGEST creates session with DigestAuthMiddleware."""
     auth = AuthConfig(method=AuthMethod.DIGEST, username="admin", password="pass")
-    with patch("aiohttp.ClientSession") as mock_cls:
+    with (
+        patch("pylocal_akuvox._http.aiohttp.DigestAuthMiddleware") as mock_digest_mw,
+        patch("aiohttp.ClientSession") as mock_cls,
+    ):
         mock_session = mock_cls.return_value
         mock_session.closed = False
         mock_session.close = _async_noop
         async with AkuvoxDevice("192.168.1.100", auth=auth):
-            _assert_session_kwargs(mock_cls, expect_digest=True)
-            mw = mock_cls.call_args[1]["middlewares"][0]
-            assert mw._login_str == "admin"
-            assert mw._password_bytes == b"pass"
+            mock_digest_mw.assert_called_once_with("admin", "pass")
+            mw_instance = mock_digest_mw.return_value
+            assert mock_cls.call_args[1]["auth"] is None
+            assert mock_cls.call_args[1]["middlewares"] == (mw_instance,)
 
 
 _E2E_INFO_PAYLOAD: dict[str, object] = {
