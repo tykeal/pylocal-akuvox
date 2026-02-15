@@ -23,9 +23,18 @@ class AkuvoxDevice:
         host: str,
         auth: AuthConfig | None = None,
         timeout: int = 10,
+        *,
+        use_ssl: bool = False,
+        verify_ssl: bool = True,
     ) -> None:
         """Initialize the device connection parameters."""
-        self._http = AkuvoxHttpClient(host=host, auth=auth, timeout=timeout)
+        self._http = AkuvoxHttpClient(
+            host=host,
+            auth=auth,
+            timeout=timeout,
+            use_ssl=use_ssl,
+            verify_ssl=verify_ssl,
+        )
 
     async def __aenter__(self) -> AkuvoxDevice:
         """Open the underlying HTTP session."""

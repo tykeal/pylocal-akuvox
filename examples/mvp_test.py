@@ -8,6 +8,7 @@ Usage:
     uv run examples/mvp_test.py <device-ip>
     uv run examples/mvp_test.py <device-ip> --write
     uv run examples/mvp_test.py <device-ip> --auth basic --user admin
+    uv run examples/mvp_test.py <device-ip> --ssl --no-verify-ssl
 
 Examples:
     # AllowList / no auth (default) — read-only tests
@@ -18,6 +19,9 @@ Examples:
 
     # Basic auth (prompts for password, or set AKUVOX_PASSWORD env var)
     uv run examples/mvp_test.py 192.168.1.100 --auth basic --user admin
+
+    # HTTPS with self-signed certificate (skip verification)
+    uv run examples/mvp_test.py 192.168.1.100 --ssl --no-verify-ssl
 
     # Digest auth with write tests
     AKUVOX_PASSWORD=secret uv run examples/mvp_test.py 192.168.1.100 \
@@ -33,7 +37,7 @@ import getpass
 import os
 import sys
 import traceback
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
@@ -145,7 +149,14 @@ async def test_list_schedules(device: AkuvoxDevice) -> None:
 async def test_get_door_logs(device: AkuvoxDevice) -> None:
     """Test: Retrieve door access logs."""
     print_header("GET DOOR LOGS (/api/doorlog/get)")
-    entries = await device.get_door_logs()
+    try:
+        entries = await device.get_door_logs()
+    except AkuvoxUnsupportedError as exc:
+        print(f"  ⚠ Door logs not supported: {exc}")
+        return
+    except AkuvoxDeviceError as exc:
+        print(f"  ⚠ Door logs rejected: {exc}")
+        return
     print(f"  Found {len(entries)} door log entry(ies)")
     for entry in entries[:5]:
         print(
@@ -166,7 +177,14 @@ async def test_get_door_logs(device: AkuvoxDevice) -> None:
 async def test_get_call_logs(device: AkuvoxDevice) -> None:
     """Test: Retrieve call logs."""
     print_header("GET CALL LOGS (/api/calllog/get)")
-    entries = await device.get_call_logs()
+    try:
+        entries = await device.get_call_logs()
+    except AkuvoxUnsupportedError as exc:
+        print(f"  ⚠ Call logs not supported: {exc}")
+        return
+    except AkuvoxDeviceError as exc:
+        print(f"  ⚠ Call logs rejected: {exc}")
+        return
     print(f"  Found {len(entries)} call log entry(ies)")
     for entry in entries[:5]:
         print(
@@ -391,13 +409,78 @@ async def test_validation() -> None:
     print("  ✓ All validation checks passed")
 
 
+async def _run_read_tests(device: AkuvoxDevice) -> None:
+    """Run all read-only tests against a connected device."""
+    await test_get_info(device)
+    await test_get_status(device)
+    await test_list_users(device)
+    await test_get_relay_status(device)
+    await test_list_schedules(device)
+    await test_get_door_logs(device)
+    await test_get_call_logs(device)
+
+
+async def _run_write_tests(device_kwargs: dict[str, Any]) -> None:
+    """Run write tests (user/schedule CRUD, relay trigger)."""
+    async with AkuvoxDevice(**device_kwargs) as device:
+        # User add + delete FIRST — before any other
+        # requests to avoid CGI state corruption.
+        internal_id = await test_add_user(device)
+        if internal_id:
+            await test_delete_user(device, internal_id)
+            print_header("VERIFY USER DELETION")
+            users = await device.list_users()
+            found = any(u.id == internal_id for u in users)
+            if not found:
+                print("  ✓ User successfully removed")
+            else:
+                print("  ✗ User still present after delete!")
+
+    # Device needs cooldown between request groups
+    print("\n  ⏳ Waiting for device to settle…")
+    await asyncio.sleep(_MUTATION_SETTLE_SECS * 3)
+
+    async with AkuvoxDevice(**device_kwargs) as device:
+        # Schedule add + delete
+        sched_id = await test_add_schedule(device)
+        if sched_id:
+            await test_delete_schedule(device, sched_id)
+            print_header("VERIFY SCHEDULE DELETION")
+            scheds = await device.list_schedules()
+            found = any(s.id == sched_id for s in scheds)
+            if not found:
+                print("  ✓ Schedule successfully removed")
+            else:
+                print("  ✗ Schedule still present after delete!")
+
+        # Relay trigger (safe: auto-close after 1s)
+        await test_trigger_relay(device)
+
+    # Cooldown before read tests
+    print("\n  ⏳ Waiting for device to settle…")
+    await asyncio.sleep(_MUTATION_SETTLE_SECS * 3)
+
+
 async def run_all(args: argparse.Namespace) -> None:
     """Run all MVP tests against the device."""
     auth = build_auth(args)
     auth_desc = args.auth if args.auth != "none" else "allowlist (no auth)"
+    ssl_desc = ""
+    if args.ssl:
+        ssl_desc = " [HTTPS"
+        ssl_desc += ", no cert verify" if args.no_verify_ssl else ""
+        ssl_desc += "]"
 
-    print(f"\n🔌 Connecting to {args.host} ({auth_desc})")
+    print(f"\n🔌 Connecting to {args.host} ({auth_desc}{ssl_desc})")
     print(f"   Timeout: {args.timeout}s\n")
+
+    device_kwargs: dict[str, Any] = {
+        "host": args.host,
+        "auth": auth,
+        "timeout": args.timeout,
+        "use_ssl": args.ssl,
+        "verify_ssl": not args.no_verify_ssl,
+    }
 
     # 1. Validation tests (offline)
     await test_validation()
@@ -411,56 +494,10 @@ async def run_all(args: argparse.Namespace) -> None:
     # connection with a cooldown pause between groups.
     try:
         if args.write:
-            async with AkuvoxDevice(
-                args.host, auth=auth, timeout=args.timeout
-            ) as device:
-                # User add + delete FIRST — before any other
-                # requests to avoid CGI state corruption.
-                internal_id = await test_add_user(device)
-                if internal_id:
-                    await test_delete_user(device, internal_id)
-                    print_header("VERIFY USER DELETION")
-                    users = await device.list_users()
-                    found = any(u.id == internal_id for u in users)
-                    if not found:
-                        print("  ✓ User successfully removed")
-                    else:
-                        print("  ✗ User still present after delete!")
+            await _run_write_tests(device_kwargs)
 
-            # Device needs cooldown between request groups
-            print("\n  ⏳ Waiting for device to settle…")
-            await asyncio.sleep(_MUTATION_SETTLE_SECS * 3)
-
-            async with AkuvoxDevice(
-                args.host, auth=auth, timeout=args.timeout
-            ) as device:
-                # Schedule add + delete
-                sched_id = await test_add_schedule(device)
-                if sched_id:
-                    await test_delete_schedule(device, sched_id)
-                    print_header("VERIFY SCHEDULE DELETION")
-                    scheds = await device.list_schedules()
-                    found = any(s.id == sched_id for s in scheds)
-                    if not found:
-                        print("  ✓ Schedule successfully removed")
-                    else:
-                        print("  ✗ Schedule still present after delete!")
-
-                # Relay trigger (safe: auto-close after 1s)
-                await test_trigger_relay(device)
-
-            # Cooldown before read tests
-            print("\n  ⏳ Waiting for device to settle…")
-            await asyncio.sleep(_MUTATION_SETTLE_SECS * 3)
-
-        async with AkuvoxDevice(args.host, auth=auth, timeout=args.timeout) as device:
-            await test_get_info(device)
-            await test_get_status(device)
-            await test_list_users(device)
-            await test_get_relay_status(device)
-            await test_list_schedules(device)
-            await test_get_door_logs(device)
-            await test_get_call_logs(device)
+        async with AkuvoxDevice(**device_kwargs) as device:
+            await _run_read_tests(device)
 
             if not args.write:
                 print_header("SKIPPING WRITE TESTS")
@@ -493,6 +530,7 @@ def main() -> None:
 examples:
   %(prog)s 192.168.1.100
   %(prog)s 192.168.1.100 --write
+  %(prog)s 192.168.1.100 --ssl --no-verify-ssl
   %(prog)s 192.168.1.100 --auth basic --user admin --pass secret
   %(prog)s 192.168.1.100 --auth digest --user admin --pass secret --write
 """,
@@ -522,8 +560,21 @@ examples:
         action="store_true",
         help="Enable write tests (add/modify/delete a test user)",
     )
+    parser.add_argument(
+        "--ssl",
+        action="store_true",
+        help="Use HTTPS instead of HTTP",
+    )
+    parser.add_argument(
+        "--no-verify-ssl",
+        action="store_true",
+        help="Skip SSL certificate verification (for self-signed certs)",
+    )
 
     args = parser.parse_args()
+
+    if args.no_verify_ssl and not args.ssl:
+        args.ssl = True
 
     if args.auth in ("basic", "digest"):
         if not args.user:

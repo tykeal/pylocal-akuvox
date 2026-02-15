@@ -49,7 +49,9 @@ async def test_trigger_relay_posts_to_correct_endpoint() -> None:
         )
         call = m.requests[url_key][0]
         body = call.kwargs.get("json")
-        assert body["num"] == 1
+        assert body["target"] == "relay"
+        assert body["action"] == "trig"
+        assert body["data"]["num"] == 1
 
 
 async def test_trigger_relay_with_all_params() -> None:
@@ -65,7 +67,9 @@ async def test_trigger_relay_with_all_params() -> None:
         )
         call = m.requests[url_key][0]
         body = call.kwargs.get("json")
-        assert body == {"num": 2, "mode": 1, "level": 1, "delay": 5}
+        assert body["target"] == "relay"
+        assert body["action"] == "trig"
+        assert body["data"] == {"num": 2, "mode": 1, "level": 1, "delay": 5}
 
 
 async def test_trigger_relay_defaults() -> None:
@@ -81,7 +85,7 @@ async def test_trigger_relay_defaults() -> None:
         )
         call = m.requests[url_key][0]
         body = call.kwargs.get("json")
-        assert body == {"num": 1, "mode": 0, "level": 0, "delay": 0}
+        assert body["data"] == {"num": 1, "mode": 0, "level": 0, "delay": 0}
 
 
 async def test_trigger_relay_invalid_num_zero() -> None:
@@ -153,7 +157,7 @@ async def test_trigger_relay_max_delay_valid() -> None:
         )
         call = m.requests[url_key][0]
         body = call.kwargs.get("json")
-        assert body["delay"] == 65535
+        assert body["data"]["delay"] == 65535
 
 
 async def test_trigger_relay_device_error() -> None:

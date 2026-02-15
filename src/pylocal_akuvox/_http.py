@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import ssl
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
@@ -38,11 +39,17 @@ class AkuvoxHttpClient:
         host: str,
         timeout: int = 10,
         auth: AuthConfig | None = None,
+        *,
+        use_ssl: bool = False,
+        verify_ssl: bool = True,
     ) -> None:
         """Initialize the HTTP client."""
-        self._base_url = f"http://{host}"
+        scheme = "https" if use_ssl else "http"
+        self._base_url = f"{scheme}://{host}"
         self._timeout = aiohttp.ClientTimeout(total=timeout)
         self._auth = auth
+        self._verify_ssl = verify_ssl
+        self._use_ssl = use_ssl
         self._session: aiohttp.ClientSession | None = None
         self._lock = asyncio.Lock()
 
@@ -52,7 +59,11 @@ class AkuvoxHttpClient:
             msg = "Session already open; nested context usage is not supported"
             raise AkuvoxConnectionError(msg)
         aiohttp_auth, middlewares = self._resolve_auth()
-        connector = aiohttp.TCPConnector(force_close=True)
+        ssl_context = self._build_ssl_context()
+        connector_kwargs: dict[str, object] = {"force_close": True}
+        if ssl_context is not None:
+            connector_kwargs["ssl"] = ssl_context
+        connector = aiohttp.TCPConnector(**connector_kwargs)
         self._session = aiohttp.ClientSession(
             timeout=self._timeout,
             auth=aiohttp_auth,
@@ -152,6 +163,19 @@ class AkuvoxHttpClient:
         data = body.get("data", {})
         result: dict[str, Any] = data if isinstance(data, dict) else {}
         return result
+
+    def _build_ssl_context(self) -> ssl.SSLContext | None:
+        """Build SSL context for the connector.
+
+        Returns a permissive SSLContext when SSL is enabled with
+        verification disabled, or None for default behavior.
+        """
+        if not self._use_ssl or self._verify_ssl:
+            return None
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
 
     def _resolve_auth(
         self,

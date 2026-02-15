@@ -572,6 +572,22 @@ def test_door_log_entry_with_access_mode() -> None:
     assert entry.status == "Failed"
 
 
+def test_door_log_entry_without_relay() -> None:
+    """Verify DoorLogEntry works when Relay is absent (e.g. X916)."""
+    data = {
+        "ID": "44",
+        "Date": "2026-01-15",
+        "Time": "11:00:00",
+        "Name": "Charlie",
+        "Code": "Unknown",
+        "Type": "Face",
+        "Status": "Failed",
+    }
+    entry = DoorLogEntry.from_api_response(data)
+    assert entry.relay is None
+    assert entry.access_mode is None
+
+
 def test_door_log_entry_missing_required_field() -> None:
     """Verify AkuvoxParseError on missing required field."""
     data = {
