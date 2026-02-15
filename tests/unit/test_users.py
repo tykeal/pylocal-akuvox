@@ -514,6 +514,35 @@ async def test_add_user_empty_user_id_raises() -> None:
             )
 
 
+async def test_add_user_without_web_relay() -> None:
+    """Verify add_user omits WebRelay when not provided."""
+    with aioresponses() as m:
+        m.post(
+            f"{BASE_URL}/api/user/add",
+            payload={
+                "retcode": 0,
+                "action": "add",
+                "message": "",
+                "data": {},
+            },
+        )
+        async with AkuvoxDevice("192.168.1.100") as device:
+            await device.add_user(
+                name="Alice",
+                user_id="2001",
+                schedule_relay="1001-1;",
+                lift_floor_num="0",
+            )
+
+        url_key = (
+            "POST",
+            aiohttp.client.URL(f"{BASE_URL}/api/user/add"),
+        )
+        call = m.requests[url_key][0]
+        body = json.loads(call.kwargs.get("data", ""))
+        assert "WebRelay" not in body
+
+
 async def test_list_users_non_dict_items_skipped() -> None:
     """Verify list_users skips non-dict items in the response."""
     with aioresponses() as m:

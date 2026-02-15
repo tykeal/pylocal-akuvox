@@ -47,7 +47,7 @@ async def add_user(
     *,
     name: str,
     user_id: str,
-    web_relay: str,
+    web_relay: str | None = None,
     schedule_relay: str,
     lift_floor_num: str,
     private_pin: str | None = None,
@@ -69,10 +69,11 @@ async def add_user(
     payload: dict[str, Any] = {
         "Name": name,
         "UserID": user_id,
-        "WebRelay": web_relay,
         "ScheduleRelay": schedule_relay,
         "LiftFloorNum": lift_floor_num,
     }
+    if web_relay is not None:
+        payload["WebRelay"] = web_relay
     if private_pin:
         payload["PrivatePIN"] = private_pin
     if card_code:
