@@ -244,7 +244,7 @@ number, verify success confirmation returned.
 
 ### Tests for User Story 4
 
-- [ ] T032 [P] [US4] Write unit tests for relay operations in
+- [x] T032 [P] [US4] Write unit tests for relay operations in
   tests/unit/test_relay.py: trigger_relay POSTs to
   /api/relay/trig with num, mode, level, delay params,
   get_relay_status GETs /api/relay/status, invalid relay
@@ -253,14 +253,14 @@ number, verify success confirmation returned.
 
 ### Implementation for User Story 4
 
-- [ ] T033 [US4] Implement relay operations module in
+- [x] T033 [US4] Implement relay operations module in
   src/pylocal_akuvox/relay.py: trigger_relay(num, mode=0,
   level=0, delay=0), get_relay_status() — all using `_http`
   client (FR-004, R4, data-model.md Relay/Trigger params)
-- [ ] T034 [US4] Wire relay methods onto AkuvoxDevice in
+- [x] T034 [US4] Wire relay methods onto AkuvoxDevice in
   src/pylocal_akuvox/device.py: trigger_relay, get_relay_status
   delegating to relay module
-- [ ] T035 [US4] Verify US4 tests pass:
+- [x] T035 [US4] Verify US4 tests pass:
   `uv run pytest tests/unit/test_relay.py -x -q`
 
 **Checkpoint**: US4 complete — relay triggering works
