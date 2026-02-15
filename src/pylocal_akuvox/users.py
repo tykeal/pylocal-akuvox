@@ -84,7 +84,7 @@ async def add_user(
     if card_code:
         payload["CardCode"] = card_code
 
-    await http.post("/api/user/add", data=_mutation_body("add", payload))
+    await http.post("/api/user/set", data=_mutation_body("add", payload))
 
 
 async def list_users(
@@ -175,4 +175,4 @@ async def delete_user(
     id: str,
 ) -> None:
     """Delete a user from the device."""
-    await http.post("/api/user/del", data=_mutation_body("del", {"ID": id}))
+    await http.post("/api/user/set", data=_mutation_body("del", {"ID": id}))

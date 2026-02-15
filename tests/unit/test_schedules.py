@@ -270,9 +270,9 @@ def test_validate_daily_invalid_chars() -> None:
 
 
 async def test_add_schedule_posts_correct_endpoint() -> None:
-    """Verify add_schedule POSTs to /api/schedule/add."""
+    """Verify add_schedule POSTs to /api/schedule/set."""
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/schedule/add", payload=_ADD_OK_RESPONSE)
+        m.post(f"{BASE_URL}/api/schedule/set", payload=_ADD_OK_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.add_schedule(
                 schedule_type="1",
@@ -284,7 +284,7 @@ async def test_add_schedule_posts_correct_endpoint() -> None:
 
         url_key = (
             "POST",
-            aiohttp.client.URL(f"{BASE_URL}/api/schedule/add"),
+            aiohttp.client.URL(f"{BASE_URL}/api/schedule/set"),
         )
         call = m.requests[url_key][0]
         body = call.kwargs.get("json")
@@ -300,13 +300,13 @@ async def test_add_schedule_posts_correct_endpoint() -> None:
 async def test_add_schedule_minimal() -> None:
     """Verify add_schedule with only required fields."""
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/schedule/add", payload=_ADD_OK_RESPONSE)
+        m.post(f"{BASE_URL}/api/schedule/set", payload=_ADD_OK_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.add_schedule(schedule_type="0")
 
         url_key = (
             "POST",
-            aiohttp.client.URL(f"{BASE_URL}/api/schedule/add"),
+            aiohttp.client.URL(f"{BASE_URL}/api/schedule/set"),
         )
         call = m.requests[url_key][0]
         body = call.kwargs.get("json")
@@ -363,7 +363,7 @@ async def test_add_schedule_invalid_daily_rejected() -> None:
 async def test_add_schedule_with_dates() -> None:
     """Verify add_schedule includes date fields in payload."""
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/schedule/add", payload=_ADD_OK_RESPONSE)
+        m.post(f"{BASE_URL}/api/schedule/set", payload=_ADD_OK_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.add_schedule(
                 schedule_type="0",
@@ -373,7 +373,7 @@ async def test_add_schedule_with_dates() -> None:
 
         url_key = (
             "POST",
-            aiohttp.client.URL(f"{BASE_URL}/api/schedule/add"),
+            aiohttp.client.URL(f"{BASE_URL}/api/schedule/set"),
         )
         call = m.requests[url_key][0]
         item = call.kwargs.get("json")["data"]["item"][0]
@@ -384,7 +384,7 @@ async def test_add_schedule_with_dates() -> None:
 async def test_add_schedule_with_daily() -> None:
     """Verify add_schedule includes daily field in payload."""
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/schedule/add", payload=_ADD_OK_RESPONSE)
+        m.post(f"{BASE_URL}/api/schedule/set", payload=_ADD_OK_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.add_schedule(
                 schedule_type="2",
@@ -393,7 +393,7 @@ async def test_add_schedule_with_daily() -> None:
 
         url_key = (
             "POST",
-            aiohttp.client.URL(f"{BASE_URL}/api/schedule/add"),
+            aiohttp.client.URL(f"{BASE_URL}/api/schedule/set"),
         )
         call = m.requests[url_key][0]
         item = call.kwargs.get("json")["data"]["item"][0]
@@ -643,15 +643,15 @@ async def test_modify_schedule_all_merge_fields() -> None:
 
 
 async def test_delete_schedule_posts_correct_endpoint() -> None:
-    """Verify delete_schedule POSTs to /api/schedule/del."""
+    """Verify delete_schedule POSTs to /api/schedule/set."""
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/schedule/del", payload=_DEL_OK_RESPONSE)
+        m.post(f"{BASE_URL}/api/schedule/set", payload=_DEL_OK_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.delete_schedule(id="1001")
 
         url_key = (
             "POST",
-            aiohttp.client.URL(f"{BASE_URL}/api/schedule/del"),
+            aiohttp.client.URL(f"{BASE_URL}/api/schedule/set"),
         )
         call = m.requests[url_key][0]
         body = call.kwargs.get("json")
@@ -663,7 +663,7 @@ async def test_delete_schedule_device_error() -> None:
     """Verify delete_schedule raises on device error."""
     with aioresponses() as m:
         m.post(
-            f"{BASE_URL}/api/schedule/del",
+            f"{BASE_URL}/api/schedule/set",
             payload={
                 "retcode": -1,
                 "action": "del",

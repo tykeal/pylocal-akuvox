@@ -108,7 +108,7 @@ async def add_schedule(
     if time_end is not None:
         payload["TimeEnd"] = time_end
 
-    await http.post("/api/schedule/add", data=_mutation_body("add", payload))
+    await http.post("/api/schedule/set", data=_mutation_body("add", payload))
 
 
 async def list_schedules(
@@ -210,6 +210,6 @@ async def delete_schedule(
 ) -> None:
     """Delete a schedule from the device."""
     await http.post(
-        "/api/schedule/del",
+        "/api/schedule/set",
         data=_mutation_body("del", {"ID": id}),
     )

@@ -103,9 +103,9 @@ async def test_retcode_positive_nonzero_succeeds(
         "message": "OK",
     }
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/user/add", payload=response)
+        m.post(f"{BASE_URL}/api/user/set", payload=response)
         async with client:
-            result = await client.post("/api/user/add", data={})
+            result = await client.post("/api/user/set", data={})
     assert result == {}
 
 
@@ -285,11 +285,11 @@ async def test_post_sends_json(client: AkuvoxHttpClient) -> None:
         "data": {},
     }
     with aioresponses() as m:
-        m.post(f"{BASE_URL}/api/user/add", payload=response)
+        m.post(f"{BASE_URL}/api/user/set", payload=response)
         async with client:
-            await client.post("/api/user/add", data={"Name": "Test"})
+            await client.post("/api/user/set", data={"Name": "Test"})
 
-        call = m.requests[("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/add"))][0]
+        call = m.requests[("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))][0]
         assert call.kwargs.get("json") == {"Name": "Test"}
 
 
