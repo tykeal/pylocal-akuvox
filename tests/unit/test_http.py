@@ -4,6 +4,7 @@
 """Tests for HTTP client wrapper and response envelope parsing."""
 
 import asyncio
+import ssl
 from typing import Any
 
 import aiohttp
@@ -424,3 +425,45 @@ async def test_get_with_params(client: AkuvoxHttpClient) -> None:
         async with client:
             result = await client.get("/api/user/get", params={"page": 2})
     assert result == {"num": 0, "item": []}
+
+
+# -- SSL configuration tests --
+
+
+def test_default_uses_http() -> None:
+    """Verify default client uses http scheme."""
+    c = AkuvoxHttpClient(host="192.168.1.100")
+    assert c._base_url == "http://192.168.1.100"
+
+
+def test_use_ssl_uses_https() -> None:
+    """Verify use_ssl=True switches to https scheme."""
+    c = AkuvoxHttpClient(host="192.168.1.100", use_ssl=True)
+    assert c._base_url == "https://192.168.1.100"
+
+
+async def test_ssl_no_verify_creates_permissive_context() -> None:
+    """Verify ssl+no verify creates SSLContext with CERT_NONE."""
+    c = AkuvoxHttpClient(host="192.168.1.100", use_ssl=True, verify_ssl=False)
+    async with c:
+        connector = c._session.connector  # type: ignore[union-attr]
+        ctx = connector._ssl
+        assert isinstance(ctx, ssl.SSLContext)
+        assert ctx.verify_mode == ssl.CERT_NONE
+        assert ctx.check_hostname is False
+
+
+async def test_ssl_verify_default_no_custom_context() -> None:
+    """Verify ssl+verify_ssl=True uses default SSL validation."""
+    c = AkuvoxHttpClient(host="192.168.1.100", use_ssl=True, verify_ssl=True)
+    async with c:
+        connector = c._session.connector  # type: ignore[union-attr]
+        assert not isinstance(connector._ssl, ssl.SSLContext)
+
+
+async def test_no_ssl_ignores_verify_flag() -> None:
+    """Verify plain http does not set custom SSLContext."""
+    c = AkuvoxHttpClient(host="192.168.1.100", use_ssl=False, verify_ssl=False)
+    async with c:
+        connector = c._session.connector  # type: ignore[union-attr]
+        assert not isinstance(connector._ssl, ssl.SSLContext)

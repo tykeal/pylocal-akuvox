@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import ssl
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
@@ -38,11 +39,17 @@ class AkuvoxHttpClient:
         host: str,
         timeout: int = 10,
         auth: AuthConfig | None = None,
+        *,
+        use_ssl: bool = False,
+        verify_ssl: bool = True,
     ) -> None:
         """Initialize the HTTP client."""
-        self._base_url = f"http://{host}"
+        scheme = "https" if use_ssl else "http"
+        self._base_url = f"{scheme}://{host}"
         self._timeout = aiohttp.ClientTimeout(total=timeout)
         self._auth = auth
+        self._verify_ssl = verify_ssl
+        self._use_ssl = use_ssl
         self._session: aiohttp.ClientSession | None = None
         self._lock = asyncio.Lock()
 
@@ -52,7 +59,15 @@ class AkuvoxHttpClient:
             msg = "Session already open; nested context usage is not supported"
             raise AkuvoxConnectionError(msg)
         aiohttp_auth, middlewares = self._resolve_auth()
-        connector = aiohttp.TCPConnector(force_close=True)
+        ssl_context: ssl.SSLContext | bool | None = None
+        if self._use_ssl and not self._verify_ssl:
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+        connector = aiohttp.TCPConnector(
+            force_close=True,
+            ssl=ssl_context,
+        )
         self._session = aiohttp.ClientSession(
             timeout=self._timeout,
             auth=aiohttp_auth,
