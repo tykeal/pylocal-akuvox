@@ -142,6 +142,48 @@ async def test_list_schedules(device: AkuvoxDevice) -> None:
     print("  ✓ list_schedules() OK")
 
 
+async def test_get_door_logs(device: AkuvoxDevice) -> None:
+    """Test: Retrieve door access logs."""
+    print_header("GET DOOR LOGS (/api/doorlog/get)")
+    entries = await device.get_door_logs()
+    print(f"  Found {len(entries)} door log entry(ies)")
+    for entry in entries[:5]:
+        print(
+            f"    ID={entry.id}  {entry.date} {entry.time}  "
+            f"Name={entry.name}  Type={entry.door_type}  "
+            f"Status={entry.status}"
+        )
+    if len(entries) > 5:
+        print(f"    ... and {len(entries) - 5} more")
+    print("  ✓ get_door_logs() OK")
+
+    # Test pagination — page 1 should return the same or subset
+    page1 = await device.get_door_logs(page=1)
+    print(f"  Page 1: {len(page1)} entry(ies)")
+    print("  ✓ get_door_logs(page=1) OK")
+
+
+async def test_get_call_logs(device: AkuvoxDevice) -> None:
+    """Test: Retrieve call logs."""
+    print_header("GET CALL LOGS (/api/calllog/get)")
+    entries = await device.get_call_logs()
+    print(f"  Found {len(entries)} call log entry(ies)")
+    for entry in entries[:5]:
+        print(
+            f"    ID={entry.id}  {entry.date} {entry.time}  "
+            f"Name={entry.name}  Type={entry.call_type}  "
+            f"Count={entry.count}"
+        )
+    if len(entries) > 5:
+        print(f"    ... and {len(entries) - 5} more")
+    print("  ✓ get_call_logs() OK")
+
+    # Test pagination — page 1 should return the same or subset
+    page1 = await device.get_call_logs(page=1)
+    print(f"  Page 1: {len(page1)} entry(ies)")
+    print("  ✓ get_call_logs(page=1) OK")
+
+
 async def test_add_user(device: AkuvoxDevice) -> str | None:
     """Test: Add a test user. Returns the user's internal ID if found."""
     print_header("ADD USER (/api/user/set action:add)")
@@ -417,6 +459,8 @@ async def run_all(args: argparse.Namespace) -> None:
             await test_list_users(device)
             await test_get_relay_status(device)
             await test_list_schedules(device)
+            await test_get_door_logs(device)
+            await test_get_call_logs(device)
 
             if not args.write:
                 print_header("SKIPPING WRITE TESTS")

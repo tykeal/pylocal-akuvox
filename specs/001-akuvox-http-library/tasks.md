@@ -321,14 +321,14 @@ empty list.
 
 ### Tests for User Story 6
 
-- [ ] T042 [P] [US6] Write unit tests for log entry models in
+- [x] T042 [P] [US6] Write unit tests for log entry models in
   tests/unit/test_models.py: DoorLogEntry and CallLogEntry
   from_api_response, field mapping (Type→door_type/call_type,
   Num→count, Status values Succ/Failed, call_type values
   Dialed/Received/Missed/Forwarded/Unknow)
-- [ ] T043 [P] [US6] Write unit tests for log retrieval in
-  tests/unit/test_logs.py: get_door_logs POSTs to
-  /api/doorlog/get with pagination, get_call_logs POSTs to
+- [x] T043 [P] [US6] Write unit tests for log retrieval in
+  tests/unit/test_logs.py: get_door_logs GETs
+  /api/doorlog/get with pagination, get_call_logs GETs
   /api/calllog/get with pagination, empty device returns
   empty list not error, truncated log (total count exceeds
   returned entries) indicated in response metadata (edge
@@ -336,16 +336,16 @@ empty list.
 
 ### Implementation for User Story 6
 
-- [ ] T044 [US6] Add DoorLogEntry and CallLogEntry models to
+- [x] T044 [US6] Add DoorLogEntry and CallLogEntry models to
   src/pylocal_akuvox/models.py: all fields from data-model.md,
   from_api_response class methods
-- [ ] T045 [US6] Implement log retrieval module in
+- [x] T045 [US6] Implement log retrieval module in
   src/pylocal_akuvox/logs.py: get_door_logs(page=None),
   get_call_logs(page=None) with pagination helper — using
   `_http` client (FR-016, FR-017, R4, R9)
-- [ ] T046 [US6] Wire log methods onto AkuvoxDevice in
+- [x] T046 [US6] Wire log methods onto AkuvoxDevice in
   src/pylocal_akuvox/device.py: get_door_logs, get_call_logs
-- [ ] T047 [US6] Verify US6 tests pass:
+- [x] T047 [US6] Verify US6 tests pass:
   `uv run pytest tests/unit/test_logs.py -x -q`
 
 **Checkpoint**: US6 complete — log retrieval works

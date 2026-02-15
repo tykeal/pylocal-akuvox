@@ -94,8 +94,8 @@ are handled natively by aiohttp.
 | Add schedule | POST | `/api/schedule/add` |
 | Modify schedule | POST | `/api/schedule/set` |
 | Delete schedule | POST | `/api/schedule/del` |
-| Get door logs | POST | `/api/doorlog/get` |
-| Get call logs | POST | `/api/calllog/get` |
+| Get door logs | GET | `/api/doorlog/get` |
+| Get call logs | GET | `/api/calllog/get` |
 
 **Rationale**: Direct mapping from Apifox specs, corrected based on
 real E18 device testing. GET endpoints (info, status, user/get) take

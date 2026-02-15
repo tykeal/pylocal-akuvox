@@ -12,7 +12,7 @@ from pylocal_akuvox.models import DeviceInfo, DeviceStatus
 
 if TYPE_CHECKING:
     from pylocal_akuvox.auth import AuthConfig
-    from pylocal_akuvox.models import AccessSchedule, User
+    from pylocal_akuvox.models import AccessSchedule, CallLogEntry, DoorLogEntry, User
 
 
 class AkuvoxDevice:
@@ -203,3 +203,15 @@ class AkuvoxDevice:
         from pylocal_akuvox import schedules
 
         await schedules.delete_schedule(self._http, id=id)
+
+    async def get_door_logs(self, *, page: int | None = None) -> list[DoorLogEntry]:
+        """Retrieve door access logs from the device."""
+        from pylocal_akuvox import logs
+
+        return await logs.get_door_logs(self._http, page=page)
+
+    async def get_call_logs(self, *, page: int | None = None) -> list[CallLogEntry]:
+        """Retrieve call logs from the device."""
+        from pylocal_akuvox import logs
+
+        return await logs.get_call_logs(self._http, page=page)
