@@ -327,8 +327,8 @@ empty list.
   Num→count, Status values Succ/Failed, call_type values
   Dialed/Received/Missed/Forwarded/Unknow)
 - [x] T043 [P] [US6] Write unit tests for log retrieval in
-  tests/unit/test_logs.py: get_door_logs POSTs to
-  /api/doorlog/get with pagination, get_call_logs POSTs to
+  tests/unit/test_logs.py: get_door_logs GETs
+  /api/doorlog/get with pagination, get_call_logs GETs
   /api/calllog/get with pagination, empty device returns
   empty list not error, truncated log (total count exceeds
   returned entries) indicated in response metadata (edge

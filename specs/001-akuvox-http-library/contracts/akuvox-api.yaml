@@ -281,15 +281,16 @@ paths:
                 $ref: "#/components/schemas/EnvelopeResponse"
 
   /api/doorlog/get:
-    post:
+    get:
       summary: "Get door access logs (paginated)"
       operationId: getDoorLogs
-      requestBody:
-        content:
-          text/plain:
-            schema:
-              type: string
-            example: '{"page": 1}'
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+          required: false
+          description: "Page number for pagination"
       responses:
         "200":
           description: "Door logs retrieved"
@@ -299,15 +300,16 @@ paths:
                 $ref: "#/components/schemas/DoorLogResponse"
 
   /api/calllog/get:
-    post:
+    get:
       summary: "Get call logs (paginated)"
       operationId: getCallLogs
-      requestBody:
-        content:
-          text/plain:
-            schema:
-              type: string
-            example: '{"page": 1}'
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+          required: false
+          description: "Page number for pagination"
       responses:
         "200":
           description: "Call logs retrieved"
