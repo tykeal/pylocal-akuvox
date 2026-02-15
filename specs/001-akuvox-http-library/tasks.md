@@ -388,18 +388,18 @@ validated.
 
 **Purpose**: Improvements spanning multiple user stories.
 
-- [ ] T051 [P] Add comprehensive docstrings to all public
+- [x] T051 [P] Add comprehensive docstrings to all public
   methods and classes per SC-004: 100% coverage verified
   by interrogate
-- [ ] T052 [P] Run full lint and type check suite:
+- [x] T052 [P] Run full lint and type check suite:
   `uv run ruff check src/ tests/` and `uv run mypy src/`,
   verify `uv tree` shows ≤2 runtime deps (FR-008, SC-003)
-- [ ] T053 Validate quickstart.md examples against mocked
+- [x] T053 Validate quickstart.md examples against mocked
   device in tests/unit/test_quickstart.py: each code example
   from quickstart.md runs without error
-- [ ] T054 Run full test suite and verify coverage:
+- [x] T054 Run full test suite and verify coverage:
   `uv run pytest tests/ -x -q --tb=short`
-- [ ] T055 Update src/pylocal_akuvox/`__init__`.py `__all__` to
+- [x] T055 Update src/pylocal_akuvox/`__init__`.py `__all__` to
   export all public types for clean star-imports
 
 ---
