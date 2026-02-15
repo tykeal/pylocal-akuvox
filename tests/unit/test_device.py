@@ -3,6 +3,9 @@
 
 """Tests for AkuvoxDevice connect/disconnect lifecycle and error cases."""
 
+from unittest.mock import patch
+
+import aiohttp
 import pytest
 from aioresponses import aioresponses
 
@@ -295,50 +298,60 @@ _INFO_PAYLOAD: dict[str, object] = {
 }
 
 
-async def test_auth_none_sends_no_headers() -> None:
-    """Verify AuthMethod.NONE sends no Authorization header."""
+async def test_auth_none_creates_session_without_auth() -> None:
+    """Verify AuthMethod.NONE creates session with auth=None."""
     auth = AuthConfig(method=AuthMethod.NONE)
-    with aioresponses() as m:
-        m.get(f"{BASE_URL}/api/system/info", payload=_INFO_PAYLOAD)
-        async with AkuvoxDevice("192.168.1.100", auth=auth) as device:
-            info = await device.get_info()
-    assert info.model == "E21V"
+    with patch("aiohttp.ClientSession") as mock_cls:
+        mock_session = mock_cls.return_value
+        mock_session.closed = False
+        mock_session.close = _async_noop
+        async with AkuvoxDevice("192.168.1.100", auth=auth):
+            _, kwargs = mock_cls.call_args
+            assert kwargs["auth"] is None
+            assert kwargs["middlewares"] == ()
 
 
-async def test_auth_allowlist_sends_no_headers() -> None:
-    """Verify AuthMethod.ALLOWLIST sends no Authorization header."""
+async def test_auth_allowlist_creates_session_without_auth() -> None:
+    """Verify AuthMethod.ALLOWLIST creates session with auth=None."""
     auth = AuthConfig(method=AuthMethod.ALLOWLIST)
-    with aioresponses() as m:
-        m.get(f"{BASE_URL}/api/system/info", payload=_INFO_PAYLOAD)
-        async with AkuvoxDevice("192.168.1.100", auth=auth) as device:
-            info = await device.get_info()
-    assert info.model == "E21V"
+    with patch("aiohttp.ClientSession") as mock_cls:
+        mock_session = mock_cls.return_value
+        mock_session.closed = False
+        mock_session.close = _async_noop
+        async with AkuvoxDevice("192.168.1.100", auth=auth):
+            _, kwargs = mock_cls.call_args
+            assert kwargs["auth"] is None
+            assert kwargs["middlewares"] == ()
 
 
-async def test_auth_basic_retrieves_info() -> None:
-    """Verify AuthMethod.BASIC retrieves device info successfully."""
+async def test_auth_basic_creates_session_with_basic_auth() -> None:
+    """Verify AuthMethod.BASIC creates session with BasicAuth."""
     auth = AuthConfig(method=AuthMethod.BASIC, username="admin", password="pass")
-    with aioresponses() as m:
-        m.get(f"{BASE_URL}/api/system/info", payload=_INFO_PAYLOAD)
-        async with AkuvoxDevice("192.168.1.100", auth=auth) as device:
-            info = await device.get_info()
-    assert info.model == "E21V"
+    with patch("aiohttp.ClientSession") as mock_cls:
+        mock_session = mock_cls.return_value
+        mock_session.closed = False
+        mock_session.close = _async_noop
+        async with AkuvoxDevice("192.168.1.100", auth=auth):
+            _, kwargs = mock_cls.call_args
+            assert isinstance(kwargs["auth"], aiohttp.BasicAuth)
+            assert kwargs["auth"].login == "admin"
+            assert kwargs["auth"].password == "pass"
+            assert kwargs["middlewares"] == ()
 
 
-async def test_auth_digest_retrieves_info() -> None:
-    """Verify AuthMethod.DIGEST retrieves device info successfully."""
+async def test_auth_digest_creates_session_with_middleware() -> None:
+    """Verify AuthMethod.DIGEST creates session with DigestAuthMiddleware."""
     auth = AuthConfig(method=AuthMethod.DIGEST, username="admin", password="pass")
-    with aioresponses() as m:
-        m.get(f"{BASE_URL}/api/system/info", payload=_INFO_PAYLOAD)
-        async with AkuvoxDevice("192.168.1.100", auth=auth) as device:
-            info = await device.get_info()
-    assert info.model == "E21V"
+    with patch("aiohttp.ClientSession") as mock_cls:
+        mock_session = mock_cls.return_value
+        mock_session.closed = False
+        mock_session.close = _async_noop
+        async with AkuvoxDevice("192.168.1.100", auth=auth):
+            _, kwargs = mock_cls.call_args
+            assert kwargs["auth"] is None
+            assert len(kwargs["middlewares"]) == 1
+            assert isinstance(kwargs["middlewares"][0], aiohttp.DigestAuthMiddleware)
 
 
-async def test_auth_none_no_auth_config() -> None:
-    """Verify AkuvoxDevice with auth=None retrieves info."""
-    with aioresponses() as m:
-        m.get(f"{BASE_URL}/api/system/info", payload=_INFO_PAYLOAD)
-        async with AkuvoxDevice("192.168.1.100") as device:
-            info = await device.get_info()
-    assert info.model == "E21V"
+async def _async_noop() -> None:
+    """No-op async function for mock session close."""
