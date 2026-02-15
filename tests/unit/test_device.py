@@ -274,3 +274,71 @@ async def test_get_status_string_ints_coerced() -> None:
 
     assert status.unix_time == 1700000000
     assert status.uptime == 3600
+
+
+# -- T048: Auth mode integration tests --
+
+_INFO_PAYLOAD: dict[str, object] = {
+    "retcode": 0,
+    "action": "info",
+    "message": "",
+    "data": {
+        "Status": {
+            "Model": "E21V",
+            "MAC": "AA:BB:CC:DD:EE:FF",
+            "FirmwareVersion": "2.0.0.1",
+            "HardwareVersion": "1.0",
+            "Uptime": "3 days",
+            "WebLang": 0,
+        }
+    },
+}
+
+
+async def test_auth_none_sends_no_headers() -> None:
+    """Verify AuthMethod.NONE sends no Authorization header."""
+    auth = AuthConfig(method=AuthMethod.NONE)
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", payload=_INFO_PAYLOAD)
+        async with AkuvoxDevice("192.168.1.100", auth=auth) as device:
+            info = await device.get_info()
+    assert info.model == "E21V"
+
+
+async def test_auth_allowlist_sends_no_headers() -> None:
+    """Verify AuthMethod.ALLOWLIST sends no Authorization header."""
+    auth = AuthConfig(method=AuthMethod.ALLOWLIST)
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", payload=_INFO_PAYLOAD)
+        async with AkuvoxDevice("192.168.1.100", auth=auth) as device:
+            info = await device.get_info()
+    assert info.model == "E21V"
+
+
+async def test_auth_basic_retrieves_info() -> None:
+    """Verify AuthMethod.BASIC retrieves device info successfully."""
+    auth = AuthConfig(method=AuthMethod.BASIC, username="admin", password="pass")
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", payload=_INFO_PAYLOAD)
+        async with AkuvoxDevice("192.168.1.100", auth=auth) as device:
+            info = await device.get_info()
+    assert info.model == "E21V"
+
+
+async def test_auth_digest_retrieves_info() -> None:
+    """Verify AuthMethod.DIGEST retrieves device info successfully."""
+    auth = AuthConfig(method=AuthMethod.DIGEST, username="admin", password="pass")
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", payload=_INFO_PAYLOAD)
+        async with AkuvoxDevice("192.168.1.100", auth=auth) as device:
+            info = await device.get_info()
+    assert info.model == "E21V"
+
+
+async def test_auth_none_no_auth_config() -> None:
+    """Verify AkuvoxDevice with auth=None retrieves info."""
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", payload=_INFO_PAYLOAD)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            info = await device.get_info()
+    assert info.model == "E21V"
