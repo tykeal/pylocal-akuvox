@@ -7,7 +7,7 @@
 Usage:
     uv run examples/mvp_test.py <device-ip>
     uv run examples/mvp_test.py <device-ip> --write
-    uv run examples/mvp_test.py <device-ip> --auth basic --user admin --pass secret
+    uv run examples/mvp_test.py <device-ip> --auth basic --user admin
 
 Examples:
     # AllowList / no auth (default) — read-only tests
@@ -16,12 +16,12 @@ Examples:
     # Include write tests (creates and deletes a test user)
     uv run examples/mvp_test.py 192.168.1.100 --write
 
-    # Basic auth
-    uv run examples/mvp_test.py 192.168.1.100 --auth basic --user admin --pass secret
+    # Basic auth (prompts for password, or set AKUVOX_PASSWORD env var)
+    uv run examples/mvp_test.py 192.168.1.100 --auth basic --user admin
 
     # Digest auth with write tests
-    uv run examples/mvp_test.py 192.168.1.100 \
-        --auth digest --user admin --pass secret --write
+    AKUVOX_PASSWORD=secret uv run examples/mvp_test.py 192.168.1.100 \
+        --auth digest --user admin --write
 
 """
 
@@ -29,6 +29,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import getpass
+import os
 import sys
 import traceback
 
@@ -274,7 +276,12 @@ examples:
         help="Authentication method (default: none / allowlist)",
     )
     parser.add_argument("--user", default=None, help="Auth username")
-    parser.add_argument("--pass", dest="password", default=None, help="Auth password")
+    parser.add_argument(
+        "--pass",
+        dest="password",
+        default=None,
+        help="Auth password (or set AKUVOX_PASSWORD env var)",
+    )
     parser.add_argument(
         "--timeout",
         type=int,
@@ -289,8 +296,13 @@ examples:
 
     args = parser.parse_args()
 
-    if args.auth in ("basic", "digest") and (not args.user or not args.password):
-        parser.error(f"--auth {args.auth} requires --user and --pass")
+    if args.auth in ("basic", "digest"):
+        if not args.user:
+            parser.error(f"--auth {args.auth} requires --user")
+        if not args.password:
+            args.password = os.environ.get("AKUVOX_PASSWORD")
+        if not args.password:
+            args.password = getpass.getpass("Device password: ")
 
     asyncio.run(run_all(args))
 

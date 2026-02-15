@@ -4,7 +4,6 @@
 """Tests for HTTP client wrapper and response envelope parsing."""
 
 import asyncio
-import json
 from typing import Any
 
 import aiohttp
@@ -87,6 +86,10 @@ async def test_successful_post(client: AkuvoxHttpClient) -> None:
         m.post(f"{BASE_URL}/api/relay/trig", payload=response)
         async with client:
             result = await client.post("/api/relay/trig", data={"num": 1})
+
+        call = m.requests[("POST", aiohttp.client.URL(f"{BASE_URL}/api/relay/trig"))][0]
+        # json= kwarg tells aiohttp to send application/json
+        assert call.kwargs.get("json") == {"num": 1}
     assert result == {}
 
 
@@ -273,8 +276,8 @@ async def test_concurrent_requests_serialize(
         assert events[i].split("-")[1] == events[i + 1].split("-")[1]
 
 
-async def test_post_sends_text_plain(client: AkuvoxHttpClient) -> None:
-    """Verify POST sends JSON encoded as text/plain content type."""
+async def test_post_sends_json(client: AkuvoxHttpClient) -> None:
+    """Verify POST sends JSON with application/json content type."""
     response = {
         "retcode": 0,
         "action": "addUser",
@@ -287,9 +290,7 @@ async def test_post_sends_text_plain(client: AkuvoxHttpClient) -> None:
             await client.post("/api/user/add", data={"Name": "Test"})
 
         call = m.requests[("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/add"))][0]
-        body = call.kwargs.get("data", "")
-        parsed = json.loads(body)
-        assert parsed == {"Name": "Test"}
+        assert call.kwargs.get("json") == {"Name": "Test"}
 
 
 async def test_context_manager_lifecycle(

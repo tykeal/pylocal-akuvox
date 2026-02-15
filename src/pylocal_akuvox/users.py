@@ -142,7 +142,7 @@ async def modify_user(
     The device requires a full user record for set operations,
     so this fetches the current record and merges changes.
     """
-    # Normalize empty strings to None (omit from payload)
+    # Normalize empty strings to None (skip update for these fields)
     private_pin = private_pin or None
     schedule_relay = schedule_relay or None
 

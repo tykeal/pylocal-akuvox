@@ -102,8 +102,7 @@ class AkuvoxHttpClient:
         url = f"{self._base_url}{path}"
         kwargs: dict[str, Any] = {}
         if data is not None:
-            kwargs["data"] = json.dumps(data)
-            kwargs["headers"] = {"Content-Type": "application/json"}
+            kwargs["json"] = data
         if params is not None:
             kwargs["params"] = params
 
