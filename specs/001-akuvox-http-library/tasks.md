@@ -278,13 +278,13 @@ to verify, modify time ranges, delete, verify removal.
 
 ### Tests for User Story 5
 
-- [ ] T036 [P] [US5] Write unit tests for AccessSchedule model
+- [x] T036 [P] [US5] Write unit tests for AccessSchedule model
   in tests/unit/test_models.py: from_api_response maps all
   fields (ID, Name, Type, DateStart, DateEnd, TimeStart,
   TimeEnd, Week, Daily, DisplayID, SourceType, Mode),
   individual day fields (Sun-Sat) mapped if present in API
   response alongside Week string
-- [ ] T037 [P] [US5] Write unit tests for schedule validation
+- [x] T037 [P] [US5] Write unit tests for schedule validation
   and CRUD in tests/unit/test_schedules.py: type must be 0/1/2,
   time format HH:MM validated, date format YYYYMMDD validated,
   week codes 0-6 validated, add/list/modify/delete operations
@@ -292,17 +292,17 @@ to verify, modify time ranges, delete, verify removal.
 
 ### Implementation for User Story 5
 
-- [ ] T038 [US5] Add AccessSchedule model to
+- [x] T038 [US5] Add AccessSchedule model to
   src/pylocal_akuvox/models.py: all fields from data-model.md,
   from_api_response, to_api_payload
-- [ ] T039 [US5] Implement schedule operations module in
+- [x] T039 [US5] Implement schedule operations module in
   src/pylocal_akuvox/schedules.py: validation functions,
   add_schedule, list_schedules (paginated), modify_schedule,
   delete_schedule — using `_http` client (FR-015, R4, R8)
-- [ ] T040 [US5] Wire schedule methods onto AkuvoxDevice in
+- [x] T040 [US5] Wire schedule methods onto AkuvoxDevice in
   src/pylocal_akuvox/device.py: add_schedule, list_schedules,
   modify_schedule, delete_schedule
-- [ ] T041 [US5] Verify US5 tests pass:
+- [x] T041 [US5] Verify US5 tests pass:
   `uv run pytest tests/unit/test_schedules.py -x -q`
 
 **Checkpoint**: US5 complete — schedule CRUD works

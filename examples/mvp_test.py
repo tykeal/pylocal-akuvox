@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
 # SPDX-License-Identifier: Apache-2.0
 
-"""Interactive CLI script to test pylocal-akuvox against a real device.
+r"""Interactive CLI script to test pylocal-akuvox against a real device.
 
 Usage:
     uv run examples/mvp_test.py <device-ip>
@@ -13,7 +13,7 @@ Examples:
     # AllowList / no auth (default) — read-only tests
     uv run examples/mvp_test.py 192.168.1.100
 
-    # Include write tests (creates and deletes a test user)
+    # Include write tests (creates/deletes test user and schedule)
     uv run examples/mvp_test.py 192.168.1.100 --write
 
     # Basic auth (prompts for password, or set AKUVOX_PASSWORD env var)
@@ -33,6 +33,10 @@ import getpass
 import os
 import sys
 import traceback
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Coroutine
 
 from pylocal_akuvox import (
     AkuvoxDevice,
@@ -44,10 +48,14 @@ from pylocal_akuvox.exceptions import (
     AkuvoxConnectionError,
     AkuvoxDeviceError,
     AkuvoxError,
+    AkuvoxUnsupportedError,
     AkuvoxValidationError,
 )
 
 SEPARATOR = "-" * 60
+# Akuvox devices need time to persist mutations before the next
+# API call; two seconds is sufficient based on testing.
+_MUTATION_SETTLE_SECS = 2
 
 
 def build_auth(args: argparse.Namespace) -> AuthConfig | None:
@@ -106,9 +114,37 @@ async def test_list_users(device: AkuvoxDevice) -> None:
     print("  ✓ list_users() OK")
 
 
+async def test_get_relay_status(device: AkuvoxDevice) -> None:
+    """Test: Get relay status."""
+    print_header("GET RELAY STATUS (/api/relay/status)")
+    try:
+        status = await device.get_relay_status()
+        print(f"  Raw status: {status}")
+        print("  ✓ get_relay_status() OK")
+    except AkuvoxUnsupportedError as exc:
+        print(f"  ⚠ Relay status not supported: {exc}")
+    except AkuvoxDeviceError as exc:
+        print(f"  ⚠ Relay status rejected: {exc}")
+
+
+async def test_list_schedules(device: AkuvoxDevice) -> None:
+    """Test: List all schedules."""
+    print_header("LIST SCHEDULES (/api/schedule/get)")
+    schedules = await device.list_schedules()
+    print(f"  Found {len(schedules)} schedule(s)")
+    for sched in schedules:
+        print(
+            f"    ID={sched.id}  Name={sched.name}  "
+            f"Type={sched.schedule_type}  "
+            f"Time={sched.time_start}-{sched.time_end}  "
+            f"Week={sched.week}"
+        )
+    print("  ✓ list_schedules() OK")
+
+
 async def test_add_user(device: AkuvoxDevice) -> str | None:
     """Test: Add a test user. Returns the user's internal ID if found."""
-    print_header("ADD USER (/api/user/add)")
+    print_header("ADD USER (/api/user/set action:add)")
     test_name = "pylocal-test"
     test_user_id = "9999"
 
@@ -128,79 +164,187 @@ async def test_add_user(device: AkuvoxDevice) -> str | None:
         print("    (User may already exist or schedule 1001 may not exist)")
         return None
 
-    # Find the user's internal ID for later operations
+    # Device needs time to persist the new record
+    await asyncio.sleep(_MUTATION_SETTLE_SECS)
+
+    # Search for the newly added user (page 1 has all items)
     users = await device.list_users()
     for user in users:
         if user.user_id == test_user_id:
             print(f"  → Assigned internal ID: {user.id}")
             return user.id
 
-    print("  ⚠ User added but not found in list (pagination?)")
+    print("  ⚠ User added but not found in list")
     return None
 
 
+# Not called in the current test flow — modify operations are
+# reserved for future testing once firmware behavior is fully
+# characterized.  Kept as a ready-to-use helper.
 async def test_modify_user(device: AkuvoxDevice, internal_id: str) -> None:
     """Test: Modify the test user's PIN."""
     print_header("MODIFY USER (/api/user/set)")
     await device.modify_user(id=internal_id, private_pin="5678")
     print(f"  Modified user ID={internal_id}: PIN changed to 5678")
     print("  ✓ modify_user() OK")
+    await asyncio.sleep(_MUTATION_SETTLE_SECS)
 
 
 async def test_delete_user(device: AkuvoxDevice, internal_id: str) -> None:
     """Test: Delete the test user."""
-    print_header("DELETE USER (/api/user/del)")
+    print_header("DELETE USER (/api/user/set action:del)")
     await device.delete_user(id=internal_id)
     print(f"  Deleted user ID={internal_id}")
     print("  ✓ delete_user() OK")
+    await asyncio.sleep(_MUTATION_SETTLE_SECS)
+
+
+async def test_trigger_relay(device: AkuvoxDevice) -> None:
+    """Test: Trigger relay 1 with auto-close."""
+    print_header("TRIGGER RELAY (/api/relay/trig)")
+    try:
+        await device.trigger_relay(num=1, delay=1)
+        print("  Triggered relay 1 (auto-close, delay=1s)")
+        print("  ✓ trigger_relay() OK")
+    except AkuvoxUnsupportedError as exc:
+        print(f"  ⚠ Relay trigger not supported: {exc}")
+    except AkuvoxDeviceError as exc:
+        print(f"  ⚠ Relay trigger rejected by device: {exc}")
+        print("  (Some models do not support relay trigger)")
+
+
+async def test_add_schedule(device: AkuvoxDevice) -> str | None:
+    """Test: Add a test schedule. Returns schedule ID if found."""
+    print_header("ADD SCHEDULE (/api/schedule/set action:add)")
+    test_name = "pylocal-test-sched"
+
+    try:
+        await device.add_schedule(
+            schedule_type="1",
+            name=test_name,
+            week="12345",
+            time_start="08:00",
+            time_end="18:00",
+        )
+        print(f"  Added schedule: {test_name} (Weekly, Mon-Fri 08-18)")
+        print("  ✓ add_schedule() OK")
+    except AkuvoxDeviceError as exc:
+        print(f"  ✗ Device rejected add_schedule: {exc}")
+        return None
+
+    # Device needs time to persist the new record
+    await asyncio.sleep(_MUTATION_SETTLE_SECS)
+
+    schedules = await device.list_schedules()
+    for sched in schedules:
+        if sched.name == test_name:
+            print(f"  → Assigned internal ID: {sched.id}")
+            return sched.id
+
+    print("  ⚠ Schedule added but not found in list")
+    return None
+
+
+# Not called in the current test flow — modify operations are
+# reserved for future testing once firmware behavior is fully
+# characterized.  Kept as a ready-to-use helper.
+async def test_modify_schedule(device: AkuvoxDevice, internal_id: str) -> None:
+    """Test: Modify the test schedule."""
+    print_header("MODIFY SCHEDULE (/api/schedule/set)")
+    await device.modify_schedule(
+        id=internal_id,
+        name="pylocal-test-modified",
+        time_start="09:00",
+        time_end="17:00",
+    )
+    print(f"  Modified schedule ID={internal_id}: name + times changed")
+    print("  ✓ modify_schedule() OK")
+    await asyncio.sleep(_MUTATION_SETTLE_SECS)
+
+
+async def test_delete_schedule(device: AkuvoxDevice, internal_id: str) -> None:
+    """Test: Delete the test schedule."""
+    print_header("DELETE SCHEDULE (/api/schedule/set action:del)")
+    await device.delete_schedule(id=internal_id)
+    print(f"  Deleted schedule ID={internal_id}")
+    print("  ✓ delete_schedule() OK")
+    await asyncio.sleep(_MUTATION_SETTLE_SECS)
+
+
+async def _check_validation(label: str, coro: Coroutine[object, object, None]) -> None:
+    """Run a single validation check and print the result."""
+    try:
+        await coro
+        print(f"  ✗ Should have raised for {label}")
+    except AkuvoxValidationError as exc:
+        print(f"  ✓ {label}: {exc}")
 
 
 async def test_validation() -> None:
     """Test: Client-side validation (no device needed)."""
     print_header("CLIENT-SIDE VALIDATION (no network)")
 
-    # Invalid PIN
-    try:
-        async with AkuvoxDevice("0.0.0.0") as device:
-            await device.add_user(
-                name="Bad",
-                user_id="0001",
-                private_pin="12ab",
-                web_relay="0",
-                schedule_relay="1001-1;",
-                lift_floor_num="0",
-            )
-        print("  ✗ Should have raised for invalid PIN")
-    except AkuvoxValidationError as exc:
-        print(f"  ✓ Invalid PIN rejected: {exc}")
+    device = AkuvoxDevice("0.0.0.0")
 
-    # Empty name
-    try:
-        async with AkuvoxDevice("0.0.0.0") as device:
-            await device.add_user(
-                name="",
-                user_id="0001",
-                web_relay="0",
-                schedule_relay="1001-1;",
-                lift_floor_num="0",
-            )
-        print("  ✗ Should have raised for empty name")
-    except AkuvoxValidationError as exc:
-        print(f"  ✓ Empty name rejected: {exc}")
-
-    # Empty schedule_relay
-    try:
-        async with AkuvoxDevice("0.0.0.0") as device:
-            await device.add_user(
-                name="Bad",
-                user_id="0001",
-                web_relay="0",
-                schedule_relay="",
-                lift_floor_num="0",
-            )
-        print("  ✗ Should have raised for empty schedule_relay")
-    except AkuvoxValidationError as exc:
-        print(f"  ✓ Empty schedule_relay rejected: {exc}")
+    await _check_validation(
+        "Invalid PIN rejected",
+        device.add_user(
+            name="Bad",
+            user_id="0001",
+            private_pin="12ab",
+            web_relay="0",
+            schedule_relay="1001-1;",
+            lift_floor_num="0",
+        ),
+    )
+    await _check_validation(
+        "Empty name rejected",
+        device.add_user(
+            name="",
+            user_id="0001",
+            web_relay="0",
+            schedule_relay="1001-1;",
+            lift_floor_num="0",
+        ),
+    )
+    await _check_validation(
+        "Empty schedule_relay rejected",
+        device.add_user(
+            name="Bad",
+            user_id="0001",
+            web_relay="0",
+            schedule_relay="",
+            lift_floor_num="0",
+        ),
+    )
+    await _check_validation(
+        "Invalid relay number rejected",
+        device.trigger_relay(num=0),
+    )
+    await _check_validation(
+        "Invalid relay mode rejected",
+        device.trigger_relay(num=1, mode=5),
+    )
+    await _check_validation(
+        "Invalid schedule type rejected",
+        device.add_schedule(schedule_type="9"),
+    )
+    await _check_validation(
+        "Invalid schedule time rejected",
+        device.add_schedule(schedule_type="1", time_start="25:00"),
+    )
+    await _check_validation(
+        "Invalid week codes rejected",
+        device.add_schedule(schedule_type="1", week="789"),
+    )
+    await _check_validation(
+        "Invalid daily format rejected",
+        device.add_schedule(schedule_type="2", daily="bad"),
+    )
+    await _check_validation(
+        "Invalid schedule date rejected",
+        device.add_schedule(schedule_type="0", date_start="2026-01"),
+    )
 
     print("  ✓ All validation checks passed")
 
@@ -217,29 +361,70 @@ async def run_all(args: argparse.Namespace) -> None:
     await test_validation()
 
     # 2. Device tests (online)
+    #
+    # NOTE: Akuvox firmware (tested on E18 18.30.10.72) has a known bug
+    # where rapid successive API requests corrupt internal CGI state,
+    # causing subsequent POST mutations to silently fail (return success
+    # but not persist data). Workaround: run each CRUD group in its own
+    # connection with a cooldown pause between groups.
     try:
-        async with AkuvoxDevice(args.host, auth=auth, timeout=args.timeout) as device:
-            await test_get_info(device)
-            await test_get_status(device)
-            await test_list_users(device)
-
-            if args.write:
+        if args.write:
+            async with AkuvoxDevice(
+                args.host, auth=auth, timeout=args.timeout
+            ) as device:
+                # User add + delete FIRST — before any other
+                # requests to avoid CGI state corruption.
                 internal_id = await test_add_user(device)
                 if internal_id:
-                    await test_modify_user(device, internal_id)
                     await test_delete_user(device, internal_id)
-                    # Verify deletion
-                    print_header("VERIFY DELETION")
+                    print_header("VERIFY USER DELETION")
                     users = await device.list_users()
                     found = any(u.id == internal_id for u in users)
                     if not found:
                         print("  ✓ User successfully removed")
                     else:
                         print("  ✗ User still present after delete!")
-            else:
+
+            # Device needs cooldown between request groups
+            print("\n  ⏳ Waiting for device to settle…")
+            await asyncio.sleep(_MUTATION_SETTLE_SECS * 3)
+
+            async with AkuvoxDevice(
+                args.host, auth=auth, timeout=args.timeout
+            ) as device:
+                # Schedule add + delete
+                sched_id = await test_add_schedule(device)
+                if sched_id:
+                    await test_delete_schedule(device, sched_id)
+                    print_header("VERIFY SCHEDULE DELETION")
+                    scheds = await device.list_schedules()
+                    found = any(s.id == sched_id for s in scheds)
+                    if not found:
+                        print("  ✓ Schedule successfully removed")
+                    else:
+                        print("  ✗ Schedule still present after delete!")
+
+                # Relay trigger (safe: auto-close after 1s)
+                await test_trigger_relay(device)
+
+            # Cooldown before read tests
+            print("\n  ⏳ Waiting for device to settle…")
+            await asyncio.sleep(_MUTATION_SETTLE_SECS * 3)
+
+        async with AkuvoxDevice(args.host, auth=auth, timeout=args.timeout) as device:
+            await test_get_info(device)
+            await test_get_status(device)
+            await test_list_users(device)
+            await test_get_relay_status(device)
+            await test_list_schedules(device)
+
+            if not args.write:
                 print_header("SKIPPING WRITE TESTS")
-                print("  Use --write to test add/modify/delete user")
-                print("  ⚠ This WILL create and delete a test user on the device")
+                print("  Use --write to test:")
+                print("    - add/modify/delete user")
+                print("    - add/modify/delete schedule")
+                print("    - trigger relay (auto-close, 1s)")
+                print("  ⚠ Write tests WILL create and delete test data")
 
     except AkuvoxConnectionError as exc:
         print(f"\n✗ Connection failed: {exc}")

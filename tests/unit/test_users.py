@@ -155,10 +155,10 @@ def test_validate_schedule_relay_invalid_format() -> None:
 
 
 async def test_add_user_posts_to_correct_endpoint() -> None:
-    """Verify add_user POSTs to /api/user/add with required fields."""
+    """Verify add_user POSTs to /api/user/set with required fields."""
     with aioresponses() as m:
         m.post(
-            f"{BASE_URL}/api/user/add",
+            f"{BASE_URL}/api/user/set",
             payload={
                 "retcode": 0,
                 "action": "add",
@@ -175,9 +175,10 @@ async def test_add_user_posts_to_correct_endpoint() -> None:
                 lift_floor_num="0",
             )
 
-        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/add"))
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
         call = m.requests[url_key][0]
         body = call.kwargs.get("json")
+        assert body["target"] == "user"
         assert body["action"] == "add"
         item = body["data"]["item"][0]
         assert item["Name"] == "Alice"
@@ -191,7 +192,7 @@ async def test_add_user_with_pin() -> None:
     """Verify add_user includes optional PIN in payload."""
     with aioresponses() as m:
         m.post(
-            f"{BASE_URL}/api/user/add",
+            f"{BASE_URL}/api/user/set",
             payload={
                 "retcode": 0,
                 "action": "add",
@@ -264,6 +265,7 @@ async def test_modify_user_empty_pin_omitted() -> None:
         url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
         call = m.requests[url_key][0]
         body = call.kwargs.get("json")
+        assert body["target"] == "user"
         assert body["action"] == "set"
         item = body["data"]["item"][0]
         # Empty PIN normalized to None - field not updated, original value preserved
@@ -393,10 +395,10 @@ async def test_modify_user_invalid_pin_raises() -> None:
 
 
 async def test_delete_user_posts_to_correct_endpoint() -> None:
-    """Verify delete_user POSTs to /api/user/del with ID."""
+    """Verify delete_user POSTs to /api/user/set with ID."""
     with aioresponses() as m:
         m.post(
-            f"{BASE_URL}/api/user/del",
+            f"{BASE_URL}/api/user/set",
             payload={
                 "retcode": 0,
                 "action": "del",
@@ -414,7 +416,7 @@ async def test_add_user_duplicate_returns_device_error() -> None:
 
     with aioresponses() as m:
         m.post(
-            f"{BASE_URL}/api/user/add",
+            f"{BASE_URL}/api/user/set",
             payload={
                 "retcode": -1,
                 "action": "add",
@@ -437,7 +439,7 @@ async def test_add_user_with_card_code() -> None:
     """Verify add_user includes card_code in payload."""
     with aioresponses() as m:
         m.post(
-            f"{BASE_URL}/api/user/add",
+            f"{BASE_URL}/api/user/set",
             payload={
                 "retcode": 0,
                 "action": "add",
@@ -570,7 +572,7 @@ async def test_add_user_without_web_relay() -> None:
     """Verify add_user omits WebRelay when not provided."""
     with aioresponses() as m:
         m.post(
-            f"{BASE_URL}/api/user/add",
+            f"{BASE_URL}/api/user/set",
             payload={
                 "retcode": 0,
                 "action": "add",
@@ -588,7 +590,7 @@ async def test_add_user_without_web_relay() -> None:
 
         url_key = (
             "POST",
-            aiohttp.client.URL(f"{BASE_URL}/api/user/add"),
+            aiohttp.client.URL(f"{BASE_URL}/api/user/set"),
         )
         call = m.requests[url_key][0]
         body = call.kwargs.get("json")

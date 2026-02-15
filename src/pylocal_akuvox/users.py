@@ -19,8 +19,12 @@ _SCHEDULE_RELAY_PATTERN = re.compile(r"^([0-9]+-[0-9]+;)+$")
 
 
 def _mutation_body(action: str, item: dict[str, Any]) -> dict[str, Any]:
-    """Wrap a user payload in the device mutation envelope."""
-    return {"action": action, "data": {"item": [item]}}
+    """Wrap a user payload in the device mutation envelope.
+
+    The ``target`` field is required by E18 firmware to route the
+    request to the correct CGI handler.
+    """
+    return {"target": "user", "action": action, "data": {"item": [item]}}
 
 
 def validate_pin(pin: str | None) -> None:
@@ -84,7 +88,7 @@ async def add_user(
     if card_code:
         payload["CardCode"] = card_code
 
-    await http.post("/api/user/add", data=_mutation_body("add", payload))
+    await http.post("/api/user/set", data=_mutation_body("add", payload))
 
 
 async def list_users(
@@ -175,4 +179,4 @@ async def delete_user(
     id: str,
 ) -> None:
     """Delete a user from the device."""
-    await http.post("/api/user/del", data=_mutation_body("del", {"ID": id}))
+    await http.post("/api/user/set", data=_mutation_body("del", {"ID": id}))

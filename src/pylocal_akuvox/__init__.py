@@ -17,7 +17,7 @@ from pylocal_akuvox.exceptions import (
     AkuvoxUnsupportedError,
     AkuvoxValidationError,
 )
-from pylocal_akuvox.models import DeviceInfo, DeviceStatus, Relay, User
+from pylocal_akuvox.models import AccessSchedule, DeviceInfo, DeviceStatus, Relay, User
 
 _DIST_NAME = "pylocal-akuvox"
 
@@ -27,6 +27,7 @@ except importlib.metadata.PackageNotFoundError:
     __version__ = "0.0.0"
 
 __all__: list[str] = [
+    "AccessSchedule",
     "AkuvoxAuthenticationError",
     "AkuvoxConnectionError",
     "AkuvoxDevice",
