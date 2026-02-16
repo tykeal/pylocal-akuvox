@@ -37,10 +37,10 @@ Manage Users and PINs
        await device.add_user(
            name="Alice",
            user_id="2001",
-           private_pin="1234",
            web_relay="0",
            schedule_relay="1001-1;",
            lift_floor_num="0",
+           private_pin="1234",
        )
 
        # List all users
@@ -157,10 +157,10 @@ Error Handling
            await device.add_user(
                name="Bob",
                user_id="2002",
-               private_pin="12ab",
                web_relay="0",
                schedule_relay="1001-1;",
                lift_floor_num="0",
+               private_pin="12ab",
            )
    except AkuvoxConnectionError as e:
        print(f"Cannot reach device: {e}")

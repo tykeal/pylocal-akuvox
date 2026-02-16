@@ -501,12 +501,6 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
 ]
-docs = [
-    { name = "furo" },
-    { name = "sphinx" },
-    { name = "sphinx-autodoc-typehints" },
-    { name = "sphinx-copybutton" },
-]
 
 [package.metadata]
 requires-dist = [
@@ -532,12 +526,6 @@ dev = [
     { name = "pytest", specifier = ">=8.0" },
     { name = "pytest-asyncio", specifier = ">=1.0" },
     { name = "pytest-cov", specifier = ">=6.0" },
-]
-docs = [
-    { name = "furo", specifier = ">=2024.0" },
-    { name = "sphinx", specifier = ">=8.0" },
-    { name = "sphinx-autodoc-typehints", specifier = ">=3.0" },
-    { name = "sphinx-copybutton", specifier = ">=0.5" },
 ]
 
 [[package]]
