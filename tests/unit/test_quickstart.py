@@ -3,6 +3,7 @@
 
 """Validate quickstart.md code examples against mocked devices."""
 
+import pytest
 from aioresponses import aioresponses
 
 from pylocal_akuvox import (
@@ -264,8 +265,6 @@ async def test_auth_modes() -> None:
 
 async def test_error_handling_validation() -> None:
     """SC-002: validation errors raised for invalid input."""
-    import pytest
-
     async with AkuvoxDevice("192.168.1.100") as device:
         with pytest.raises(AkuvoxValidationError, match="4.*8 digits"):
             await device.add_user(
