@@ -15,6 +15,12 @@ dependencies = [
     "aiohttp>=3.13",
 ]
 
+[project.urls]
+Homepage = "https://github.com/tykeal/pylocal-akuvox"
+Documentation = "https://pylocal-akuvox.readthedocs.io/"
+Repository = "https://github.com/tykeal/pylocal-akuvox"
+Issues = "https://github.com/tykeal/pylocal-akuvox/issues"
+
 [project.optional-dependencies]
 test = [
     "pytest>=8.0",
