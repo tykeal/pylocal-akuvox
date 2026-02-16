@@ -337,6 +337,49 @@ async def test_missing_envelope_raises_parse_error(
                 await client.get("/api/system/info")
 
 
+async def test_retcode_not_int_raises_parse_error(
+    client: AkuvoxHttpClient,
+) -> None:
+    """Verify non-integer retcode raises AkuvoxParseError."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/system/info",
+            payload={"retcode": "0", "message": "ok", "data": {}},
+        )
+        async with client:
+            with pytest.raises(AkuvoxParseError, match="Expected retcode"):
+                await client.get("/api/system/info")
+
+
+async def test_non_string_message_coerced(
+    client: AkuvoxHttpClient,
+) -> None:
+    """Verify non-string message is coerced to str without error."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/system/info",
+            payload={"retcode": 0, "message": 12345, "data": {"ok": True}},
+        )
+        async with client:
+            result = await client.get("/api/system/info")
+    assert result == {"ok": True}
+
+
+async def test_none_message_coerced_to_empty(
+    client: AkuvoxHttpClient,
+) -> None:
+    """Verify None message becomes empty string."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/system/info",
+            payload={"retcode": 0, "message": None, "data": {"ok": True}},
+        )
+        async with client:
+            result = await client.get("/api/system/info")
+    assert result == {"ok": True}
+
+
+@pytest.mark.asyncio
 async def test_resolve_auth_basic() -> None:
     """Verify BASIC auth resolves to aiohttp.BasicAuth."""
     from pylocal_akuvox.auth import AuthConfig, AuthMethod

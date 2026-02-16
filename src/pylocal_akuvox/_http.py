@@ -126,6 +126,26 @@ class AkuvoxHttpClient:
             msg = f"Connection to {self._base_url} failed: {err}"
             raise AkuvoxConnectionError(msg) from err
 
+    @staticmethod
+    def _parse_envelope(body: object) -> tuple[int, str, dict[str, Any]]:
+        """Extract and validate retcode, message, data from response body."""
+        if not isinstance(body, dict) or "retcode" not in body:
+            msg = f"Missing envelope fields: {body!r}"
+            raise AkuvoxParseError(msg)
+
+        retcode = body["retcode"]
+        if not isinstance(retcode, int):
+            msg = f"Expected retcode to be int, got {type(retcode).__name__}"
+            raise AkuvoxParseError(msg)
+
+        message = body.get("message", "")
+        if not isinstance(message, str):
+            message = str(message) if message is not None else ""
+
+        data = body.get("data", {})
+        result: dict[str, Any] = data if isinstance(data, dict) else {}
+        return retcode, message, result
+
     async def _handle_response(self, resp: aiohttp.ClientResponse) -> dict[str, Any]:
         """Parse response and map errors to exceptions."""
         if resp.status == 401:
@@ -147,12 +167,7 @@ class AkuvoxHttpClient:
             msg = "Invalid JSON response"
             raise AkuvoxParseError(msg) from err
 
-        if not isinstance(body, dict) or "retcode" not in body:
-            msg = f"Missing envelope fields: {body!r}"
-            raise AkuvoxParseError(msg)
-
-        retcode = body["retcode"]
-        message = body.get("message", "")
+        retcode, message, data = self._parse_envelope(body)
 
         if _UNSUPPORTED_MSG in message:
             raise AkuvoxUnsupportedError(message)
@@ -160,9 +175,7 @@ class AkuvoxHttpClient:
         if retcode < 0:
             raise AkuvoxDeviceError(message)
 
-        data = body.get("data", {})
-        result: dict[str, Any] = data if isinstance(data, dict) else {}
-        return result
+        return data
 
     def _build_ssl_context(self) -> ssl.SSLContext | None:
         """Build SSL context for the connector.
