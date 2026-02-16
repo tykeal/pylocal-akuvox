@@ -171,15 +171,23 @@ SSL Connections
    from pylocal_akuvox import AkuvoxDevice
 
    async def main():
-       # SSL with certificate verification
+       # SSL with certificate verification (recommended for production)
        async with AkuvoxDevice("192.168.1.100", use_ssl=True) as device:
            info = await device.get_info()
 
        # SSL with self-signed certificate (skip verification)
+       # WARNING: Only use verify_ssl=False on trusted networks for
+       # testing. Disabling verification exposes you to MITM attacks.
        async with AkuvoxDevice("192.168.1.100", use_ssl=True, verify_ssl=False) as device:
            info = await device.get_info()
 
    asyncio.run(main())
+
+.. note::
+
+   When using self-signed certificates, prefer importing the device's
+   certificate into your trust store so that you can keep
+   ``verify_ssl=True`` in production deployments.
 
 Error Handling
 --------------
