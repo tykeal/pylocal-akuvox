@@ -79,7 +79,7 @@ repos:
         # args: ["-c body-max-line-length=120", "-c title-max-length=120"]
 
   - repo: https://github.com/openstack/bashate
-    rev: fbd7c2534c2701351c603ff700ddf08202430a31  # frozen: 2.1.1
+    rev: 5798d24d571676fc407e81df574c1ef57b520f23  # frozen: 2.1.1
     hooks:
       - id: bashate
         args: ["--ignore=E006,E011"]
@@ -94,7 +94,7 @@ repos:
           ^.specify/scripts/
 
   - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
-    rev: 6dd557b1fb160ad366344f37e5aa2c31e8c0c1fb  # frozen: v1.7.10.24
+    rev: 694e2c0dfb4253d51f3c6c54b8f9fec0a16764dc  # frozen: v1.7.11.24
     hooks:
       - id: actionlint
 
@@ -110,14 +110,14 @@ repos:
           ]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 0470f7c8a653e950f7cc5a653204ceb3fde4c02a  # frozen: v0.15.0
+    rev: fa93bc3224c614a0e9786d3e2d3d48edcca246eb  # frozen: v0.15.1
     hooks:
       - id: ruff-check
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
 
   - repo: https://github.com/fsfe/reuse-tool
-    rev: a1bb792acda6fd0724936b4ebbdbc8eceb9c0459  # frozen: v6.2.0
+    rev: 9fabf9eb815a57aac116b435e8346c200cdb8604  # frozen: v6.2.0
     hooks:
       - id: reuse
 
@@ -158,7 +158,7 @@ repos:
   #       args: ['--py37-plus']
 
   - repo: https://github.com/econchick/interrogate
-    rev: 4894019dc8876092bc9b6d56878798c550fad998  # frozen: 1.7.0
+    rev: a6268877efd41a21197445cc04cbf28f9c6facba  # frozen: 1.7.0
     hooks:
       - id: interrogate
         args: [-vv, --fail-under=100]
