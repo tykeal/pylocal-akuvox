@@ -351,7 +351,6 @@ async def test_retcode_not_int_raises_parse_error(
                 await client.get("/api/system/info")
 
 
-@pytest.mark.asyncio
 async def test_non_string_message_coerced(
     client: AkuvoxHttpClient,
 ) -> None:
@@ -366,7 +365,6 @@ async def test_non_string_message_coerced(
     assert result == {"ok": True}
 
 
-@pytest.mark.asyncio
 async def test_none_message_coerced_to_empty(
     client: AkuvoxHttpClient,
 ) -> None:
