@@ -28,8 +28,20 @@ dev = [
     "pytest-cov>=6.0",
     "aioresponses>=0.7",
 ]
+docs = [
+    "sphinx>=8.0",
+    "furo>=2024.0",
+    "sphinx-autodoc-typehints>=3.0",
+    "sphinx-copybutton>=0.5",
+]
 
 [dependency-groups]
+docs = [
+    "sphinx>=8.0",
+    "furo>=2024.0",
+    "sphinx-autodoc-typehints>=3.0",
+    "sphinx-copybutton>=0.5",
+]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=1.0",

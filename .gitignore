@@ -39,3 +39,6 @@ dist/
 .pytest_cache/
 .ruff_cache/
 htmlcov/
+
+# Documentation build
+docs/_build/
