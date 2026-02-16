@@ -22,7 +22,7 @@ and log retrieval over the device's local HTTP API.
 - **Async-only** — designed for `asyncio` event loops and Home Assistant
 - **Single runtime dependency** — only `aiohttp`
 - **Full device management** — users, PINs, relays, schedules, and logs
-- **Multiple auth modes** — None, AllowList, Basic, and Digest
+- **Multiple auth modes** — None, Allowlist, Basic, and Digest
 - **SSL support** — including self-signed certificate handling
 - **Comprehensive error handling** — typed exception hierarchy
 
