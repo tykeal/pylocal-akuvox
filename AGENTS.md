@@ -140,7 +140,7 @@ Check `REUSE.toml` for file-type-specific header requirements.
 
 ## Testing Requirements
 
-The Python project lives under `rentalsync-bridge/`. Run commands from that
+The Python project lives under `src/`. Run commands from that
 directory using `uv`:
 
 - Run tests before committing: `uv run pytest tests/`
