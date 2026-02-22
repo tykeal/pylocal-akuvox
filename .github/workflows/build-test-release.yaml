@@ -294,10 +294,11 @@ jobs:
 
       - name: 'Test PyPI publishing'
         # yamllint disable-line rule:line-length
-        uses: lfreleng-actions/pypi-publish-action@927f0dfdbcf79802c16a3e486ffca2be27ab57ed  # v0.1.4
+        uses: lfreleng-actions/pypi-publish-action@f6a61d7d6f83b1279bc6599b84d2f0ecbbe359a2  # v0.1.5
         with:
           environment: 'development'
           tag: "${{ needs.tag-validate.outputs.tag }}"
+          trusted_publishing: true
           pypi_credential: "${{ secrets.TEST_PYPI_CREDENTIAL }}"
 
   pypi:
@@ -321,11 +322,12 @@ jobs:
 
       - name: 'PyPI release'
         # yamllint disable-line rule:line-length
-        uses: lfreleng-actions/pypi-publish-action@927f0dfdbcf79802c16a3e486ffca2be27ab57ed  # v0.1.4
+        uses: lfreleng-actions/pypi-publish-action@f6a61d7d6f83b1279bc6599b84d2f0ecbbe359a2  # v0.1.5
         with:
           environment: 'production'
           attestations: true
           tag: "${{ needs.tag-validate.outputs.tag }}"
+          trusted_publishing: true
           pypi_credential: "${{ secrets.PYPI_CREDENTIAL }}"
 
   # Attach build artefacts prior to release promotion
