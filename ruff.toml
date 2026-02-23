@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 src = ["src", "tests"]
-target-version = "py314"
+target-version = "py313"
 
 [lint]
 select = [
