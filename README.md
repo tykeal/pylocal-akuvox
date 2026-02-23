@@ -8,7 +8,7 @@ SPDX-License-Identifier: Apache-2.0
 [![CI](https://github.com/tykeal/pylocal-akuvox/actions/workflows/build-test.yaml/badge.svg)](https://github.com/tykeal/pylocal-akuvox/actions/workflows/build-test.yaml)
 [![Documentation](https://readthedocs.org/projects/pylocal-akuvox/badge/?version=latest)](https://pylocal-akuvox.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Python](https://img.shields.io/badge/python-3.14%2B-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-3.13.2%2B-blue.svg)](https://www.python.org/downloads/)
 
 Async Python library for the Akuvox local HTTP API.
 
