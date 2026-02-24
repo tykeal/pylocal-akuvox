@@ -154,10 +154,9 @@ all available configuration key names.
 - **FR-009**: Library MUST use the autop-format key convention
   (e.g., `Config.DoorSetting.RELAY.*`) for configuration keys
   sent to the device.
-- **FR-010**: The example live-device test suite MUST be updated
-  at each implementation phase to exercise the new configuration
-  capabilities, enabling validation of configuration read and write
-  operations against a real device.
+- **FR-010**: Each implementation phase MUST be independently
+  verifiable against a live device, enabling incremental
+  validation of configuration read and write operations.
 
 ### Key Entities
 
@@ -175,7 +174,7 @@ all available configuration key names.
 - The relay configuration GET endpoint returns all relay settings
   in a single response (no pagination needed).
 - Configuration keys follow the `Config.DoorSetting.RELAY.*`
-  naming pattern documented in the existing API research.
+  naming pattern documented in the existing API contract.
 - The relay set endpoint accepts one or more key-value pairs in
   a single request.
 - Configuration changes take effect immediately on the device
@@ -198,6 +197,6 @@ all available configuration key names.
   code.
 - **SC-006**: All new public methods and classes include
   comprehensive docstrings.
-- **SC-007**: The example test script validates configuration
-  read and write operations against a live device, with results
-  reported per test scenario (pass/fail with details).
+- **SC-007**: Configuration read and write operations can be
+  validated against a live device, with clear pass/fail results
+  available for each defined user scenario.

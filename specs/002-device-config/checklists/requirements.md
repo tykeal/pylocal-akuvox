@@ -38,7 +38,8 @@ before proceeding to planning
 ## Notes
 
 - FR-009 references the autop-format key convention, which is a
-  device API detail rather than an implementation choice — this is
-  acceptable as it describes the external contract with the device.
+  device API detail documented in the API contract rather than an
+  implementation choice — this is acceptable as it describes the
+  external contract with the device.
 - Assumptions section documents reasonable defaults for
   undocumented API behaviors (pagination, reboot requirements).
