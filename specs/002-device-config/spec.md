@@ -154,6 +154,10 @@ all available configuration key names.
 - **FR-009**: Library MUST use the autop-format key convention
   (e.g., `Config.DoorSetting.RELAY.*`) for configuration keys
   sent to the device.
+- **FR-010**: The existing example test script
+  (`examples/mvp_test.py`) MUST be updated at each implementation
+  phase to exercise the new configuration capabilities, enabling
+  live-device validation of read and write operations.
 
 ### Key Entities
 
@@ -194,3 +198,6 @@ all available configuration key names.
   code.
 - **SC-006**: All new public methods and classes include
   comprehensive docstrings.
+- **SC-007**: The example test script validates configuration
+  read and write operations against a live device, with results
+  reported per test scenario (pass/fail with details).
