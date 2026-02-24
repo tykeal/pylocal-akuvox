@@ -143,8 +143,8 @@ all available configuration key names.
   retcode) to typed exceptions, consistent with the existing
   error handling pattern.
 - **FR-006**: Library MUST support all authentication modes
-  (None, Allowlist, Basic, Digest) for configuration operations,
-  consistent with existing device operations.
+  (None, AllowList, Basic Auth, Digest Auth) for configuration
+  operations, consistent with existing device operations.
 - **FR-007**: Library MUST support SSL connections (including
   self-signed certificate handling) for configuration operations,
   consistent with existing device operations.
