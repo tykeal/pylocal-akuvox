@@ -29,6 +29,9 @@ Frozen dataclass consistent with all existing models.
   (optional). Source: `Config.DoorSetting.RELAY.TrigDelayB`
 - `relay_name_b` (`str | None`): Display name for relay B
   (optional). Source: `Config.DoorSetting.RELAY.RelayNameB`
+- `extra` (`dict[str, str] | None`): Additional keys returned by
+  the device that are not part of the known field set. Defaults to
+  `None` when no unknown keys are present.
 
 **Notes**:
 
@@ -52,10 +55,11 @@ attributes. Unknown keys stored in `extra`.
 
 **`to_api_payload(**overrides: str) -> dict[str, Any]`**
 
-Instance method. Produces the `{target, action, data}` body for
-`POST /api/relay/set`. Only includes keys present in `overrides`,
-allowing partial updates. Converts snake_case attribute names
-back to autop-format keys.
+Static method. Produces the `{target, action, data}` body for
+`POST /api/relay/set` from the provided keyword arguments.
+Only includes keys present in `overrides`, allowing partial
+updates. Converts snake_case attribute names back to
+autop-format keys.
 
 **`keys() -> list[str]`**
 

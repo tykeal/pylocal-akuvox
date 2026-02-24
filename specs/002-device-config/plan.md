@@ -26,6 +26,8 @@ strict)
 **Storage**: N/A (device API only)
 **Testing**: pytest + pytest-asyncio + aioresponses, 100% coverage
 **Target Platform**: Linux / any Python 3.13.2+ environment
+  (note: spec 001 referenced Python 3.14; the project now
+  requires ≥3.13.2 per pyproject.toml)
 **Project Type**: Single Python package
 **Performance Goals**: Standard LAN latency; must not block event loop
 **Constraints**: Async-only; per-device lock serialization; ≤10
