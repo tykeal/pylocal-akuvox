@@ -81,6 +81,8 @@ import asyncio
 from pylocal_akuvox import AkuvoxDevice
 
 async def main():
+    # verify_ssl=False only for local/dev with self-signed certs;
+    # use verify_ssl=True (default) for production/trusted certs.
     async with AkuvoxDevice(
         "192.168.1.100",
         use_ssl=True,
