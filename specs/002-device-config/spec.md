@@ -13,7 +13,7 @@ and set configuration on the Akuvox devices"
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 — Read Relay Configuration (Priority: P1)
+### User Story 1 - Read Relay Configuration (Priority: P1)
 
 A developer retrieves the current relay configuration from an Akuvox
 device to understand its door settings (hold delay, trigger delay,
@@ -45,7 +45,7 @@ returned with the expected structure and values.
 
 ---
 
-### User Story 2 — Update Relay Configuration (Priority: P2)
+### User Story 2 - Update Relay Configuration (Priority: P2)
 
 A developer modifies relay settings on an Akuvox device — for
 example, changing the hold delay for a door relay or updating
@@ -79,7 +79,7 @@ configuration and verify the new value was applied.
 
 ---
 
-### User Story 3 — Discover Available Configuration Keys (Priority: P3)
+### User Story 3 - Discover Available Configuration Keys (Priority: P3)
 
 A developer wants to understand what configuration keys are
 available on a particular device. Since different Akuvox models
@@ -154,20 +154,20 @@ all available configuration key names.
 - **FR-009**: Library MUST use the autop-format key convention
   (e.g., `Config.DoorSetting.RELAY.*`) for configuration keys
   sent to the device.
-- **FR-010**: The existing example test script
-  (`examples/mvp_test.py`) MUST be updated at each implementation
-  phase to exercise the new configuration capabilities, enabling
-  live-device validation of read and write operations.
+- **FR-010**: The example live-device test suite MUST be updated
+  at each implementation phase to exercise the new configuration
+  capabilities, enabling validation of configuration read and write
+  operations against a real device.
 
 ### Key Entities
 
 - **RelayConfig**: Represents the relay configuration for a
   device. Contains settings such as hold delay, trigger delay,
   relay name, and HTTP relay access configuration. Attributes
-  map from autop-format keys to developer-friendly snake_case
+  map from autop-format keys to developer-friendly attribute
   names.
 
-## Assumptions
+### Assumptions
 
 - The Akuvox local HTTP API uses the same envelope response
   format (`retcode`, `message`, `data`) for relay configuration
