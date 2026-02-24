@@ -60,7 +60,7 @@ specs/002-device-config/
 ├── plan.md              # This file
 ├── research.md          # Phase 0 output
 ├── data-model.md        # Phase 1 output
-├── quickstart.md        # Phase 1 output
+├── quickstart.md        # Phase 0 output (all phases)
 ├── contracts/           # Phase 1 output
 │   └── relay-config-api.yaml
 └── tasks.md             # Phase 2 output (/speckit.tasks)
