@@ -139,9 +139,9 @@ all available configuration key names.
 - **FR-004**: Library MUST validate that at least one
   configuration key-value pair is provided before sending an
   update request.
-- **FR-005**: Library MUST map device error responses (non-zero
-  retcode) to typed exceptions, consistent with the existing
-  error handling pattern.
+- **FR-005**: Library MUST map device error responses (negative
+  retcode values) to typed exceptions, consistent with the
+  existing error handling pattern.
 - **FR-006**: Library MUST support all authentication modes
   (None, AllowList, Basic Auth, Digest Auth) for configuration
   operations, consistent with existing device operations.
