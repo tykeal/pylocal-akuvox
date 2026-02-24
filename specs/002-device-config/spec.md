@@ -113,16 +113,16 @@ all available configuration key names.
 ### Edge Cases
 
 - What happens when a configuration key exists on one device
-  model but not another? The library should propagate the device
+  model but not another? The library MUST propagate the device
   error as an appropriate exception.
 - What happens when the device reboots or is busy during a
-  configuration write? The library should raise a connection
+  configuration write? The library MUST raise a connection
   error if the request times out.
 - What happens when the developer provides an empty configuration
-  update (no keys)? The library should raise a validation error
+  update (no keys)? The library MUST raise a validation error
   before sending to the device.
 - What happens when authentication is required but not provided?
-  The library should raise an authentication error, consistent
+  The library MUST raise an authentication error, consistent
   with existing behavior.
 
 ## Requirements *(mandatory)*
