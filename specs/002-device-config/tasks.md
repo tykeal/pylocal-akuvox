@@ -41,42 +41,42 @@ wraps all device configuration keys. Fix the endpoint from
 of production code BEFORE implementing it. Tasks are ordered
 test-first within each logical unit.
 
-- [ ] T001 Rewrite `DeviceConfig` model tests in
+- [x] T001 Rewrite `DeviceConfig` model tests in
   `tests/unit/test_models.py`. Remove all `RelayConfig` tests.
   Test `from_api_response()` with multi-key data (use realistic
   autop-format keys), empty data, and single-key data. Test
   `to_api_payload()` round-trip. Test `keys()`, `get()`,
   `__getitem__()`, `__contains__()`, `__len__()`. Verify frozen
   behavior.
-- [ ] T002 Replace `RelayConfig` with `DeviceConfig` frozen
+- [x] T002 Replace `RelayConfig` with `DeviceConfig` frozen
   dataclass in `src/pylocal_akuvox/models.py`. Single field:
   `data: dict[str, str]`. Add `from_api_response()` classmethod
   (stringify all values), `to_api_payload()`, `keys()`,
   `get()`, `__getitem__()`, `__contains__()`, `__len__()`.
   Remove old `RelayConfig` class entirely.
-- [ ] T003 Rewrite `src/pylocal_akuvox/config.py`. Remove
+- [x] T003 Rewrite `src/pylocal_akuvox/config.py`. Remove
   `KEY_MAP`, `reverse_key_map()`, and `_REVERSE_MAP`. Replace
   `get_relay_config()` with `get_device_config()` that calls
   `http.get("/api/config/get")` and returns
   `DeviceConfig.from_api_response(data)`.
-- [ ] T004 Rewrite `tests/unit/test_config.py`. Remove KEY_MAP
+- [x] T004 Rewrite `tests/unit/test_config.py`. Remove KEY_MAP
   tests. Write `get_device_config()` function tests: mock
   `AkuvoxHttpClient.get()` with multi-key response, verify
   `DeviceConfig` returned with all keys. Test device error and
   connection error cases.
-- [ ] T005 Update `src/pylocal_akuvox/device.py`: replace
+- [x] T005 Update `src/pylocal_akuvox/device.py`: replace
   `get_relay_config()` with `get_device_config()`. Update lazy
   import, return type (`DeviceConfig`), and TYPE_CHECKING
   import.
-- [ ] T006 Rewrite facade tests in
+- [x] T006 Rewrite facade tests in
   `tests/unit/test_device.py`. Replace `get_relay_config` tests
   with `get_device_config` tests. Verify delegation pattern.
-- [ ] T007 Update `src/pylocal_akuvox/__init__.py`: replace
+- [x] T007 Update `src/pylocal_akuvox/__init__.py`: replace
   `RelayConfig` with `DeviceConfig` in imports and `__all__`.
-- [ ] T008 Rewrite `examples/mvp_test.py` config read test.
+- [x] T008 Rewrite `examples/mvp_test.py` config read test.
   Print total key count, sample relay keys, sample network
   keys. Show key count by category prefix.
-- [ ] T009 Run full test suite
+- [x] T009 Run full test suite
   (`uv run pytest tests/ -x -q`) and linting
   (`uv run ruff check src/ tests/`). Verify 100% coverage is
   maintained. Fix any issues.
