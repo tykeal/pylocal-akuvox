@@ -399,6 +399,46 @@ async def test_auth_basic_get_info_end_to_end() -> None:
     assert info.model == "E21V"
 
 
+# -- T008: get_relay_config facade tests --
+
+_RELAY_CONFIG_PAYLOAD: dict[str, object] = {
+    "retcode": 0,
+    "action": "relay",
+    "message": "get successfully!",
+    "data": {
+        "Config.DoorSetting.RELAY.HoldDelayA": "5",
+        "Config.DoorSetting.RELAY.TrigDelayA": "0",
+        "Config.DoorSetting.RELAY.RelayNameA": "Door",
+    },
+}
+
+
+async def test_get_relay_config_returns_relay_config() -> None:
+    """Verify get_relay_config delegates to config module."""
+    from pylocal_akuvox.models import RelayConfig
+
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/relay/get", payload=_RELAY_CONFIG_PAYLOAD)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            cfg = await device.get_relay_config()
+
+    assert isinstance(cfg, RelayConfig)
+    assert cfg.hold_delay_a == "5"
+
+
+async def test_get_relay_config_with_auth() -> None:
+    """Verify get_relay_config works with BASIC auth."""
+    from pylocal_akuvox.models import RelayConfig
+
+    auth = AuthConfig(method=AuthMethod.BASIC, username="admin", password="pass")
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/relay/get", payload=_RELAY_CONFIG_PAYLOAD)
+        async with AkuvoxDevice("192.168.1.100", auth=auth) as device:
+            cfg = await device.get_relay_config()
+
+    assert isinstance(cfg, RelayConfig)
+
+
 async def test_auth_digest_get_info_end_to_end() -> None:
     """Verify DIGEST auth device retrieves info via real request path."""
     auth = AuthConfig(method=AuthMethod.DIGEST, username="admin", password="pass")

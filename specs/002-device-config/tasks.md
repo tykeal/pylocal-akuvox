@@ -34,7 +34,7 @@ and foundational unit tests. All user stories depend on this phase.
 production code BEFORE implementing it. Tasks are ordered
 test-first within each logical unit.
 
-- [ ] T001 Write KEY_MAP unit tests in
+- [X] T001 Write KEY_MAP unit tests in
   `tests/unit/test_config.py` (new file, SPDX header). First,
   create a minimal importable `config.py` skeleton (SPDX
   header, docstring, empty `KEY_MAP` dict) so tests fail on
@@ -42,7 +42,7 @@ test-first within each logical unit.
   KEY_MAP contains all expected keys, that reverse lookup works,
   and that KEY_MAP values match the autop-format pattern
   `Config.DoorSetting.RELAY.*`.
-- [ ] T002 Populate `src/pylocal_akuvox/config.py` with the
+- [X] T002 Populate `src/pylocal_akuvox/config.py` with the
   full KEY_MAP registry mapping snake_case attribute names to
   autop-format keys (`Config.DoorSetting.RELAY.*`), and
   reverse-lookup helper.
@@ -51,13 +51,13 @@ test-first within each logical unit.
   `relay_name_b`. Follow the pattern in
   `src/pylocal_akuvox/relay.py` for imports and TYPE_CHECKING
   guard.
-- [ ] T003 Write `RelayConfig` model unit tests in
+- [X] T003 Write `RelayConfig` model unit tests in
   `tests/unit/test_models.py`. Test `from_api_response()` with
   full data, partial data (relay B missing), extra unknown keys,
   and empty data. Test `to_api_payload()` round-trip. Test
   `keys()` returns correct autop-format key names. Follow
   existing test patterns in the file.
-- [ ] T004 Add `RelayConfig` frozen dataclass to
+- [X] T004 Add `RelayConfig` frozen dataclass to
   `src/pylocal_akuvox/models.py`. Fields: `hold_delay_a` (str),
   `trig_delay_a` (str), `relay_name_a` (str), `hold_delay_b`
   (str | None), `trig_delay_b` (str | None), `relay_name_b`
@@ -69,10 +69,10 @@ test-first within each logical unit.
   autop-format) following the `User`/`AccessSchedule` pattern.
   Add `keys()` instance method returning list of autop-format
   key names present in this config (FR-011).
-- [ ] T005 Export `RelayConfig` from
+- [X] T005 Export `RelayConfig` from
   `src/pylocal_akuvox/__init__.py`: add to import block and
   `__all__` list, maintaining alphabetical order.
-- [ ] T006 Run `uv run pytest tests/ -x -q` and
+- [X] T006 Run `uv run pytest tests/ -x -q` and
   `uv run ruff check src/ tests/` to verify all tests pass and
   linting is clean. Fix any issues.
 
@@ -101,37 +101,37 @@ FR-010
 > **Write these tests FIRST, ensure they FAIL before
 > implementation**
 
-- [ ] T007 [P] [US1] Write `get_relay_config()` function tests
+- [X] T007 [P] [US1] Write `get_relay_config()` function tests
   in `tests/unit/test_config.py`. Mock `AkuvoxHttpClient.get()`
   to return a relay config envelope. Test: successful retrieval
   returns `RelayConfig`, negative retcode raises
   `AkuvoxDeviceError` (handled by `_http.py`), connection
   failure raises `AkuvoxConnectionError`. Use `aioresponses`
   pattern from existing tests (e.g., `test_relay.py`).
-- [ ] T008 [P] [US1] Write `AkuvoxDevice.get_relay_config()`
+- [X] T008 [P] [US1] Write `AkuvoxDevice.get_relay_config()`
   facade tests in `tests/unit/test_device.py`. Mock the config
   module function. Verify delegation pattern matches existing
   facade methods (e.g., `get_info`, `get_status`).
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Implement `get_relay_config()` async function
+- [X] T009 [US1] Implement `get_relay_config()` async function
   in `src/pylocal_akuvox/config.py`. Signature:
   `async def get_relay_config(http: AkuvoxHttpClient) ->
   RelayConfig`. Call `http.get("/api/relay/get")` and parse
   with `RelayConfig.from_api_response()`. Follow the pattern
   in `relay.py:get_relay_status()`.
-- [ ] T010 [US1] Add `get_relay_config()` facade method to
+- [X] T010 [US1] Add `get_relay_config()` facade method to
   `src/pylocal_akuvox/device.py`. Use lazy import
   (`from pylocal_akuvox import config`) inside the method body,
   matching the existing pattern for `users`, `logs`, etc.
   Return type: `RelayConfig`. Add TYPE_CHECKING import for
   `RelayConfig`.
-- [ ] T011 [US1] Update `examples/mvp_test.py` to add a relay
+- [X] T011 [US1] Update `examples/mvp_test.py` to add a relay
   config read test in the read-tests section. Print all relay
   config fields. Follow the existing test function pattern
   (async function, pass/fail tracking, error handling).
-- [ ] T012 [US1] Run full test suite
+- [X] T012 [US1] Run full test suite
   (`uv run pytest tests/ -x -q`) and linting
   (`uv run ruff check src/ tests/`). Verify 100% coverage is
   maintained. Fix any issues.
