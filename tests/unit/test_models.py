@@ -770,6 +770,16 @@ def test_relay_config_from_api_response_empty() -> None:
     assert cfg.relay_name_b is None
     assert cfg.extra is None
 
+    # Round-trip: ensure empty-string relay A fields are serialized,
+    # while relay B fields (None) are omitted from the payload.
+    payload = cfg.to_api_payload()
+    assert payload["Config.DoorSetting.RELAY.HoldDelayA"] == ""
+    assert payload["Config.DoorSetting.RELAY.TrigDelayA"] == ""
+    assert payload["Config.DoorSetting.RELAY.RelayNameA"] == ""
+    assert "Config.DoorSetting.RELAY.HoldDelayB" not in payload
+    assert "Config.DoorSetting.RELAY.TrigDelayB" not in payload
+    assert "Config.DoorSetting.RELAY.RelayNameB" not in payload
+
 
 def test_relay_config_to_api_payload_round_trip() -> None:
     """Verify to_api_payload produces autop-format keys for all fields."""

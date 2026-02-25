@@ -340,7 +340,7 @@ class RelayConfig:
 
     @classmethod
     def from_api_response(cls, data: dict[str, Any]) -> RelayConfig:
-        """Create RelayConfig from API response data dict."""
+        """Create RelayConfig from API response data."""
         from pylocal_akuvox.config import reverse_key_map
 
         reverse = reverse_key_map()
@@ -369,15 +369,10 @@ class RelayConfig:
         from pylocal_akuvox.config import KEY_MAP
 
         payload: dict[str, str] = {}
-        _fields: list[tuple[str | None, str]] = [
-            (self.hold_delay_a or None, "hold_delay_a"),
-            (self.trig_delay_a or None, "trig_delay_a"),
-            (self.relay_name_a or None, "relay_name_a"),
-            (self.hold_delay_b or None, "hold_delay_b"),
-            (self.trig_delay_b or None, "trig_delay_b"),
-            (self.relay_name_b or None, "relay_name_b"),
-        ]
-        for value, attr in _fields:
+        for attr in ("hold_delay_a", "trig_delay_a", "relay_name_a"):
+            payload[KEY_MAP[attr]] = getattr(self, attr)
+        for attr in ("hold_delay_b", "trig_delay_b", "relay_name_b"):
+            value = getattr(self, attr)
             if value is not None:
                 payload[KEY_MAP[attr]] = value
         if self.extra:
@@ -389,16 +384,10 @@ class RelayConfig:
         from pylocal_akuvox.config import KEY_MAP
 
         result: list[str] = []
-        _fields: list[tuple[str | None, str]] = [
-            (self.hold_delay_a or None, "hold_delay_a"),
-            (self.trig_delay_a or None, "trig_delay_a"),
-            (self.relay_name_a or None, "relay_name_a"),
-            (self.hold_delay_b or None, "hold_delay_b"),
-            (self.trig_delay_b or None, "trig_delay_b"),
-            (self.relay_name_b or None, "relay_name_b"),
-        ]
-        for value, attr in _fields:
-            if value is not None:
+        for attr in ("hold_delay_a", "trig_delay_a", "relay_name_a"):
+            result.append(KEY_MAP[attr])
+        for attr in ("hold_delay_b", "trig_delay_b", "relay_name_b"):
+            if getattr(self, attr) is not None:
                 result.append(KEY_MAP[attr])
         if self.extra:
             result.extend(self.extra.keys())
