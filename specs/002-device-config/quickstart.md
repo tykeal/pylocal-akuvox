@@ -8,6 +8,16 @@ SPDX-License-Identifier: Apache-2.0
 **Feature**: 002-device-config
 **Date**: 2026-02-24
 
+> **Note**: The examples below use the *planned* public API for
+> feature 002-device-config.
+>
+> - `get_relay_config` is introduced in Phase 1.
+> - `set_relay_config` is introduced in Phase 2.
+> - `RelayConfig.keys()` is introduced in Phase 3.
+>
+> These APIs may not be available in the current released version
+> of `pylocal_akuvox`.
+
 ## Reading Relay Configuration
 
 ```python
@@ -59,7 +69,7 @@ asyncio.run(main())
 ```python
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
-from pylocal_akuvox.auth import AuthConfig, AuthMethod
+from pylocal_akuvox import AkuvoxDevice, AuthConfig, AuthMethod
 
 async def main():
     auth = AuthConfig(

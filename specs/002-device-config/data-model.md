@@ -53,13 +53,16 @@ Class method. Parses the envelope `data` dict from
 `GET /api/relay/get`. Maps autop-format keys to snake_case
 attributes. Unknown keys stored in `extra`.
 
-**`to_api_payload(**overrides: str) -> dict[str, Any]`**
+**`to_api_payload(self) -> dict[str, str]`**
 
-Static method. Produces the `{target, action, data}` body for
-`POST /api/relay/set` from the provided keyword arguments.
-Only includes keys present in `overrides`, allowing partial
-updates. Converts snake_case attribute names back to
-autop-format keys.
+Instance method, following the same pattern as `User` and
+`AccessSchedule`. Produces only the `data` dict for
+`POST /api/relay/set`, not the full `{target, action, data}`
+envelope. Uses the instance attributes (including `extra`) to
+build a mapping from snake_case attribute names back to
+autop-format keys. The calling code in `config.py` is
+responsible for constructing the outer envelope and selecting
+which keys to include for partial updates.
 
 **`keys() -> list[str]`**
 
