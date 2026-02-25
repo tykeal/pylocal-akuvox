@@ -162,9 +162,9 @@ all available configuration key names.
   autop-format configuration key names available on a
   `RelayConfig` instance, enabling key discovery (US3). These
   are device-level keys (e.g., `Config.DoorSetting.RELAY.*`)
-  that map to snake_case Python kwargs via `KEY_MAP`; the
-  method returns the autop-format form for informational and
-  diagnostic use.
+  that are mapped by the library to its public parameter or
+  attribute names; the method returns the device-facing
+  autop-format form for informational and diagnostic use.
 
 ### Key Entities
 
