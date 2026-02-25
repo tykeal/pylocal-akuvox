@@ -33,12 +33,12 @@ and foundational unit tests. All user stories depend on this phase.
 production code BEFORE implementing it. Tasks are ordered
 test-first within each logical unit.
 
-- [ ] T005 Write KEY_MAP unit tests in
+- [ ] T001 Write KEY_MAP unit tests in
   `tests/unit/test_config.py` (new file, SPDX header). Test
   that KEY_MAP contains all expected keys, that reverse lookup
   works, and that KEY_MAP values match the autop-format pattern
   `Config.DoorSetting.RELAY.*`.
-- [ ] T001 Create `src/pylocal_akuvox/config.py` with module
+- [ ] T002 Create `src/pylocal_akuvox/config.py` with module
   docstring, SPDX header, KEY_MAP registry mapping snake_case
   attribute names to autop-format keys
   (`Config.DoorSetting.RELAY.*`), and reverse-lookup helper.
@@ -47,13 +47,13 @@ test-first within each logical unit.
   `relay_name_b`. Follow the pattern in
   `src/pylocal_akuvox/relay.py` for imports and TYPE_CHECKING
   guard.
-- [ ] T004 Write `RelayConfig` model unit tests in
+- [ ] T003 Write `RelayConfig` model unit tests in
   `tests/unit/test_models.py`. Test `from_api_response()` with
   full data, partial data (relay B missing), extra unknown keys,
   and empty data. Test `to_api_payload()` round-trip. Test
   `keys()` returns correct autop-format key names. Follow
   existing test patterns in the file.
-- [ ] T002 Add `RelayConfig` frozen dataclass to
+- [ ] T004 Add `RelayConfig` frozen dataclass to
   `src/pylocal_akuvox/models.py`. Fields: `hold_delay_a` (str),
   `trig_delay_a` (str), `relay_name_a` (str), `hold_delay_b`
   (str | None), `trig_delay_b` (str | None), `relay_name_b`
@@ -65,7 +65,7 @@ test-first within each logical unit.
   autop-format) following the `User`/`AccessSchedule` pattern.
   Add `keys()` instance method returning list of autop-format
   key names present in this config (FR-011).
-- [ ] T003 Export `RelayConfig` from
+- [ ] T005 Export `RelayConfig` from
   `src/pylocal_akuvox/__init__.py`: add to import block and
   `__all__` list, maintaining alphabetical order.
 - [ ] T006 Run `uv run pytest tests/ -x -q` and
@@ -211,11 +211,11 @@ verify the returned structure exposes all available key names.
 
 - [ ] T019 [P] [US3] Write key **discovery-specific** tests in
   `tests/unit/test_config.py`. Focus on US3 scenarios that
-  differ from the basic T004 tests: keys returned from a
+  differ from the basic T003 tests: keys returned from a
   response containing extra/unknown keys, keys matching
   autop-format patterns usable as `set_relay_config()` kwargs,
   and empty extra dict case. Do NOT duplicate the basic
-  `keys()` return-value tests already covered by T004.
+  `keys()` return-value tests already covered by T003.
 
 ### Implementation for User Story 3
 
@@ -320,7 +320,7 @@ T012: Full test suite verification
 
 ### MVP First (User Story 1 Only)
 
-1. Complete Phase 1: Setup & Foundation (T005→T001→T004→T002→T003→T006)
+1. Complete Phase 1: Setup & Foundation (T001-T006)
 2. Complete Phase 2: User Story 1 (T007-T012)
 3. **STOP and VALIDATE**: Test US1 against live device
 4. Deploy/demo if ready
