@@ -158,3 +158,50 @@ async def test_set_device_config_connection_error() -> None:
 def _config_set_url() -> aiohttp.client.URL:
     """Build URL for aioresponses request lookup."""
     return aiohttp.client.URL(f"{BASE_URL}/api/config/set")
+
+
+# -- T016: key discovery tests --
+
+_MULTI_CATEGORY_DATA = {
+    "Config.DoorSetting.RELAY.HoldDelayA": "5",
+    "Config.DoorSetting.RELAY.TriggerDelayA": "0",
+    "Config.DoorSetting.RELAY.NameA": "Relay1",
+    "Config.Network.LAN.IPAddress": "192.168.1.100",
+    "Config.Network.LAN.SubnetMask": "255.255.255.0",
+    "Config.SIP.Account.DisplayName": "E21V",
+    "Config.Features.DoorSetting.DoorUnlockMode": "1",
+}
+
+
+def test_keys_returns_all_config_keys() -> None:
+    """Verify keys() returns all autop-format key names."""
+    cfg = DeviceConfig.from_api_response(_MULTI_CATEGORY_DATA)
+    keys = cfg.keys()
+    assert len(keys) == 7
+    assert "Config.DoorSetting.RELAY.HoldDelayA" in keys
+    assert "Config.Network.LAN.IPAddress" in keys
+    assert "Config.SIP.Account.DisplayName" in keys
+
+
+def test_keys_groupable_by_category_prefix() -> None:
+    """Verify keys can be grouped by dotted category prefix."""
+    cfg = DeviceConfig.from_api_response(_MULTI_CATEGORY_DATA)
+    categories: dict[str, int] = {}
+    for key in cfg.keys():
+        parts = key.split(".")
+        cat = ".".join(parts[:2])
+        categories[cat] = categories.get(cat, 0) + 1
+
+    assert categories["Config.DoorSetting"] == 3
+    assert categories["Config.Network"] == 2
+    assert categories["Config.SIP"] == 1
+    assert categories["Config.Features"] == 1
+
+
+def test_specific_relay_and_network_keys_discoverable() -> None:
+    """Verify specific relay and network keys are accessible."""
+    cfg = DeviceConfig.from_api_response(_MULTI_CATEGORY_DATA)
+    assert "Config.DoorSetting.RELAY.HoldDelayA" in cfg
+    assert "Config.Network.LAN.SubnetMask" in cfg
+    assert cfg["Config.SIP.Account.DisplayName"] == "E21V"
+    assert cfg.get("Config.NonExistent.Key") is None

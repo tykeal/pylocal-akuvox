@@ -433,6 +433,25 @@ async def test_validation() -> None:
     print("  ✓ All validation checks passed")
 
 
+async def test_discover_config_keys(device: AkuvoxDevice) -> None:
+    """Test: Discover all configuration key categories."""
+    print_header("DISCOVER CONFIG KEYS")
+    try:
+        cfg = await device.get_device_config()
+        categories: dict[str, int] = {}
+        for key in cfg.keys():
+            parts = key.split(".")
+            cat = ".".join(parts[:2]) if len(parts) >= 2 else key
+            categories[cat] = categories.get(cat, 0) + 1
+        print(f"  Total keys:       {len(cfg)}")
+        print(f"  Categories:       {len(categories)}")
+        for cat, count in sorted(categories.items()):
+            print(f"    {cat}: {count} keys")
+        print("  ✓ Key discovery OK")
+    except AkuvoxDeviceError as exc:
+        print(f"  ⚠ Config read failed: {exc}")
+
+
 async def _run_read_tests(device: AkuvoxDevice) -> None:
     """Run all read-only tests against a connected device."""
     await test_get_info(device)
@@ -440,6 +459,7 @@ async def _run_read_tests(device: AkuvoxDevice) -> None:
     await test_list_users(device)
     await test_get_relay_status(device)
     await test_get_device_config(device)
+    await test_discover_config_keys(device)
     await test_list_schedules(device)
     await test_get_door_logs(device)
     await test_get_call_logs(device)
