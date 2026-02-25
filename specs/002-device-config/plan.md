@@ -33,7 +33,7 @@ strict)
 **Constraints**: Async-only; per-device lock serialization; ≤10
 cyclomatic complexity per function (ruff C901)
 **Scale/Scope**: 2 new endpoints, 1 new model, 1 new module, 2 new
-device facade methods, ~4 new model/module functions, ~40-60 new tests
+device facade methods, ~5-6 new model/module functions, ~40-60 new tests
 
 ## Constitution Check
 
@@ -47,7 +47,7 @@ design.*
 | III. UX Consistency | ✅ | Follows existing `device.py` facade |
 | IV. Performance | ✅ | Async; no event-loop blocking |
 | V. Atomic Commits | ✅ | One logical change per commit |
-| VI. Phased Development | ✅ | 5 task phases, each independently testable |
+| VI. Phased Development | ✅ | Phased tasks, each independently testable |
 
 No violations. Gate passes.
 

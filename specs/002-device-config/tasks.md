@@ -16,10 +16,11 @@ red-green-refactor.
 **Organization**: Tasks are grouped by user story to enable
 independent implementation and testing of each story.
 
-## Format: `[ID] [P?] [Story] Description`
+## Format: `[ID] [P?] [Story?] Description`
 
 - **[P]**: Can run in parallel (different files, no deps)
-- **[Story]**: Which user story (US1, US2, US3)
+- **[Story]**: Which user story (US1, US2, US3) or omitted for
+  shared infrastructure tasks (Phase 1, Phase 5)
 - Exact file paths included in each task
 
 ---
