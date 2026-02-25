@@ -373,9 +373,9 @@ class RelayConfig:
             (self.hold_delay_a or None, "hold_delay_a"),
             (self.trig_delay_a or None, "trig_delay_a"),
             (self.relay_name_a or None, "relay_name_a"),
-            (self.hold_delay_b, "hold_delay_b"),
-            (self.trig_delay_b, "trig_delay_b"),
-            (self.relay_name_b, "relay_name_b"),
+            (self.hold_delay_b or None, "hold_delay_b"),
+            (self.trig_delay_b or None, "trig_delay_b"),
+            (self.relay_name_b or None, "relay_name_b"),
         ]
         for value, attr in _fields:
             if value is not None:
@@ -393,9 +393,9 @@ class RelayConfig:
             (self.hold_delay_a or None, "hold_delay_a"),
             (self.trig_delay_a or None, "trig_delay_a"),
             (self.relay_name_a or None, "relay_name_a"),
-            (self.hold_delay_b, "hold_delay_b"),
-            (self.trig_delay_b, "trig_delay_b"),
-            (self.relay_name_b, "relay_name_b"),
+            (self.hold_delay_b or None, "hold_delay_b"),
+            (self.trig_delay_b or None, "trig_delay_b"),
+            (self.relay_name_b or None, "relay_name_b"),
         ]
         for value, attr in _fields:
             if value is not None:
