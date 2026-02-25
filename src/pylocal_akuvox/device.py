@@ -157,6 +157,12 @@ class AkuvoxDevice:
 
         return await config.get_device_config(self._http)
 
+    async def set_device_config(self, settings: dict[str, str]) -> None:
+        """Update device configuration settings."""
+        from pylocal_akuvox import config
+
+        await config.set_device_config(self._http, settings)
+
     async def add_schedule(
         self,
         *,
