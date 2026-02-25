@@ -212,10 +212,11 @@ verify the returned structure exposes all available key names.
 - [ ] T019 [P] [US3] Write key **discovery-specific** tests in
   `tests/unit/test_config.py`. Focus on US3 scenarios that
   differ from the basic T003 tests: keys returned from a
-  response containing extra/unknown keys, keys matching
-  autop-format patterns usable as `set_relay_config()` kwargs,
-  and empty extra dict case. Do NOT duplicate the basic
-  `keys()` return-value tests already covered by T003.
+  response containing extra/unknown keys, verifying that
+  autop-format keys correctly map back to supported snake_case
+  `set_relay_config()` keyword arguments (via reverse `KEY_MAP`
+  lookup), and empty extra dict case. Do NOT duplicate the
+  basic `keys()` return-value tests already covered by T003.
 
 ### Implementation for User Story 3
 
@@ -268,10 +269,12 @@ read, and write operations all work independently.
   immediately. Tests are interleaved with production code per
   TDD (Constitution II).
 - **US1 (Phase 2)**: Depends on Phase 1
-- **US2 (Phase 3)**: Depends on Phase 1 (uses US1 for read-back
-  verification in test script but not in code)
-- **US3 (Phase 4)**: Depends on Phase 1 (keys() method created
-  in Phase 1, but discovery tests need US1 for realistic data)
+- **US2 (Phase 3)**: Depends on Phase 1 for code; depends on
+  Phase 2 (US1) for test script read-back verification in
+  `examples/mvp_test.py`
+- **US3 (Phase 4)**: Depends on Phase 1 for code (keys() method
+  created in Phase 1); depends on Phase 2 (US1) for test script
+  validation with realistic device data
 - **Polish (Phase 5)**: Depends on all user stories complete
 
 ### User Story Dependencies

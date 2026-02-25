@@ -66,7 +66,7 @@ configuration and verify the new value was applied.
 1. **Given** a connected device, **When** the developer sets a
    single relay configuration value, **Then** the device accepts
    the change and the method returns without raising an exception
-   (absence of exception indicates success).
+   (absence of an exception indicates success).
 2. **Given** a connected device, **When** the developer sets
    multiple relay configuration values in one call, **Then** all
    values are applied and confirmed.
@@ -160,7 +160,11 @@ all available configuration key names.
   validation of configuration read and write operations.
 - **FR-011**: Library MUST provide a method to enumerate the
   autop-format configuration key names available on a
-  `RelayConfig` instance, enabling key discovery (US3).
+  `RelayConfig` instance, enabling key discovery (US3). These
+  are device-level keys (e.g., `Config.DoorSetting.RELAY.*`)
+  that map to snake_case Python kwargs via `KEY_MAP`; the
+  method returns the autop-format form for informational and
+  diagnostic use.
 
 ### Key Entities
 
