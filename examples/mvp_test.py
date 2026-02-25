@@ -466,9 +466,9 @@ async def test_set_device_config(device: AkuvoxDevice) -> None:
         readback = cfg2.get(key)
         if readback == new_val:
             print(f"  ✓ Read-back confirmed: {readback}")
+            print("  ✓ set_device_config() OK")
         else:
             print(f"  ✗ Read-back mismatch: {readback!r}")
-        print("  ✓ set_device_config() OK")
     except AkuvoxDeviceError as exc:
         print(f"  ⚠ Config set rejected: {exc}")
     finally:
