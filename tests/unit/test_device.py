@@ -468,6 +468,13 @@ async def test_set_device_config_delegates() -> None:
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.set_device_config(settings)
 
+    url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/config/set"))
+    call = m.requests[url_key][0]
+    body = call.kwargs["json"]
+    assert body["target"] == "config"
+    assert body["action"] == "set"
+    assert body["data"] == settings
+
 
 async def test_set_device_config_with_auth() -> None:
     """Verify set_device_config works with BASIC auth."""
@@ -476,4 +483,9 @@ async def test_set_device_config_with_auth() -> None:
     with aioresponses() as m:
         m.post(f"{BASE_URL}/api/config/set", payload=_SET_CONFIG_SUCCESS)
         async with AkuvoxDevice("192.168.1.100", auth=auth) as device:
+            assert device._http._session is not None
+            assert isinstance(device._http._session.auth, aiohttp.BasicAuth)
             await device.set_device_config(settings)
+
+    url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/config/set"))
+    assert url_key in m.requests
