@@ -156,24 +156,24 @@ config, verify all available key names are accessible.
 > **Write these tests FIRST, ensure they FAIL before
 > implementation**
 
-- [ ] T016 [P] [US3] Write key discovery-specific tests in
+- [x] T016 [P] [US3] Write key discovery-specific tests in
   `tests/unit/test_config.py`. Test that keys from a large
   config response can be grouped by category prefix, that
   specific relay/network keys are discoverable.
 
 ### Implementation for User Story 3
 
-- [ ] T017 [US3] Verify `DeviceConfig.keys()` works correctly
+- [x] T017 [US3] Verify `DeviceConfig.keys()` works correctly
   with realistic multi-category data. Ensure docstring explains
   the return value.
-- [ ] T018 [US3] Update `examples/mvp_test.py` to add a key
+- [x] T018 [US3] Update `examples/mvp_test.py` to add a key
   discovery test in the read-tests section. Print key count by
   category, list all unique category prefixes.
-- [ ] T019 [US3] Update Sphinx API documentation in
+- [x] T019 [US3] Update Sphinx API documentation in
   `docs/source/` for the updated `config` module, `DeviceConfig`
   model, and device facade methods. Remove references to
   `RelayConfig`.
-- [ ] T020 [US3] Run full test suite and linting. Verify 100%
+- [x] T020 [US3] Run full test suite and linting. Verify 100%
   coverage. Fix any issues.
 
 **Checkpoint**: All user stories complete. Key discovery,
