@@ -185,17 +185,17 @@ read, and write operations all work independently.
 
 **Purpose**: Final quality and documentation polish.
 
-- [ ] T021 [P] Review all new docstrings in `config.py`,
+- [x] T021 [P] Review all new docstrings in `config.py`,
   `models.py` (DeviceConfig), and `device.py` (new methods)
   for completeness and consistency with existing docstring
   style (SC-006). Run `uv run interrogate src/` to verify
   docstring coverage.
-- [ ] T022 [P] Run `uv run mypy src/` to verify type
+- [x] T022 [P] Run `uv run mypy src/` to verify type
   annotations are complete and correct. Fix any type errors.
-- [ ] T023 Validate quickstart.md examples match the final
+- [x] T023 Validate quickstart.md examples match the final
   implementation API. Update any signatures or imports that
   changed during implementation.
-- [ ] T024 Run full integration verification: all tests pass,
+- [x] T024 Run full integration verification: all tests pass,
   100% coverage, linting clean, mypy clean, docs build.
 
 ---
