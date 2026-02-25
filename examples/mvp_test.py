@@ -449,11 +449,14 @@ async def test_set_device_config(device: AkuvoxDevice) -> None:
     """Test: Set and verify a device configuration value."""
     print_header("SET DEVICE CONFIG (/api/config/set)")
     key = "Config.DoorSetting.RELAY.HoldDelayA"
+    original: str | None = None
     try:
         # Read current value
         cfg = await device.get_device_config()
-        result = cfg.get(key)
-        original = result if result is not None else "5"
+        original = cfg.get(key)
+        if original is None:
+            print(f"  ⚠ Config key {key!r} not present; skipping")
+            return
         # Write a different value
         new_val = "7" if original != "7" else "6"
         await device.set_device_config({key: new_val})
@@ -465,11 +468,16 @@ async def test_set_device_config(device: AkuvoxDevice) -> None:
             print(f"  ✓ Read-back confirmed: {readback}")
         else:
             print(f"  ✗ Read-back mismatch: {readback!r}")
-        # Restore original value
-        await device.set_device_config({key: original})
-        print(f"  Restored {key} = {original}")
+        print("  ✓ set_device_config() OK")
     except AkuvoxDeviceError as exc:
         print(f"  ⚠ Config set rejected: {exc}")
+    finally:
+        if original is not None:
+            try:
+                await device.set_device_config({key: original})
+                print(f"  Restored {key} = {original}")
+            except AkuvoxDeviceError as exc:
+                print(f"  ⚠ Restore failed: {exc}")
 
 
 async def _run_write_tests(device_kwargs: dict[str, Any]) -> None:
