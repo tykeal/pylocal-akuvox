@@ -5,9 +5,12 @@
 
 from __future__ import annotations
 
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from pylocal_akuvox._http import AkuvoxHttpClient
     from pylocal_akuvox.models import RelayConfig
 
@@ -20,14 +23,14 @@ KEY_MAP: dict[str, str] = {
     "relay_name_b": "Config.DoorSetting.RELAY.RelayNameB",
 }
 
-_REVERSE_MAP: dict[str, str] | None = None
+_REVERSE_MAP: Mapping[str, str] | None = None
 
 
-def reverse_key_map() -> dict[str, str]:
-    """Return a mapping from autop-format keys to snake_case attribute names."""
+def reverse_key_map() -> Mapping[str, str]:
+    """Return an immutable mapping from autop keys to attribute names."""
     global _REVERSE_MAP  # noqa: PLW0603
     if _REVERSE_MAP is None:
-        _REVERSE_MAP = {v: k for k, v in KEY_MAP.items()}
+        _REVERSE_MAP = MappingProxyType({v: k for k, v in KEY_MAP.items()})
     return _REVERSE_MAP
 
 
