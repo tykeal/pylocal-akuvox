@@ -32,8 +32,8 @@ strict)
 **Performance Goals**: Standard LAN latency; must not block event loop
 **Constraints**: Async-only; per-device lock serialization; ≤10
 cyclomatic complexity per function (ruff C901)
-**Scale/Scope**: 2 new endpoints, 1 new model, 1 new module, ~6 new
-device methods, ~40-60 new tests
+**Scale/Scope**: 2 new endpoints, 1 new model, 1 new module, 2 new
+device facade methods, ~5-6 new model/module functions, ~40-60 new tests
 
 ## Constitution Check
 
@@ -47,7 +47,7 @@ design.*
 | III. UX Consistency | ✅ | Follows existing `device.py` facade |
 | IV. Performance | ✅ | Async; no event-loop blocking |
 | V. Atomic Commits | ✅ | One logical change per commit |
-| VI. Phased Development | ✅ | 3 phases, each independently testable |
+| VI. Phased Development | ✅ | Phased tasks, each independently testable |
 
 No violations. Gate passes.
 
@@ -157,7 +157,7 @@ response and provide comprehensive documentation.
 + Final `examples/mvp_test.py` updates for key discovery test
 + Full integration verification against live device
 
-**FR Coverage**: FR-010
+**FR Coverage**: FR-010, FR-011
 **SC Coverage**: SC-006, SC-007
 
 **Acceptance**: Developer can inspect a `RelayConfig` object to

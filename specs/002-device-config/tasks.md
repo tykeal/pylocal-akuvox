@@ -16,29 +16,48 @@ red-green-refactor.
 **Organization**: Tasks are grouped by user story to enable
 independent implementation and testing of each story.
 
-## Format: `[ID] [P?] [Story] Description`
+## Format: `[ID] [P?] [Story?] Description`
 
 - **[P]**: Can run in parallel (different files, no deps)
-- **[Story]**: Which user story (US1, US2, US3)
+- **[Story]**: Which user story (US1, US2, US3) or omitted for
+  shared infrastructure tasks (Phase 1, Phase 5)
 - Exact file paths included in each task
 
 ---
 
-## Phase 1: Setup (Shared Infrastructure)
+## Phase 1: Setup & Foundation (Shared Infrastructure)
 
-**Purpose**: Create the new module skeleton and key mapping
-registry that all user stories depend on.
+**Purpose**: Create the new module skeleton, key mapping registry,
+and foundational unit tests. All user stories depend on this phase.
 
-- [ ] T001 Create `src/pylocal_akuvox/config.py` with module
-  docstring, SPDX header, KEY_MAP registry mapping snake_case
-  attribute names to autop-format keys
-  (`Config.DoorSetting.RELAY.*`), and reverse-lookup helper.
+**⚠️ TDD**: Per Constitution II, write the test for each unit of
+production code BEFORE implementing it. Tasks are ordered
+test-first within each logical unit.
+
+- [ ] T001 Write KEY_MAP unit tests in
+  `tests/unit/test_config.py` (new file, SPDX header). First,
+  create a minimal importable `config.py` skeleton (SPDX
+  header, docstring, empty `KEY_MAP` dict) so tests fail on
+  assertions rather than `ImportError`. Then write tests that
+  KEY_MAP contains all expected keys, that reverse lookup works,
+  and that KEY_MAP values match the autop-format pattern
+  `Config.DoorSetting.RELAY.*`.
+- [ ] T002 Populate `src/pylocal_akuvox/config.py` with the
+  full KEY_MAP registry mapping snake_case attribute names to
+  autop-format keys (`Config.DoorSetting.RELAY.*`), and
+  reverse-lookup helper.
   Include known keys: `hold_delay_a`, `trig_delay_a`,
   `relay_name_a`, `hold_delay_b`, `trig_delay_b`,
   `relay_name_b`. Follow the pattern in
   `src/pylocal_akuvox/relay.py` for imports and TYPE_CHECKING
   guard.
-- [ ] T002 [P] Add `RelayConfig` frozen dataclass to
+- [ ] T003 Write `RelayConfig` model unit tests in
+  `tests/unit/test_models.py`. Test `from_api_response()` with
+  full data, partial data (relay B missing), extra unknown keys,
+  and empty data. Test `to_api_payload()` round-trip. Test
+  `keys()` returns correct autop-format key names. Follow
+  existing test patterns in the file.
+- [ ] T004 Add `RelayConfig` frozen dataclass to
   `src/pylocal_akuvox/models.py`. Fields: `hold_delay_a` (str),
   `trig_delay_a` (str), `relay_name_a` (str), `hold_delay_b`
   (str | None), `trig_delay_b` (str | None), `relay_name_b`
@@ -49,45 +68,21 @@ registry that all user stories depend on.
   instance method returning `dict[str, str]` (snake_case →
   autop-format) following the `User`/`AccessSchedule` pattern.
   Add `keys()` instance method returning list of autop-format
-  key names present in this config.
-- [ ] T003 Export `RelayConfig` from
+  key names present in this config (FR-011).
+- [ ] T005 Export `RelayConfig` from
   `src/pylocal_akuvox/__init__.py`: add to import block and
   `__all__` list, maintaining alphabetical order.
-
-**Checkpoint**: Module skeleton exists. `RelayConfig` can be
-instantiated and serialized. No device communication yet.
-
----
-
-## Phase 2: Foundational (Blocking Prerequisites)
-
-**Purpose**: Unit tests for model and key mapping that MUST pass
-before any device communication code is written.
-
-**⚠️ CRITICAL**: No user story work can begin until this phase
-is complete.
-
-- [ ] T004 [P] Write `RelayConfig` model unit tests in
-  `tests/unit/test_models.py`. Test `from_api_response()` with
-  full data, partial data (relay B missing), extra unknown keys,
-  and empty data. Test `to_api_payload()` round-trip. Test
-  `keys()` returns correct autop-format key names. Follow
-  existing test patterns in the file.
-- [ ] T005 [P] Write KEY_MAP unit tests in
-  `tests/unit/test_config.py` (new file, SPDX header). Test
-  that KEY_MAP contains all expected keys, that reverse lookup
-  works, and that KEY_MAP values match the autop-format pattern
-  `Config.DoorSetting.RELAY.*`.
 - [ ] T006 Run `uv run pytest tests/ -x -q` and
   `uv run ruff check src/ tests/` to verify all tests pass and
   linting is clean. Fix any issues.
 
-**Checkpoint**: Foundation ready — model parsing and key mapping
-verified. User story implementation can now begin.
+**Checkpoint**: Module skeleton exists with passing tests.
+`RelayConfig` can be instantiated and serialized. No device
+communication yet.
 
 ---
 
-## Phase 3: User Story 1 — Read Relay Configuration (P1) 🎯 MVP
+## Phase 2: User Story 1 — Read Relay Configuration (P1) 🎯 MVP
 
 **Goal**: Developer can call `device.get_relay_config()` and
 receive a `RelayConfig` object. Live device test reads config
@@ -146,7 +141,7 @@ works end-to-end. Live device test reads config successfully.
 
 ---
 
-## Phase 4: User Story 2 — Update Relay Configuration (P2)
+## Phase 3: User Story 2 — Update Relay Configuration (P2)
 
 **Goal**: Developer can call `device.set_relay_config()` with
 key-value pairs. Live device test writes and reads back config
@@ -201,7 +196,7 @@ round-trip.
 
 ---
 
-## Phase 5: User Story 3 — Discover Config Keys (P3)
+## Phase 4: User Story 3 — Discover Config Keys (P3)
 
 **Goal**: Developer can inspect a `RelayConfig` object to
 discover all available configuration keys. Documentation is
@@ -210,7 +205,7 @@ complete.
 **Independent Test**: Connect to a device, retrieve relay config,
 verify the returned structure exposes all available key names.
 
-**FR Coverage**: FR-010
+**FR Coverage**: FR-010, FR-011
 **SC Coverage**: SC-006, SC-007
 
 ### Tests for User Story 3
@@ -218,12 +213,14 @@ verify the returned structure exposes all available key names.
 > **Write these tests FIRST, ensure they FAIL before
 > implementation**
 
-- [ ] T019 [P] [US3] Write key discovery tests in
-  `tests/unit/test_config.py`. Test that `RelayConfig.keys()`
-  returns autop-format key names for all populated fields
-  (including extra keys). Test that keys from a full response
-  match expected autop-format patterns. Test empty extra dict
-  case.
+- [ ] T019 [P] [US3] Write key **discovery-specific** tests in
+  `tests/unit/test_config.py`. Focus on US3 scenarios that
+  differ from the basic T003 tests: keys returned from a
+  response containing extra/unknown keys, verifying that
+  autop-format keys correctly map back to supported snake_case
+  `set_relay_config()` keyword arguments (via reverse `KEY_MAP`
+  lookup), and empty extra dict case. Do NOT duplicate the
+  basic `keys()` return-value tests already covered by T003.
 
 ### Implementation for User Story 3
 
@@ -249,7 +246,7 @@ read, and write operations all work independently.
 
 ---
 
-## Phase 6: Polish & Cross-Cutting Concerns
+## Phase 5: Polish & Cross-Cutting Concerns
 
 **Purpose**: Final quality and documentation polish.
 
@@ -272,16 +269,17 @@ read, and write operations all work independently.
 
 ### Phase Dependencies
 
-- **Setup (Phase 1)**: No dependencies — can start immediately
-- **Foundational (Phase 2)**: Depends on Phase 1 — BLOCKS all
-  user stories
-- **US1 (Phase 3)**: Depends on Phase 2
-- **US2 (Phase 4)**: Depends on Phase 2 (uses US1 for
-  read-back verification in test script but not in code)
-- **US3 (Phase 5)**: Depends on Phase 2 (keys() method
-  created in Phase 1, but discovery tests need US1 for
-  realistic data)
-- **Polish (Phase 6)**: Depends on all user stories complete
+- **Setup & Foundation (Phase 1)**: No dependencies — can start
+  immediately. Tests are interleaved with production code per
+  TDD (Constitution II).
+- **US1 (Phase 2)**: Depends on Phase 1
+- **US2 (Phase 3)**: Depends on Phase 1 for code; depends on
+  Phase 2 (US1) for test script read-back verification in
+  `examples/mvp_test.py`
+- **US3 (Phase 4)**: Depends on Phase 1 for code (keys() method
+  created in Phase 1); depends on Phase 2 (US1) for test script
+  validation with realistic device data
+- **Polish (Phase 5)**: Depends on all user stories complete
 
 ### User Story Dependencies
 
@@ -293,17 +291,16 @@ read, and write operations all work independently.
   dependency on US1/US2. Documentation depends on all being
   implemented.
 
-### Within Each User Story
+### Within Each Phase
 
 - Tests MUST be written and FAIL before implementation
+  (Constitution II — NON-NEGOTIABLE)
 - Module functions before device facade methods
 - Device facade before test script updates
 - Verify tests pass after implementation
 
 ### Parallel Opportunities
 
-- T002 can run in parallel with T001 (different files)
-- T004 and T005 can run in parallel (different test files)
 - T007 and T008 can run in parallel (different test files)
 - T013 and T014 can run in parallel (different test files)
 - T024 and T025 can run in parallel (independent checks)
@@ -330,15 +327,14 @@ T012: Full test suite verification
 
 ### MVP First (User Story 1 Only)
 
-1. Complete Phase 1: Setup (T001-T003)
-2. Complete Phase 2: Foundational tests (T004-T006)
-3. Complete Phase 3: User Story 1 (T007-T012)
-4. **STOP and VALIDATE**: Test US1 against live device
-5. Deploy/demo if ready
+1. Complete Phase 1: Setup & Foundation (T001-T006)
+2. Complete Phase 2: User Story 1 (T007-T012)
+3. **STOP and VALIDATE**: Test US1 against live device
+4. Deploy/demo if ready
 
 ### Incremental Delivery
 
-1. Setup + Foundational → Foundation ready
+1. Setup & Foundation → Foundation ready (tests + code interleaved)
 2. Add US1 → Test → Deploy (MVP!)
 3. Add US2 → Test → Deploy (config write)
 4. Add US3 → Test → Deploy (key discovery + docs)
@@ -354,4 +350,4 @@ T012: Full test suite verification
 - TDD: Write tests, verify they fail, then implement
 - Commit after each task or logical group (atomic commits)
 - Stop at any checkpoint to validate story independently
-- Total: 27 tasks across 6 phases
+- Total: 27 tasks across 5 phases
