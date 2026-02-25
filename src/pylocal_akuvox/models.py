@@ -346,7 +346,13 @@ class DeviceConfig:
         return dict(self.data)
 
     def keys(self) -> list[str]:
-        """Return all autop-format key names in this config."""
+        """Return all autop-format key names in this config.
+
+        Returns:
+            List of dotted key strings (e.g.,
+            ``Config.DoorSetting.RELAY.HoldDelayA``).
+
+        """
         return list(self.data.keys())
 
     def get(self, key: str, default: str | None = None) -> str | None:
