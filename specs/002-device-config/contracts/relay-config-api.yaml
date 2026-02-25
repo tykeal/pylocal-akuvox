@@ -1,53 +1,57 @@
 # SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
 # SPDX-License-Identifier: Apache-2.0
 #
-# Relay Configuration API Contract
+# Device Configuration API Contract
 #
-# Documents the relay configuration endpoints used by the
+# Documents the device configuration endpoints used by the
 # 002-device-config feature. Extends the base akuvox-api.yaml
 # contract from spec 001.
 ---
 openapi: "3.0.1"
 info:
-  title: "Relay Configuration API (Client Contract)"
+  title: "Device Configuration API (Client Contract)"
   description: >
-    Relay configuration get/set endpoints for Akuvox devices.
-    Uses autop-format keys for configuration values.
-  version: "1.0.0"
+    Device configuration get/set endpoints for Akuvox devices.
+    Returns all autop-format key-value pairs. Real devices
+    return 900+ keys spanning relay, network, SIP, display,
+    door settings, and more.
+  version: "2.0.0"
 
 paths:
-  /api/relay/get:
+  /api/config/get:
     get:
-      summary: "Get relay configuration"
-      operationId: getRelayConfig
+      summary: "Get full device configuration"
+      operationId: getDeviceConfig
       description: >
-        Returns all relay configuration settings. Response data
-        contains autop-format keys (Config.DoorSetting.RELAY.*)
-        with string values.
+        Returns all device configuration settings. Response
+        data contains autop-format keys with string values
+        across all categories (relay, network, SIP, display,
+        etc.).
       responses:
         "200":
-          description: "Relay configuration retrieved"
+          description: "Device configuration retrieved"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RelayConfigResponse"
+                $ref: "#/components/schemas/DeviceConfigResponse"
               example:
                 retcode: 0
-                action: "relay"
-                message: "get successfully!"
+                action: "get"
+                message: "OK"
                 data:
                   Config.DoorSetting.RELAY.HoldDelayA: "5"
-                  Config.DoorSetting.RELAY.TrigDelayA: "0"
-                  Config.DoorSetting.RELAY.RelayNameA: "Door"
+                  Config.DoorSetting.RELAY.TriggerDelayA: "0"
+                  Config.DoorSetting.RELAY.NameA: "Relay1"
+                  Config.Network.LAN.IPAddress: "192.168.1.100"
         "401":
           description: "Authentication required"
 
-  /api/relay/set:
+  /api/config/set:
     post:
-      summary: "Set relay configuration"
-      operationId: setRelayConfig
+      summary: "Set device configuration"
+      operationId: setDeviceConfig
       description: >
-        Update one or more relay configuration settings using
+        Update one or more device configuration settings using
         autop-format keys. All values are strings. Only provided
         keys are updated; omitted keys retain current values.
       requestBody:
@@ -58,35 +62,36 @@ paths:
               type: string
             examples:
               single_key:
-                summary: "Update hold delay"
+                summary: "Update relay hold delay"
                 value: >-
-                  {"target": "relay", "action": "set",
-                  "data": {"Config.DoorSetting.RELAY.HoldDelayA": "8"}}
+                  {"target": "config", "action": "set",
+                  "data": {
+                  "Config.DoorSetting.RELAY.HoldDelayA": "8"}}
               multiple_keys:
                 summary: "Update multiple settings"
                 value: >-
-                  {"target": "relay", "action": "set",
+                  {"target": "config", "action": "set",
                   "data": {
                   "Config.DoorSetting.RELAY.HoldDelayA": "8",
-                  "Config.DoorSetting.RELAY.RelayNameA": "Front Door"
+                  "Config.DoorSetting.RELAY.NameA": "Front Door"
                   }}
       responses:
         "200":
-          description: "Relay configuration updated"
+          description: "Device configuration updated"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ActionResponse"
               example:
                 retcode: 0
-                action: "relay"
+                action: "config"
                 message: "set successfully!"
         "401":
           description: "Authentication required"
 
 components:
   schemas:
-    RelayConfigResponse:
+    DeviceConfigResponse:
       type: object
       properties:
         retcode:
@@ -100,8 +105,7 @@ components:
           type: object
           description: >
             Key-value pairs using autop-format keys. All values
-            are strings. Keys follow the pattern
-            Config.DoorSetting.RELAY.*.
+            are strings. Keys span all device categories.
           additionalProperties:
             type: string
 
