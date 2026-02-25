@@ -452,7 +452,8 @@ async def test_set_device_config(device: AkuvoxDevice) -> None:
     try:
         # Read current value
         cfg = await device.get_device_config()
-        original = cfg.get(key) or "5"
+        result = cfg.get(key)
+        original = result if result is not None else "5"
         # Write a different value
         new_val = "7" if original != "7" else "6"
         await device.set_device_config({key: new_val})
