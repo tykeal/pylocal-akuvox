@@ -104,33 +104,33 @@ then read back and verify the new value was applied.
 > **Write these tests FIRST, ensure they FAIL before
 > implementation**
 
-- [ ] T010 [P] [US2] Write `set_device_config()` function tests
+- [x] T010 [P] [US2] Write `set_device_config()` function tests
   in `tests/unit/test_config.py`. Test: single key update,
   multiple keys update, empty dict raises
   `AkuvoxValidationError` (FR-004), negative retcode raises
   `AkuvoxDeviceError`. Verify the POST body uses
   `{"target": "config", "action": "set", "data": {...}}`
   envelope with autop-format keys (FR-009).
-- [ ] T011 [P] [US2] Write `AkuvoxDevice.set_device_config()`
+- [x] T011 [P] [US2] Write `AkuvoxDevice.set_device_config()`
   facade tests in `tests/unit/test_device.py`. Mock the config
   module function. Verify dict is forwarded correctly.
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] Implement `set_device_config()` async function
+- [x] T012 [US2] Implement `set_device_config()` async function
   in `src/pylocal_akuvox/config.py`. Signature:
   `async def set_device_config(http: AkuvoxHttpClient,
   settings: dict[str, str]) -> None`. Validate at least one
   entry (FR-004). Build `{target, action, data}` envelope.
   Call `http.post("/api/config/set", data=body)`.
-- [ ] T013 [US2] Add `set_device_config()` facade method to
+- [x] T013 [US2] Add `set_device_config()` facade method to
   `src/pylocal_akuvox/device.py`. Accept `dict[str, str]`,
   delegate to `config.set_device_config()`.
-- [ ] T014 [US2] Update `examples/mvp_test.py` to add a device
+- [x] T014 [US2] Update `examples/mvp_test.py` to add a device
   config write test in the write-tests section (gated by
   `--write` flag). Write a value, read it back, verify the
   change. Follow existing write-test patterns.
-- [ ] T015 [US2] Run full test suite and linting. Verify 100%
+- [x] T015 [US2] Run full test suite and linting. Verify 100%
   coverage maintained. Fix any issues.
 
 **Checkpoint**: User Stories 1 AND 2 complete. Read and write
