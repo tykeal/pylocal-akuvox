@@ -15,8 +15,8 @@ if TYPE_CHECKING:
     from pylocal_akuvox.models import (
         AccessSchedule,
         CallLogEntry,
+        DeviceConfig,
         DoorLogEntry,
-        RelayConfig,
         User,
     )
 
@@ -151,11 +151,11 @@ class AkuvoxDevice:
 
         return await relay.get_relay_status(self._http)
 
-    async def get_relay_config(self) -> RelayConfig:
-        """Retrieve relay configuration settings from the device."""
+    async def get_device_config(self) -> DeviceConfig:
+        """Retrieve full device configuration."""
         from pylocal_akuvox import config
 
-        return await config.get_relay_config(self._http)
+        return await config.get_device_config(self._http)
 
     async def add_schedule(
         self,

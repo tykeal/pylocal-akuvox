@@ -697,182 +697,111 @@ def test_door_log_entry_status_values() -> None:
     assert fail.status == "Failed"
 
 
-# -- RelayConfig model tests (T003) --
+# -- DeviceConfig model tests (T001) --
 
 
-def test_relay_config_from_api_response_full() -> None:
-    """Verify RelayConfig maps all autop-format keys to snake_case."""
+def test_device_config_from_api_response_multi_key() -> None:
+    """Verify DeviceConfig stores all autop-format keys."""
     data = {
         "Config.DoorSetting.RELAY.HoldDelayA": "5",
-        "Config.DoorSetting.RELAY.TrigDelayA": "0",
-        "Config.DoorSetting.RELAY.RelayNameA": "Door",
-        "Config.DoorSetting.RELAY.HoldDelayB": "3",
-        "Config.DoorSetting.RELAY.TrigDelayB": "1",
-        "Config.DoorSetting.RELAY.RelayNameB": "Gate",
+        "Config.DoorSetting.RELAY.TriggerDelayA": "0",
+        "Config.DoorSetting.RELAY.NameA": "Relay1",
+        "Config.Network.LAN.IPAddress": "192.168.1.100",
+        "Config.Settings.LANGUAGE.ActiveLanguage": "English",
     }
-    from pylocal_akuvox.models import RelayConfig
+    from pylocal_akuvox.models import DeviceConfig
 
-    cfg = RelayConfig.from_api_response(data)
-    assert cfg.hold_delay_a == "5"
-    assert cfg.trig_delay_a == "0"
-    assert cfg.relay_name_a == "Door"
-    assert cfg.hold_delay_b == "3"
-    assert cfg.trig_delay_b == "1"
-    assert cfg.relay_name_b == "Gate"
-    assert cfg.extra is None
+    cfg = DeviceConfig.from_api_response(data)
+    assert cfg.data == {k: str(v) for k, v in data.items()}
+    assert len(cfg) == 5
 
 
-def test_relay_config_from_api_response_partial() -> None:
-    """Verify RelayConfig handles missing relay B fields."""
+def test_device_config_from_api_response_empty() -> None:
+    """Verify DeviceConfig from empty data produces empty dict."""
+    from pylocal_akuvox.models import DeviceConfig
+
+    cfg = DeviceConfig.from_api_response({})
+    assert cfg.data == {}
+    assert len(cfg) == 0
+
+
+def test_device_config_from_api_response_single_key() -> None:
+    """Verify DeviceConfig works with a single key."""
+    from pylocal_akuvox.models import DeviceConfig
+
+    cfg = DeviceConfig.from_api_response({"Config.Foo.Bar": "1"})
+    assert cfg.data == {"Config.Foo.Bar": "1"}
+    assert len(cfg) == 1
+
+
+def test_device_config_from_api_response_stringifies() -> None:
+    """Verify DeviceConfig stringifies non-string values."""
+    from pylocal_akuvox.models import DeviceConfig
+
+    cfg = DeviceConfig.from_api_response({"Key": 42})
+    assert cfg.data["Key"] == "42"
+
+
+def test_device_config_to_api_payload_round_trip() -> None:
+    """Verify to_api_payload returns exact data dict."""
     data = {
         "Config.DoorSetting.RELAY.HoldDelayA": "5",
-        "Config.DoorSetting.RELAY.TrigDelayA": "0",
-        "Config.DoorSetting.RELAY.RelayNameA": "Door",
+        "Config.Network.LAN.IPAddress": "192.168.1.100",
     }
-    from pylocal_akuvox.models import RelayConfig
+    from pylocal_akuvox.models import DeviceConfig
 
-    cfg = RelayConfig.from_api_response(data)
-    assert cfg.hold_delay_a == "5"
-    assert cfg.hold_delay_b is None
-    assert cfg.trig_delay_b is None
-    assert cfg.relay_name_b is None
-    assert cfg.extra is None
+    cfg = DeviceConfig.from_api_response(data)
+    assert cfg.to_api_payload() == data
 
 
-def test_relay_config_from_api_response_extra_keys() -> None:
-    """Verify RelayConfig stores unknown keys in extra dict."""
-    data = {
-        "Config.DoorSetting.RELAY.HoldDelayA": "5",
-        "Config.DoorSetting.RELAY.TrigDelayA": "0",
-        "Config.DoorSetting.RELAY.RelayNameA": "Door",
-        "Config.DoorSetting.RELAY.HttpRelayA": "1",
-        "Config.DoorSetting.RELAY.SomeOther": "val",
-    }
-    from pylocal_akuvox.models import RelayConfig
-
-    cfg = RelayConfig.from_api_response(data)
-    assert cfg.extra is not None
-    assert cfg.extra["Config.DoorSetting.RELAY.HttpRelayA"] == "1"
-    assert cfg.extra["Config.DoorSetting.RELAY.SomeOther"] == "val"
-    assert len(cfg.extra) == 2
-
-
-def test_relay_config_from_api_response_empty() -> None:
-    """Verify RelayConfig from empty data uses defaults."""
-    from pylocal_akuvox.models import RelayConfig
-
-    cfg = RelayConfig.from_api_response({})
-    assert cfg.hold_delay_a == ""
-    assert cfg.trig_delay_a == ""
-    assert cfg.relay_name_a == ""
-    assert cfg.hold_delay_b is None
-    assert cfg.trig_delay_b is None
-    assert cfg.relay_name_b is None
-    assert cfg.extra is None
-
-    # Round-trip: ensure empty-string relay A fields are serialized,
-    # while relay B fields (None) are omitted from the payload.
-    payload = cfg.to_api_payload()
-    assert payload["Config.DoorSetting.RELAY.HoldDelayA"] == ""
-    assert payload["Config.DoorSetting.RELAY.TrigDelayA"] == ""
-    assert payload["Config.DoorSetting.RELAY.RelayNameA"] == ""
-    assert "Config.DoorSetting.RELAY.HoldDelayB" not in payload
-    assert "Config.DoorSetting.RELAY.TrigDelayB" not in payload
-    assert "Config.DoorSetting.RELAY.RelayNameB" not in payload
-
-
-def test_relay_config_to_api_payload_round_trip() -> None:
-    """Verify to_api_payload produces autop-format keys for all fields."""
-    data = {
-        "Config.DoorSetting.RELAY.HoldDelayA": "5",
-        "Config.DoorSetting.RELAY.TrigDelayA": "0",
-        "Config.DoorSetting.RELAY.RelayNameA": "Door",
-        "Config.DoorSetting.RELAY.HoldDelayB": "3",
-        "Config.DoorSetting.RELAY.TrigDelayB": "1",
-        "Config.DoorSetting.RELAY.RelayNameB": "Gate",
-    }
-    from pylocal_akuvox.models import RelayConfig
-
-    cfg = RelayConfig.from_api_response(data)
-    payload = cfg.to_api_payload()
-    assert payload == data
-
-
-def test_relay_config_to_api_payload_partial() -> None:
-    """Verify to_api_payload omits None fields."""
-    data = {
-        "Config.DoorSetting.RELAY.HoldDelayA": "5",
-        "Config.DoorSetting.RELAY.TrigDelayA": "0",
-        "Config.DoorSetting.RELAY.RelayNameA": "Door",
-    }
-    from pylocal_akuvox.models import RelayConfig
-
-    cfg = RelayConfig.from_api_response(data)
-    payload = cfg.to_api_payload()
-    assert payload == data
-    assert "Config.DoorSetting.RELAY.HoldDelayB" not in payload
-
-
-def test_relay_config_to_api_payload_includes_extra() -> None:
-    """Verify to_api_payload includes extra keys in output."""
-    data = {
-        "Config.DoorSetting.RELAY.HoldDelayA": "5",
-        "Config.DoorSetting.RELAY.TrigDelayA": "0",
-        "Config.DoorSetting.RELAY.RelayNameA": "Door",
-        "Config.DoorSetting.RELAY.HttpRelayA": "1",
-    }
-    from pylocal_akuvox.models import RelayConfig
-
-    cfg = RelayConfig.from_api_response(data)
-    payload = cfg.to_api_payload()
-    assert payload["Config.DoorSetting.RELAY.HttpRelayA"] == "1"
-
-
-def test_relay_config_keys_full() -> None:
+def test_device_config_keys() -> None:
     """Verify keys() returns all autop-format key names."""
     data = {
         "Config.DoorSetting.RELAY.HoldDelayA": "5",
-        "Config.DoorSetting.RELAY.TrigDelayA": "0",
-        "Config.DoorSetting.RELAY.RelayNameA": "Door",
-        "Config.DoorSetting.RELAY.HoldDelayB": "3",
-        "Config.DoorSetting.RELAY.TrigDelayB": "1",
-        "Config.DoorSetting.RELAY.RelayNameB": "Gate",
+        "Config.Network.LAN.IPAddress": "192.168.1.100",
     }
-    from pylocal_akuvox.models import RelayConfig
+    from pylocal_akuvox.models import DeviceConfig
 
-    cfg = RelayConfig.from_api_response(data)
+    cfg = DeviceConfig.from_api_response(data)
     keys = cfg.keys()
     assert "Config.DoorSetting.RELAY.HoldDelayA" in keys
-    assert "Config.DoorSetting.RELAY.RelayNameB" in keys
-    assert len(keys) == 6
+    assert "Config.Network.LAN.IPAddress" in keys
+    assert len(keys) == 2
 
 
-def test_relay_config_keys_with_extra() -> None:
-    """Verify keys() includes extra keys."""
-    data = {
-        "Config.DoorSetting.RELAY.HoldDelayA": "5",
-        "Config.DoorSetting.RELAY.TrigDelayA": "0",
-        "Config.DoorSetting.RELAY.RelayNameA": "Door",
-        "Config.DoorSetting.RELAY.HttpRelayA": "1",
-    }
-    from pylocal_akuvox.models import RelayConfig
+def test_device_config_get() -> None:
+    """Verify get() provides dict-like access with default."""
+    from pylocal_akuvox.models import DeviceConfig
 
-    cfg = RelayConfig.from_api_response(data)
-    keys = cfg.keys()
-    assert "Config.DoorSetting.RELAY.HttpRelayA" in keys
-    assert len(keys) == 4
+    cfg = DeviceConfig.from_api_response({"Key.A": "val"})
+    assert cfg.get("Key.A") == "val"
+    assert cfg.get("Key.Missing") is None
+    assert cfg.get("Key.Missing", "fallback") == "fallback"
 
 
-def test_relay_config_is_frozen() -> None:
-    """Verify RelayConfig is immutable."""
-    from pylocal_akuvox.models import RelayConfig
+def test_device_config_getitem() -> None:
+    """Verify bracket access works and raises KeyError."""
+    from pylocal_akuvox.models import DeviceConfig
 
-    cfg = RelayConfig.from_api_response(
-        {
-            "Config.DoorSetting.RELAY.HoldDelayA": "5",
-            "Config.DoorSetting.RELAY.TrigDelayA": "0",
-            "Config.DoorSetting.RELAY.RelayNameA": "Door",
-        }
-    )
+    cfg = DeviceConfig.from_api_response({"Key.A": "val"})
+    assert cfg["Key.A"] == "val"
+    with pytest.raises(KeyError):
+        _ = cfg["Key.Missing"]
+
+
+def test_device_config_contains() -> None:
+    """Verify 'in' operator works for key membership."""
+    from pylocal_akuvox.models import DeviceConfig
+
+    cfg = DeviceConfig.from_api_response({"Key.A": "val"})
+    assert "Key.A" in cfg
+    assert "Key.Missing" not in cfg
+
+
+def test_device_config_is_frozen() -> None:
+    """Verify DeviceConfig is immutable."""
+    from pylocal_akuvox.models import DeviceConfig
+
+    cfg = DeviceConfig.from_api_response({"Key.A": "val"})
     with pytest.raises(AttributeError):
-        cfg.hold_delay_a = "10"  # type: ignore[misc]
+        cfg.data = {}  # type: ignore[misc]
