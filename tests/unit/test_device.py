@@ -448,3 +448,32 @@ async def test_auth_digest_get_info_end_to_end() -> None:
             assert device._http._session is not None
             info = await device.get_info()
     assert info.model == "E21V"
+
+
+# -- T011: set_device_config facade tests --
+
+_SET_CONFIG_SUCCESS: dict[str, object] = {
+    "retcode": 0,
+    "action": "config",
+    "message": "set successfully!",
+    "data": {},
+}
+
+
+async def test_set_device_config_delegates() -> None:
+    """Verify set_device_config delegates to config module."""
+    settings = {"Config.DoorSetting.RELAY.HoldDelayA": "8"}
+    with aioresponses() as m:
+        m.post(f"{BASE_URL}/api/config/set", payload=_SET_CONFIG_SUCCESS)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            await device.set_device_config(settings)
+
+
+async def test_set_device_config_with_auth() -> None:
+    """Verify set_device_config works with BASIC auth."""
+    auth = AuthConfig(method=AuthMethod.BASIC, username="admin", password="pass")
+    settings = {"Config.DoorSetting.RELAY.HoldDelayA": "8"}
+    with aioresponses() as m:
+        m.post(f"{BASE_URL}/api/config/set", payload=_SET_CONFIG_SUCCESS)
+        async with AkuvoxDevice("192.168.1.100", auth=auth) as device:
+            await device.set_device_config(settings)

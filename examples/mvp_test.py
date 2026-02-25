@@ -445,6 +445,32 @@ async def _run_read_tests(device: AkuvoxDevice) -> None:
     await test_get_call_logs(device)
 
 
+async def test_set_device_config(device: AkuvoxDevice) -> None:
+    """Test: Set and verify a device configuration value."""
+    print_header("SET DEVICE CONFIG (/api/config/set)")
+    key = "Config.DoorSetting.RELAY.HoldDelayA"
+    try:
+        # Read current value
+        cfg = await device.get_device_config()
+        original = cfg.get(key) or "5"
+        # Write a different value
+        new_val = "7" if original != "7" else "6"
+        await device.set_device_config({key: new_val})
+        print(f"  Set {key} = {new_val}")
+        # Read back to verify
+        cfg2 = await device.get_device_config()
+        readback = cfg2.get(key)
+        if readback == new_val:
+            print(f"  ✓ Read-back confirmed: {readback}")
+        else:
+            print(f"  ✗ Read-back mismatch: {readback!r}")
+        # Restore original value
+        await device.set_device_config({key: original})
+        print(f"  Restored {key} = {original}")
+    except AkuvoxDeviceError as exc:
+        print(f"  ⚠ Config set rejected: {exc}")
+
+
 async def _run_write_tests(device_kwargs: dict[str, Any]) -> None:
     """Run write tests (user/schedule CRUD, relay trigger)."""
     async with AkuvoxDevice(**device_kwargs) as device:
@@ -480,6 +506,9 @@ async def _run_write_tests(device_kwargs: dict[str, Any]) -> None:
 
         # Relay trigger (safe: auto-close after 1s)
         await test_trigger_relay(device)
+
+        # Config set + read-back verification
+        await test_set_device_config(device)
 
     # Cooldown before read tests
     print("\n  ⏳ Waiting for device to settle…")
