@@ -35,14 +35,17 @@ production code BEFORE implementing it. Tasks are ordered
 test-first within each logical unit.
 
 - [ ] T001 Write KEY_MAP unit tests in
-  `tests/unit/test_config.py` (new file, SPDX header). Test
-  that KEY_MAP contains all expected keys, that reverse lookup
-  works, and that KEY_MAP values match the autop-format pattern
+  `tests/unit/test_config.py` (new file, SPDX header). First,
+  create a minimal importable `config.py` skeleton (SPDX
+  header, docstring, empty `KEY_MAP` dict) so tests fail on
+  assertions rather than `ImportError`. Then write tests that
+  KEY_MAP contains all expected keys, that reverse lookup works,
+  and that KEY_MAP values match the autop-format pattern
   `Config.DoorSetting.RELAY.*`.
-- [ ] T002 Create `src/pylocal_akuvox/config.py` with module
-  docstring, SPDX header, KEY_MAP registry mapping snake_case
-  attribute names to autop-format keys
-  (`Config.DoorSetting.RELAY.*`), and reverse-lookup helper.
+- [ ] T002 Populate `src/pylocal_akuvox/config.py` with the
+  full KEY_MAP registry mapping snake_case attribute names to
+  autop-format keys (`Config.DoorSetting.RELAY.*`), and
+  reverse-lookup helper.
   Include known keys: `hold_delay_a`, `trig_delay_a`,
   `relay_name_a`, `hold_delay_b`, `trig_delay_b`,
   `relay_name_b`. Follow the pattern in
