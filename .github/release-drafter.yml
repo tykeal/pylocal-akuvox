@@ -10,17 +10,18 @@ categories:
   - title: ":boom: Breaking Change :boom:"
     labels:
       - "breaking-change"
-  - title: ":zap: Enhancements :zap:"
-    labels:
-      - "enhancement"
   - title: ":sparkles: New Features :sparkles:"
     labels:
+      - "enhancement"
       - "feature"
   - title: ":bug: Bug Fixes :bug:"
     labels:
       - "fix"
       - "bugfix"
       - "bug"
+  - title: ":zap: Performance :zap:"
+    labels:
+      - "performance"
   - title: ":wrench: Maintenance :wrench:"
     labels:
       - "chore"
@@ -30,6 +31,9 @@ categories:
       - "dependencies"
       - "github_actions"
       - "refactor"
+      - "style"
+      - "build"
+      - "revert"
   - title: ":mortar_board: Code Quality :mortar_board:"
     labels:
       - "code-quality"
@@ -38,28 +42,64 @@ categories:
 autolabeler:
   - label: "breaking-change"
     title:
-      - "/!:/i"
+      - '/^[a-z]+(\([^)]+\))?!:/i'
   - label: "feature"
     title:
-      - "/feat:/i"
+      - '/^feat(\([^)]+\))?:/i'
   - label: "bug"
     title:
-      - "/fix:/i"
+      - '/^fix(\([^)]+\))?:/i'
   - label: "refactor"
     title:
-      - "/refactor:/i"
+      - '/^refactor(\([^)]+\))?:/i'
   - label: "code-quality"
     title:
-      - "/test:/i"
+      - '/^test(\([^)]+\))?:/i'
   - label: "CI"
     title:
-      - "/ci:/i"
+      - '/^ci(\([^)]+\))?:/i'
   - label: "chore"
     title:
-      - "/chore:/i"
+      - '/^chore(\([^)]+\))?:/i'
   - label: "documentation"
     title:
-      - "/docs:/i"
+      - '/^docs(\([^)]+\))?:/i'
+  - label: "style"
+    title:
+      - '/^style(\([^)]+\))?:/i'
+  - label: "performance"
+    title:
+      - '/^perf(\([^)]+\))?:/i'
+  - label: "revert"
+    title:
+      - '/^revert(\([^)]+\))?:/i'
+  - label: "build"
+    title:
+      - '/^build(\([^)]+\))?:/i'
+version-resolver:
+  major:
+    labels:
+      - "breaking-change"
+  minor:
+    labels:
+      - "feature"
+      - "enhancement"
+  patch:
+    labels:
+      - "bug"
+      - "fix"
+      - "bugfix"
+      - "performance"
+      - "refactor"
+      - "style"
+      - "build"
+      - "chore"
+      - "documentation"
+      - "CI"
+      - "test"
+      - "code-quality"
+      - "revert"
+  default: patch
 # yamllint disable rule:line-length
 template: |
   $CHANGES
