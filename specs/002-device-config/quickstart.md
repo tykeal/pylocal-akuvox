@@ -6,19 +6,19 @@ SPDX-License-Identifier: Apache-2.0
 # Quickstart: Device Configuration Management
 
 **Feature**: 002-device-config
-**Date**: 2026-02-24
+**Date**: 2026-02-24 (revised 2026-02-25)
 
 > **Note**: The examples below use the *planned* public API for
 > feature 002-device-config.
 >
-> - `get_relay_config` is introduced in Phase 1.
-> - `set_relay_config` is introduced in Phase 2.
-> - `RelayConfig.keys()` is introduced in Phase 3.
+> - `get_device_config` is introduced in Phase 1.
+> - `set_device_config` is introduced in Phase 2.
+> - `DeviceConfig.keys()` is introduced in Phase 3.
 >
 > These APIs may not be available in the current released version
 > of `pylocal_akuvox`.
 
-## Reading Relay Configuration
+## Reading Device Configuration
 
 ```python
 import asyncio
@@ -26,14 +26,15 @@ from pylocal_akuvox import AkuvoxDevice
 
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
-        config = await device.get_relay_config()
-        print(f"Hold delay: {config.hold_delay_a}")
-        print(f"Relay name: {config.relay_name_a}")
+        config = await device.get_device_config()
+        print(f"Total keys: {len(config)}")
+        print(f"Hold delay: {config['Config.DoorSetting.RELAY.HoldDelayA']}")
+        print(f"Relay name: {config['Config.DoorSetting.RELAY.NameA']}")
 
 asyncio.run(main())
 ```
 
-## Updating Relay Configuration
+## Updating Device Configuration
 
 ```python
 import asyncio
@@ -41,10 +42,10 @@ from pylocal_akuvox import AkuvoxDevice
 
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
-        await device.set_relay_config(
-            hold_delay_a="8",
-            relay_name_a="Front Door",
-        )
+        await device.set_device_config({
+            "Config.DoorSetting.RELAY.HoldDelayA": "8",
+            "Config.DoorSetting.RELAY.NameA": "Front Door",
+        })
 
 asyncio.run(main())
 ```
@@ -57,7 +58,7 @@ from pylocal_akuvox import AkuvoxDevice
 
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
-        config = await device.get_relay_config()
+        config = await device.get_device_config()
         for key in config.keys():
             print(key)
 
@@ -77,8 +78,8 @@ async def main():
         password="secret",
     )
     async with AkuvoxDevice("192.168.1.100", auth=auth) as device:
-        config = await device.get_relay_config()
-        print(config)
+        config = await device.get_device_config()
+        print(f"Total keys: {len(config)}")
 
 asyncio.run(main())
 ```
@@ -97,8 +98,8 @@ async def main():
         use_ssl=True,
         verify_ssl=False,
     ) as device:
-        config = await device.get_relay_config()
-        print(config)
+        config = await device.get_device_config()
+        print(f"Total keys: {len(config)}")
 
 asyncio.run(main())
 ```
@@ -112,15 +113,16 @@ from pylocal_akuvox import AkuvoxDevice
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
         # Read current config
-        config = await device.get_relay_config()
-        print(f"Current hold delay: {config.hold_delay_a}")
+        config = await device.get_device_config()
+        key = "Config.DoorSetting.RELAY.HoldDelayA"
+        print(f"Current hold delay: {config[key]}")
 
         # Update a single setting
-        await device.set_relay_config(hold_delay_a="10")
+        await device.set_device_config({key: "10"})
 
         # Verify the change
-        updated = await device.get_relay_config()
-        print(f"Updated hold delay: {updated.hold_delay_a}")
+        updated = await device.get_device_config()
+        print(f"Updated hold delay: {updated[key]}")
 
 asyncio.run(main())
 ```

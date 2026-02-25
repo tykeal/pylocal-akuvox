@@ -13,70 +13,72 @@ and set configuration on the Akuvox devices"
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Read Relay Configuration (Priority: P1)
+### User Story 1 - Read Device Configuration (Priority: P1)
 
-A developer retrieves the current relay configuration from an Akuvox
-device to understand its door settings (hold delay, trigger delay,
-relay name, HTTP relay access). This is the foundation for any
-configuration workflow — you must read before you can decide what
-to change.
+A developer retrieves the full device configuration from an Akuvox
+device. The endpoint (`/api/config/get`) returns all autop-format
+configuration keys — relay settings, network, SIP, display, door
+settings, and more. This is the foundation for any configuration
+workflow — you must read before you can decide what to change.
 
 **Why this priority**: Reading configuration is the safest starting
 point and a prerequisite for any write operation. It delivers
 immediate value for monitoring and diagnostics without risk of
 altering device state.
 
-**Independent Test**: Connect to a device, call the get relay
-configuration method, and verify that known relay settings are
+**Independent Test**: Connect to a device, call the get device
+configuration method, and verify that configuration keys are
 returned with the expected structure and values.
 
 **Acceptance Scenarios**:
 
 1. **Given** a connected device, **When** the developer requests
-   relay configuration, **Then** the library returns a structured
-   object containing all relay settings (hold delay, trigger delay,
-   relay name, HTTP relay configuration).
-2. **Given** a connected device with multiple relays, **When** the
-   developer requests relay configuration, **Then** settings for
-   all configured relays are returned.
+   device configuration, **Then** the library returns a structured
+   object containing all configuration keys as autop-format
+   key-value pairs (e.g., relay settings, network, SIP, display).
+2. **Given** a connected device, **When** the developer requests
+   device configuration, **Then** all keys returned by the device
+   are accessible, including model-specific or undocumented keys.
 3. **Given** a device that is unreachable, **When** the developer
-   requests relay configuration, **Then** a connection error is
+   requests device configuration, **Then** a connection error is
    raised within the configured timeout.
 
 ---
 
-### User Story 2 - Update Relay Configuration (Priority: P2)
+### User Story 2 - Update Device Configuration (Priority: P2)
 
-A developer modifies relay settings on an Akuvox device — for
-example, changing the hold delay for a door relay or updating
-the relay name. The developer provides one or more configuration
-keys and their new values; the library applies them to the device.
+A developer modifies configuration settings on an Akuvox device —
+for example, changing the hold delay for a door relay or updating
+a display setting. The developer provides one or more autop-format
+configuration keys and their new values; the library applies them
+to the device via `POST /api/config/set`.
 
 **Why this priority**: Writing configuration enables automation
 and programmatic device management, which is the core use case
 for Home Assistant integration. Depends on US1 for verifying
 changes.
 
-**Independent Test**: Connect to a device, set a relay
-configuration value (e.g., hold delay), then read back the
-configuration and verify the new value was applied.
+**Independent Test**: Connect to a device, set a configuration
+value (e.g., relay hold delay), then read back the configuration
+and verify the new value was applied.
 
 **Acceptance Scenarios**:
 
 1. **Given** a connected device, **When** the developer sets a
-   single relay configuration value, **Then** the device accepts
-   the change and the method returns without raising an exception
-   (absence of an exception indicates success).
+   single configuration value using an autop-format key, **Then**
+   the device accepts the change and the method returns without
+   raising an exception (absence of an exception indicates
+   success).
 2. **Given** a connected device, **When** the developer sets
-   multiple relay configuration values in one call, **Then** all
+   multiple configuration values in one call, **Then** all
    values are applied and confirmed.
 3. **Given** a connected device, **When** the developer sets a
    configuration key to an invalid value, **Then** the device
    returns an error and the library raises an appropriate
    exception.
-4. **Given** a connected device, **When** the developer sets a
-   configuration key that does not exist, **Then** the library
-   raises a validation or device error.
+4. **Given** a connected device, **When** the developer provides
+   no key-value pairs, **Then** the library raises a validation
+   error before sending to the device.
 
 ---
 
@@ -94,20 +96,20 @@ devices. This is effectively provided by US1's read capability
 but framed as an explicit use case for documentation and API
 design.
 
-**Independent Test**: Connect to a device, retrieve relay
+**Independent Test**: Connect to a device, retrieve device
 configuration, and verify that the returned structure exposes
 all available configuration key names.
 
 **Acceptance Scenarios**:
 
 1. **Given** a connected device, **When** the developer retrieves
-   relay configuration, **Then** the response includes identifiable
-   key names that can be used in subsequent set operations.
-2. **Given** a connected device with a relay configuration that
-   includes optional/model-specific settings, **When** the
-   developer retrieves configuration, **Then** all available
-   settings are included regardless of whether they have
-   non-default values.
+   device configuration, **Then** the response includes all
+   autop-format key names that can be used in subsequent set
+   operations.
+2. **Given** a connected device with model-specific settings,
+   **When** the developer retrieves configuration, **Then** all
+   available settings are included regardless of whether they
+   have non-default values.
 
 ---
 
@@ -131,12 +133,13 @@ all available configuration key names.
 ### Functional Requirements
 
 - **FR-001**: Library MUST provide a method to retrieve the
-  current relay configuration from a connected device.
-- **FR-002**: Library MUST return relay configuration as a
-  structured object with named attributes (not raw key-value
-  strings).
+  full device configuration from a connected device via
+  `GET /api/config/get`.
+- **FR-002**: Library MUST return device configuration as a
+  structured `DeviceConfig` object that provides access to all
+  autop-format key-value pairs returned by the device.
 - **FR-003**: Library MUST provide a method to update one or more
-  relay configuration settings on a connected device.
+  device configuration settings via `POST /api/config/set`.
 - **FR-004**: Library MUST validate that at least one
   configuration key-value pair is provided before sending an
   update request.
@@ -152,39 +155,37 @@ all available configuration key names.
 - **FR-008**: Library MUST serialize configuration requests
   through the existing per-device lock to prevent concurrent
   access issues.
-- **FR-009**: Library MUST use the autop-format key convention
-  (e.g., `Config.DoorSetting.RELAY.*`) for configuration keys
-  sent to the device.
+- **FR-009**: Library MUST preserve autop-format keys as-is
+  (e.g., `Config.DoorSetting.RELAY.HoldDelayA`) for both read
+  and write operations. No snake_case mapping is performed.
 - **FR-010**: Each implementation phase MUST be independently
   verifiable against a live device, enabling incremental
   validation of configuration read and write operations.
-- **FR-011**: Library MUST provide a method to enumerate the
+- **FR-011**: Library MUST provide a method to enumerate all
   autop-format configuration key names available on a
-  `RelayConfig` instance, enabling key discovery (US3). These
-  are device-level keys (e.g., `Config.DoorSetting.RELAY.*`)
-  that are mapped by the library to its public parameter or
-  attribute names; the method returns the device-facing
-  autop-format form for informational and diagnostic use.
+  `DeviceConfig` instance, enabling key discovery (US3).
 
 ### Key Entities
 
-- **RelayConfig**: Represents the relay configuration for a
-  device. Contains settings such as hold delay, trigger delay,
-  relay name, and HTTP relay access configuration. Attributes
-  map from autop-format keys to developer-friendly attribute
-  names.
+- **DeviceConfig**: Represents the full device configuration.
+  Wraps all autop-format key-value pairs returned by
+  `GET /api/config/get`. Provides dict-like access to any
+  configuration key (relay settings, network, SIP, display,
+  etc.).
 
 ### Assumptions
 
 - The Akuvox local HTTP API uses the same envelope response
-  format (`retcode`, `message`, `data`) for relay configuration
+  format (`retcode`, `message`, `data`) for configuration
   endpoints as for all other endpoints.
-- The relay configuration GET endpoint returns all relay settings
-  in a single response (no pagination needed).
-- Configuration keys follow the `Config.DoorSetting.RELAY.*`
-  naming pattern documented in the existing API contract.
-- The relay set endpoint accepts one or more key-value pairs in
-  a single request.
+- The device configuration GET endpoint returns all settings
+  in a single response (no pagination needed). Real devices
+  return 900+ keys across many categories.
+- Configuration keys use autop-format naming (e.g.,
+  `Config.DoorSetting.RELAY.HoldDelayA`,
+  `Config.Network.LAN.IPAddress`).
+- The configuration set endpoint accepts one or more
+  autop-format key-value pairs in a single request.
 - Configuration changes take effect immediately on the device
   (no reboot or apply step required).
 
@@ -192,10 +193,10 @@ all available configuration key names.
 
 ### Measurable Outcomes
 
-- **SC-001**: Developer can retrieve relay configuration from a
+- **SC-001**: Developer can retrieve device configuration from a
   device in 5 lines of code or fewer (excluding imports and
   boilerplate).
-- **SC-002**: Developer can update a relay configuration setting
+- **SC-002**: Developer can update a device configuration setting
   in 5 lines of code or fewer (excluding imports and boilerplate).
 - **SC-003**: All configuration operations raise typed exceptions
   on failure — never return silent errors or raw error codes.

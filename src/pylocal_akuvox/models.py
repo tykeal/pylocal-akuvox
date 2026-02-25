@@ -327,68 +327,40 @@ class CallLogEntry:
 
 
 @dataclass(frozen=True, kw_only=True)
-class RelayConfig:
-    """Relay configuration settings from the device."""
+class DeviceConfig:
+    """Full device configuration from /api/config/get.
 
-    hold_delay_a: str = ""
-    trig_delay_a: str = ""
-    relay_name_a: str = ""
-    hold_delay_b: str | None = None
-    trig_delay_b: str | None = None
-    relay_name_b: str | None = None
-    extra: dict[str, str] | None = None
+    Wraps all autop-format key-value pairs returned by the device.
+    Provides dict-like read access to any configuration key.
+    """
+
+    data: dict[str, str]
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any]) -> RelayConfig:
-        """Create RelayConfig from API response data."""
-        from pylocal_akuvox.config import reverse_key_map
-
-        reverse = reverse_key_map()
-        known: dict[str, str] = {}
-        unknown: dict[str, str] = {}
-
-        for autop_key, value in data.items():
-            attr = reverse.get(autop_key)
-            if attr is not None:
-                known[attr] = str(value)
-            else:
-                unknown[autop_key] = str(value)
-
-        return cls(
-            hold_delay_a=known.get("hold_delay_a", ""),
-            trig_delay_a=known.get("trig_delay_a", ""),
-            relay_name_a=known.get("relay_name_a", ""),
-            hold_delay_b=known.get("hold_delay_b"),
-            trig_delay_b=known.get("trig_delay_b"),
-            relay_name_b=known.get("relay_name_b"),
-            extra=unknown if unknown else None,
-        )
+    def from_api_response(cls, data: dict[str, Any]) -> DeviceConfig:
+        """Create DeviceConfig from API response data."""
+        return cls(data={k: str(v) for k, v in data.items()})
 
     def to_api_payload(self) -> dict[str, str]:
-        """Convert to autop-format dict for set API calls."""
-        from pylocal_akuvox.config import KEY_MAP
-
-        payload: dict[str, str] = {}
-        for attr in ("hold_delay_a", "trig_delay_a", "relay_name_a"):
-            payload[KEY_MAP[attr]] = getattr(self, attr)
-        for attr in ("hold_delay_b", "trig_delay_b", "relay_name_b"):
-            value = getattr(self, attr)
-            if value is not None:
-                payload[KEY_MAP[attr]] = value
-        if self.extra:
-            payload.update(self.extra)
-        return payload
+        """Return the full data dict for set API calls."""
+        return dict(self.data)
 
     def keys(self) -> list[str]:
-        """Return autop-format key names present in this config."""
-        from pylocal_akuvox.config import KEY_MAP
+        """Return all autop-format key names in this config."""
+        return list(self.data.keys())
 
-        result: list[str] = []
-        for attr in ("hold_delay_a", "trig_delay_a", "relay_name_a"):
-            result.append(KEY_MAP[attr])
-        for attr in ("hold_delay_b", "trig_delay_b", "relay_name_b"):
-            if getattr(self, attr) is not None:
-                result.append(KEY_MAP[attr])
-        if self.extra:
-            result.extend(self.extra.keys())
-        return result
+    def get(self, key: str, default: str | None = None) -> str | None:
+        """Get a config value by autop-format key."""
+        return self.data.get(key, default)
+
+    def __getitem__(self, key: str) -> str:
+        """Bracket access by autop-format key."""
+        return self.data[key]
+
+    def __contains__(self, key: object) -> bool:
+        """Check if an autop-format key exists."""
+        return key in self.data
+
+    def __len__(self) -> int:
+        """Return the number of configuration keys."""
+        return len(self.data)

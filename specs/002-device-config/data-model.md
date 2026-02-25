@@ -6,112 +6,89 @@ SPDX-License-Identifier: Apache-2.0
 # Data Model: Device Configuration Management
 
 **Feature**: 002-device-config
-**Date**: 2026-02-24
+**Date**: 2026-02-24 (revised 2026-02-25)
 
 ## Entities
 
-### RelayConfig
+### DeviceConfig
 
-Represents the complete relay configuration for an Akuvox device.
-Frozen dataclass consistent with all existing models.
+Represents the full device configuration for an Akuvox device.
+Frozen dataclass wrapping all autop-format key-value pairs
+returned by `GET /api/config/get`. Real devices return 900+
+keys spanning relay, network, SIP, display, door settings, and
+more.
 
-**Fields** (initial — expanded after live device testing):
+**Fields**:
 
-- `hold_delay_a` (`str`): Door hold time for relay A
-  (seconds). Source: `Config.DoorSetting.RELAY.HoldDelayA`
-- `trig_delay_a` (`str`): Trigger delay for relay A
-  (seconds). Source: `Config.DoorSetting.RELAY.TrigDelayA`
-- `relay_name_a` (`str`): Display name for relay A.
-  Source: `Config.DoorSetting.RELAY.RelayNameA`
-- `hold_delay_b` (`str | None`): Door hold time for relay B
-  (optional). Source: `Config.DoorSetting.RELAY.HoldDelayB`
-- `trig_delay_b` (`str | None`): Trigger delay for relay B
-  (optional). Source: `Config.DoorSetting.RELAY.TrigDelayB`
-- `relay_name_b` (`str | None`): Display name for relay B
-  (optional). Source: `Config.DoorSetting.RELAY.RelayNameB`
-- `extra` (`dict[str, str] | None`): Additional keys returned by
-  the device that are not part of the known field set. Defaults to
-  `None` when no unknown keys are present.
+- `data` (`dict[str, str]`): All configuration key-value pairs
+  using autop-format keys as-is (e.g.,
+  `Config.DoorSetting.RELAY.HoldDelayA`). Values are always
+  strings matching the device API convention.
 
-**Notes**:
-
-- All values are strings matching the device API convention
-  (consistent with how autop-format keys are transmitted).
-- Optional fields (relay B) default to `None` for single-relay
-  devices.
-- The exact set of fields will be confirmed during Phase 1 live
-  device testing and expanded as needed. Additional keys
-  discovered from the GET response will be added.
-- HTTP relay access and other undocumented keys may appear;
-  unknown keys are stored in an `extra` dict.
+**Design rationale**: The device returns hundreds of keys across
+many categories. Instead of mapping each key to a named
+attribute (impractical at scale), the model stores them in a
+flat dict. This preserves all keys — known, unknown, and
+model-specific — without loss.
 
 ### Methods
 
-**`from_api_response(data: dict[str, Any]) -> RelayConfig`**
+**`from_api_response(data: dict[str, Any]) -> DeviceConfig`**
 
-Class method. Parses the envelope `data` dict from
-`GET /api/relay/get`. Maps autop-format keys to snake_case
-attributes. Unknown keys stored in `extra`.
+Class method. Converts the envelope `data` dict from
+`GET /api/config/get` to a `DeviceConfig`. All values are
+stringified.
 
 **`to_api_payload(self) -> dict[str, str]`**
 
-Instance method, following the same pattern as `User` and
-`AccessSchedule`. Produces only the `data` dict for
-`POST /api/relay/set`, not the full `{target, action, data}`
-envelope. Uses the instance attributes (including `extra`) to
-build a mapping from snake_case attribute names back to
-autop-format keys. The calling code in `config.py` is
-responsible for constructing the outer envelope and selecting
-which keys to include for partial updates.
+Instance method. Returns the full data dict for use in
+`POST /api/config/set` envelopes.
 
 **`keys() -> list[str]`**
 
-Instance method. Returns the list of autop-format key names that
-this configuration contains, enabling key discovery (US3).
+Instance method. Returns the list of autop-format key names
+present in this config, enabling key discovery (US3).
 
-## Key Mapping Registry
+**`get(key, default=None) -> str | None`**
 
-A module-level dict in `config.py` maps between snake_case
-attribute names and autop-format keys:
+Dict-like access by autop-format key name.
 
-```text
-KEY_MAP = {
-    "hold_delay_a": "Config.DoorSetting.RELAY.HoldDelayA",
-    "trig_delay_a": "Config.DoorSetting.RELAY.TrigDelayA",
-    "relay_name_a": "Config.DoorSetting.RELAY.RelayNameA",
-    ...
-}
-```
+**`__getitem__(key) -> str`**
 
-This registry serves three purposes:
+Bracket access: `config["Config.DoorSetting.RELAY.HoldDelayA"]`.
 
-1. Parsing GET responses (autop → snake_case)
-2. Building SET requests (snake_case → autop)
-3. Key discovery (US3)
+**`__contains__(key) -> bool`**
+
+Membership test: `"Config.DoorSetting.RELAY.HoldDelayA" in config`.
+
+**`__len__() -> int`**
+
+Number of configuration keys.
 
 ## Relationships
 
 ```text
-AkuvoxDevice ──delegates──▶ config.get_relay_config()
-                            config.set_relay_config()
+AkuvoxDevice ──delegates──▶ config.get_device_config()
+                            config.set_device_config()
                                 │
                                 ▼
                           AkuvoxHttpClient
                                 │
                                 ▼
-                     GET /api/relay/get
-                     POST /api/relay/set
+                     GET /api/config/get
+                     POST /api/config/set
                                 │
                                 ▼
-                          RelayConfig
+                          DeviceConfig
 ```
 
 ## Validation Rules
 
-- `set_relay_config()` MUST receive at least one key-value pair
+- `set_device_config()` MUST receive at least one key-value pair
   (FR-004). Empty updates raise `AkuvoxValidationError`.
-- Key names MUST be valid entries in `KEY_MAP`. Unknown keys
-  raise `AkuvoxValidationError`.
+- Key names are autop-format strings (any key the device
+  accepts). No client-side key validation — the device reports
+  errors for unknown or invalid keys.
 - Values are strings (matching device API convention). No
   additional type validation is performed — the device reports
   errors for invalid values.

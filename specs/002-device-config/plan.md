@@ -10,13 +10,18 @@ SPDX-License-Identifier: Apache-2.0
 
 ## Summary
 
-Add relay configuration get/set capabilities to pylocal-akuvox. The
-library already supports relay triggering and status queries; this
-feature extends it with `GET /api/relay/get` (read all relay settings)
-and `POST /api/relay/set` (update settings using autop-format keys).
-A new `RelayConfig` dataclass maps device keys to developer-friendly
-attributes. The existing module pattern (separate module + device
-facade + TDD) is followed exactly.
+Add device configuration get/set capabilities to pylocal-akuvox.
+The endpoint `GET /api/config/get` returns all device configuration
+as autop-format key-value pairs (900+ keys on real devices spanning
+relay, network, SIP, display, and more). `POST /api/config/set`
+updates settings. A new `DeviceConfig` frozen dataclass wraps the
+full key-value dict. The existing module pattern (separate module +
+device facade + TDD) is followed exactly.
+
+**Note**: The original implementation (PR #39) incorrectly scoped
+this to relay-only (`/api/relay/get`, `RelayConfig`, 6-key
+`KEY_MAP`). This plan corrects that to use `/api/config/get` with
+a generic `DeviceConfig` model that holds all device keys.
 
 ## Technical Context
 
@@ -70,74 +75,80 @@ specs/002-device-config/
 
 ```text
 src/pylocal_akuvox/
-├── __init__.py          # Add RelayConfig export
+├── __init__.py          # Add DeviceConfig export
 ├── _http.py             # No changes
-├── config.py            # NEW: get/set relay config functions
-├── device.py            # Add config facade methods
-├── models.py            # Add RelayConfig dataclass
+├── config.py            # REWRITE: get/set device config functions
+├── device.py            # Rewrite config facade methods
+├── models.py            # Replace RelayConfig with DeviceConfig
 └── ...                  # Existing modules unchanged
 
 tests/unit/
-├── test_config.py       # NEW: config module unit tests
-├── test_device.py       # Extend with config method tests
-├── test_models.py       # Extend with RelayConfig tests
+├── test_config.py       # REWRITE: config module unit tests
+├── test_device.py       # Update config method tests
+├── test_models.py       # Replace RelayConfig with DeviceConfig tests
 └── ...                  # Existing tests unchanged
 
 examples/
-└── mvp_test.py          # Extend with config read/write tests
+└── mvp_test.py          # Rewrite config read/write tests
 ```
 
 **Structure Decision**: Single project layout matching existing
 repository structure. New code follows the established pattern of
-domain module (`config.py`) + model (`RelayConfig` in `models.py`)
+domain module (`config.py`) + model (`DeviceConfig` in `models.py`)
 
 + device facade methods + unit tests.
 
 ## Implementation Phases
 
-### Phase 1 — Read Relay Configuration (US1, FR-001, FR-002)
+### Phase 1 — Read Device Configuration (US1, FR-001, FR-002)
 
-**Goal**: Retrieve relay configuration from a device and return a
-structured `RelayConfig` dataclass.
+**Goal**: Retrieve full device configuration from a device and
+return a structured `DeviceConfig` dataclass wrapping all
+autop-format key-value pairs.
 
 **Scope**:
 
-+ Add `RelayConfig` frozen dataclass to `models.py` with
-  `from_api_response()` class method
-+ Create `config.py` module with `get_relay_config()` function
-+ Add `get_relay_config()` method to `AkuvoxDevice`
-+ Export `RelayConfig` from `__init__.py`
-+ TDD: Unit tests for model parsing and config retrieval
-+ Update `examples/mvp_test.py` with relay config read test
++ Replace `RelayConfig` with `DeviceConfig` frozen dataclass in
+  `models.py` with `from_api_response()`, `to_api_payload()`,
+  `keys()`, `get()`, `__getitem__()`, `__contains__()`,
+  `__len__()`
++ Rewrite `config.py` module: remove `KEY_MAP` and
+  `reverse_key_map()`, implement `get_device_config()` using
+  `/api/config/get`
++ Replace `get_relay_config()` with `get_device_config()` in
+  `AkuvoxDevice`
++ Export `DeviceConfig` from `__init__.py` (replace `RelayConfig`)
++ TDD: Rewrite tests for new model and config retrieval
++ Rewrite `examples/mvp_test.py` config read test to show all keys
 
 **FR Coverage**: FR-001, FR-002, FR-005, FR-006, FR-007, FR-008,
 FR-010
 **SC Coverage**: SC-001, SC-003, SC-004, SC-005, SC-006
 
-**Acceptance**: Developer can call `device.get_relay_config()` and
-receive a `RelayConfig` object. Live device test reads config
-successfully.
+**Acceptance**: Developer can call `device.get_device_config()` and
+receive a `DeviceConfig` object containing all device keys. Live
+device test reads config successfully and shows all keys.
 
 ---
 
-### Phase 2 — Update Relay Configuration (US2, FR-003, FR-004)
+### Phase 2 — Update Device Configuration (US2, FR-003, FR-004)
 
-**Goal**: Update one or more relay configuration settings on the
+**Goal**: Update one or more device configuration settings on the
 device.
 
 **Scope**:
 
-+ Add `set_relay_config()` to `config.py` with validation
-+ Add `set_relay_config()` method to `AkuvoxDevice`
++ Add `set_device_config()` to `config.py` with validation
++ Add `set_device_config()` method to `AkuvoxDevice`
 + Validate at least one key-value pair provided (FR-004)
 + Use autop-format keys for the request (FR-009)
 + TDD: Unit tests for set operations, validation errors
-+ Update `examples/mvp_test.py` with relay config write test
++ Update `examples/mvp_test.py` with config write test
 
 **FR Coverage**: FR-003, FR-004, FR-005, FR-009, FR-010
 **SC Coverage**: SC-002, SC-003, SC-005, SC-006
 
-**Acceptance**: Developer can call `device.set_relay_config()`
+**Acceptance**: Developer can call `device.set_device_config()`
 with key-value pairs. Live device test writes and reads back
 config to verify.
 
@@ -150,9 +161,7 @@ response and provide comprehensive documentation.
 
 **Scope**:
 
-+ Add key-listing helper to `RelayConfig` (e.g., `keys()` or
-  attribute introspection)
-+ Ensure all model attributes map to documented autop-format keys
++ Verify `DeviceConfig.keys()` works with real device data
 + Update Sphinx API docs for new module and model
 + Final `examples/mvp_test.py` updates for key discovery test
 + Full integration verification against live device
@@ -160,6 +169,6 @@ response and provide comprehensive documentation.
 **FR Coverage**: FR-010, FR-011
 **SC Coverage**: SC-006, SC-007
 
-**Acceptance**: Developer can inspect a `RelayConfig` object to
+**Acceptance**: Developer can inspect a `DeviceConfig` object to
 discover all available configuration keys. Documentation is
 complete and published.

@@ -399,44 +399,44 @@ async def test_auth_basic_get_info_end_to_end() -> None:
     assert info.model == "E21V"
 
 
-# -- T008: get_relay_config facade tests --
+# -- T006: get_device_config facade tests --
 
-_RELAY_CONFIG_PAYLOAD: dict[str, object] = {
+_DEVICE_CONFIG_PAYLOAD: dict[str, object] = {
     "retcode": 0,
-    "action": "relay",
-    "message": "get successfully!",
+    "action": "get",
+    "message": "OK",
     "data": {
         "Config.DoorSetting.RELAY.HoldDelayA": "5",
-        "Config.DoorSetting.RELAY.TrigDelayA": "0",
-        "Config.DoorSetting.RELAY.RelayNameA": "Door",
+        "Config.DoorSetting.RELAY.TriggerDelayA": "0",
+        "Config.Network.LAN.IPAddress": "192.168.1.100",
     },
 }
 
 
-async def test_get_relay_config_returns_relay_config() -> None:
-    """Verify get_relay_config delegates to config module."""
-    from pylocal_akuvox.models import RelayConfig
+async def test_get_device_config_returns_device_config() -> None:
+    """Verify get_device_config delegates to config module."""
+    from pylocal_akuvox.models import DeviceConfig
 
     with aioresponses() as m:
-        m.get(f"{BASE_URL}/api/relay/get", payload=_RELAY_CONFIG_PAYLOAD)
+        m.get(f"{BASE_URL}/api/config/get", payload=_DEVICE_CONFIG_PAYLOAD)
         async with AkuvoxDevice("192.168.1.100") as device:
-            cfg = await device.get_relay_config()
+            cfg = await device.get_device_config()
 
-    assert isinstance(cfg, RelayConfig)
-    assert cfg.hold_delay_a == "5"
+    assert isinstance(cfg, DeviceConfig)
+    assert len(cfg) == 3
 
 
-async def test_get_relay_config_with_auth() -> None:
-    """Verify get_relay_config works with BASIC auth."""
-    from pylocal_akuvox.models import RelayConfig
+async def test_get_device_config_with_auth() -> None:
+    """Verify get_device_config works with BASIC auth."""
+    from pylocal_akuvox.models import DeviceConfig
 
     auth = AuthConfig(method=AuthMethod.BASIC, username="admin", password="pass")
     with aioresponses() as m:
-        m.get(f"{BASE_URL}/api/relay/get", payload=_RELAY_CONFIG_PAYLOAD)
+        m.get(f"{BASE_URL}/api/config/get", payload=_DEVICE_CONFIG_PAYLOAD)
         async with AkuvoxDevice("192.168.1.100", auth=auth) as device:
-            cfg = await device.get_relay_config()
+            cfg = await device.get_device_config()
 
-    assert isinstance(cfg, RelayConfig)
+    assert isinstance(cfg, DeviceConfig)
 
 
 async def test_auth_digest_get_info_end_to_end() -> None:
