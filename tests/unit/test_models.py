@@ -695,3 +695,174 @@ def test_door_log_entry_status_values() -> None:
     assert succ.status == "Succ"
     fail = DoorLogEntry.from_api_response({**base, "Status": "Failed"})
     assert fail.status == "Failed"
+
+
+# -- RelayConfig model tests (T003) --
+
+
+def test_relay_config_from_api_response_full() -> None:
+    """Verify RelayConfig maps all autop-format keys to snake_case."""
+    data = {
+        "Config.DoorSetting.RELAY.HoldDelayA": "5",
+        "Config.DoorSetting.RELAY.TrigDelayA": "0",
+        "Config.DoorSetting.RELAY.RelayNameA": "Door",
+        "Config.DoorSetting.RELAY.HoldDelayB": "3",
+        "Config.DoorSetting.RELAY.TrigDelayB": "1",
+        "Config.DoorSetting.RELAY.RelayNameB": "Gate",
+    }
+    from pylocal_akuvox.models import RelayConfig
+
+    cfg = RelayConfig.from_api_response(data)
+    assert cfg.hold_delay_a == "5"
+    assert cfg.trig_delay_a == "0"
+    assert cfg.relay_name_a == "Door"
+    assert cfg.hold_delay_b == "3"
+    assert cfg.trig_delay_b == "1"
+    assert cfg.relay_name_b == "Gate"
+    assert cfg.extra is None
+
+
+def test_relay_config_from_api_response_partial() -> None:
+    """Verify RelayConfig handles missing relay B fields."""
+    data = {
+        "Config.DoorSetting.RELAY.HoldDelayA": "5",
+        "Config.DoorSetting.RELAY.TrigDelayA": "0",
+        "Config.DoorSetting.RELAY.RelayNameA": "Door",
+    }
+    from pylocal_akuvox.models import RelayConfig
+
+    cfg = RelayConfig.from_api_response(data)
+    assert cfg.hold_delay_a == "5"
+    assert cfg.hold_delay_b is None
+    assert cfg.trig_delay_b is None
+    assert cfg.relay_name_b is None
+    assert cfg.extra is None
+
+
+def test_relay_config_from_api_response_extra_keys() -> None:
+    """Verify RelayConfig stores unknown keys in extra dict."""
+    data = {
+        "Config.DoorSetting.RELAY.HoldDelayA": "5",
+        "Config.DoorSetting.RELAY.TrigDelayA": "0",
+        "Config.DoorSetting.RELAY.RelayNameA": "Door",
+        "Config.DoorSetting.RELAY.HttpRelayA": "1",
+        "Config.DoorSetting.RELAY.SomeOther": "val",
+    }
+    from pylocal_akuvox.models import RelayConfig
+
+    cfg = RelayConfig.from_api_response(data)
+    assert cfg.extra is not None
+    assert cfg.extra["Config.DoorSetting.RELAY.HttpRelayA"] == "1"
+    assert cfg.extra["Config.DoorSetting.RELAY.SomeOther"] == "val"
+    assert len(cfg.extra) == 2
+
+
+def test_relay_config_from_api_response_empty() -> None:
+    """Verify RelayConfig from empty data uses defaults."""
+    from pylocal_akuvox.models import RelayConfig
+
+    cfg = RelayConfig.from_api_response({})
+    assert cfg.hold_delay_a == ""
+    assert cfg.trig_delay_a == ""
+    assert cfg.relay_name_a == ""
+    assert cfg.hold_delay_b is None
+    assert cfg.trig_delay_b is None
+    assert cfg.relay_name_b is None
+    assert cfg.extra is None
+
+
+def test_relay_config_to_api_payload_round_trip() -> None:
+    """Verify to_api_payload produces autop-format keys for all fields."""
+    data = {
+        "Config.DoorSetting.RELAY.HoldDelayA": "5",
+        "Config.DoorSetting.RELAY.TrigDelayA": "0",
+        "Config.DoorSetting.RELAY.RelayNameA": "Door",
+        "Config.DoorSetting.RELAY.HoldDelayB": "3",
+        "Config.DoorSetting.RELAY.TrigDelayB": "1",
+        "Config.DoorSetting.RELAY.RelayNameB": "Gate",
+    }
+    from pylocal_akuvox.models import RelayConfig
+
+    cfg = RelayConfig.from_api_response(data)
+    payload = cfg.to_api_payload()
+    assert payload == data
+
+
+def test_relay_config_to_api_payload_partial() -> None:
+    """Verify to_api_payload omits None fields."""
+    data = {
+        "Config.DoorSetting.RELAY.HoldDelayA": "5",
+        "Config.DoorSetting.RELAY.TrigDelayA": "0",
+        "Config.DoorSetting.RELAY.RelayNameA": "Door",
+    }
+    from pylocal_akuvox.models import RelayConfig
+
+    cfg = RelayConfig.from_api_response(data)
+    payload = cfg.to_api_payload()
+    assert payload == data
+    assert "Config.DoorSetting.RELAY.HoldDelayB" not in payload
+
+
+def test_relay_config_to_api_payload_includes_extra() -> None:
+    """Verify to_api_payload includes extra keys in output."""
+    data = {
+        "Config.DoorSetting.RELAY.HoldDelayA": "5",
+        "Config.DoorSetting.RELAY.TrigDelayA": "0",
+        "Config.DoorSetting.RELAY.RelayNameA": "Door",
+        "Config.DoorSetting.RELAY.HttpRelayA": "1",
+    }
+    from pylocal_akuvox.models import RelayConfig
+
+    cfg = RelayConfig.from_api_response(data)
+    payload = cfg.to_api_payload()
+    assert payload["Config.DoorSetting.RELAY.HttpRelayA"] == "1"
+
+
+def test_relay_config_keys_full() -> None:
+    """Verify keys() returns all autop-format key names."""
+    data = {
+        "Config.DoorSetting.RELAY.HoldDelayA": "5",
+        "Config.DoorSetting.RELAY.TrigDelayA": "0",
+        "Config.DoorSetting.RELAY.RelayNameA": "Door",
+        "Config.DoorSetting.RELAY.HoldDelayB": "3",
+        "Config.DoorSetting.RELAY.TrigDelayB": "1",
+        "Config.DoorSetting.RELAY.RelayNameB": "Gate",
+    }
+    from pylocal_akuvox.models import RelayConfig
+
+    cfg = RelayConfig.from_api_response(data)
+    keys = cfg.keys()
+    assert "Config.DoorSetting.RELAY.HoldDelayA" in keys
+    assert "Config.DoorSetting.RELAY.RelayNameB" in keys
+    assert len(keys) == 6
+
+
+def test_relay_config_keys_with_extra() -> None:
+    """Verify keys() includes extra keys."""
+    data = {
+        "Config.DoorSetting.RELAY.HoldDelayA": "5",
+        "Config.DoorSetting.RELAY.TrigDelayA": "0",
+        "Config.DoorSetting.RELAY.RelayNameA": "Door",
+        "Config.DoorSetting.RELAY.HttpRelayA": "1",
+    }
+    from pylocal_akuvox.models import RelayConfig
+
+    cfg = RelayConfig.from_api_response(data)
+    keys = cfg.keys()
+    assert "Config.DoorSetting.RELAY.HttpRelayA" in keys
+    assert len(keys) == 4
+
+
+def test_relay_config_is_frozen() -> None:
+    """Verify RelayConfig is immutable."""
+    from pylocal_akuvox.models import RelayConfig
+
+    cfg = RelayConfig.from_api_response(
+        {
+            "Config.DoorSetting.RELAY.HoldDelayA": "5",
+            "Config.DoorSetting.RELAY.TrigDelayA": "0",
+            "Config.DoorSetting.RELAY.RelayNameA": "Door",
+        }
+    )
+    with pytest.raises(AttributeError):
+        cfg.hold_delay_a = "10"  # type: ignore[misc]

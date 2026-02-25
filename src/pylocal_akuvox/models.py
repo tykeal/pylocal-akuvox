@@ -324,3 +324,82 @@ class CallLogEntry:
         except KeyError as exc:
             msg = f"Missing required field {exc} in call log"
             raise AkuvoxParseError(msg) from exc
+
+
+@dataclass(frozen=True, kw_only=True)
+class RelayConfig:
+    """Relay configuration settings from the device."""
+
+    hold_delay_a: str = ""
+    trig_delay_a: str = ""
+    relay_name_a: str = ""
+    hold_delay_b: str | None = None
+    trig_delay_b: str | None = None
+    relay_name_b: str | None = None
+    extra: dict[str, str] | None = None
+
+    @classmethod
+    def from_api_response(cls, data: dict[str, Any]) -> RelayConfig:
+        """Create RelayConfig from API response data dict."""
+        from pylocal_akuvox.config import reverse_key_map
+
+        reverse = reverse_key_map()
+        known: dict[str, str] = {}
+        unknown: dict[str, str] = {}
+
+        for autop_key, value in data.items():
+            attr = reverse.get(autop_key)
+            if attr is not None:
+                known[attr] = str(value)
+            else:
+                unknown[autop_key] = str(value)
+
+        return cls(
+            hold_delay_a=known.get("hold_delay_a", ""),
+            trig_delay_a=known.get("trig_delay_a", ""),
+            relay_name_a=known.get("relay_name_a", ""),
+            hold_delay_b=known.get("hold_delay_b"),
+            trig_delay_b=known.get("trig_delay_b"),
+            relay_name_b=known.get("relay_name_b"),
+            extra=unknown if unknown else None,
+        )
+
+    def to_api_payload(self) -> dict[str, str]:
+        """Convert to autop-format dict for set API calls."""
+        from pylocal_akuvox.config import KEY_MAP
+
+        payload: dict[str, str] = {}
+        _fields: list[tuple[str | None, str]] = [
+            (self.hold_delay_a or None, "hold_delay_a"),
+            (self.trig_delay_a or None, "trig_delay_a"),
+            (self.relay_name_a or None, "relay_name_a"),
+            (self.hold_delay_b, "hold_delay_b"),
+            (self.trig_delay_b, "trig_delay_b"),
+            (self.relay_name_b, "relay_name_b"),
+        ]
+        for value, attr in _fields:
+            if value is not None:
+                payload[KEY_MAP[attr]] = value
+        if self.extra:
+            payload.update(self.extra)
+        return payload
+
+    def keys(self) -> list[str]:
+        """Return autop-format key names present in this config."""
+        from pylocal_akuvox.config import KEY_MAP
+
+        result: list[str] = []
+        _fields: list[tuple[str | None, str]] = [
+            (self.hold_delay_a or None, "hold_delay_a"),
+            (self.trig_delay_a or None, "trig_delay_a"),
+            (self.relay_name_a or None, "relay_name_a"),
+            (self.hold_delay_b, "hold_delay_b"),
+            (self.trig_delay_b, "trig_delay_b"),
+            (self.relay_name_b, "relay_name_b"),
+        ]
+        for value, attr in _fields:
+            if value is not None:
+                result.append(KEY_MAP[attr])
+        if self.extra:
+            result.extend(self.extra.keys())
+        return result
