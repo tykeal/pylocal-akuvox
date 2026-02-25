@@ -1,0 +1,116 @@
+# SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
+# SPDX-License-Identifier: Apache-2.0
+#
+# Relay Configuration API Contract
+#
+# Documents the relay configuration endpoints used by the
+# 002-device-config feature. Extends the base akuvox-api.yaml
+# contract from spec 001.
+---
+openapi: "3.0.1"
+info:
+  title: "Relay Configuration API (Client Contract)"
+  description: >
+    Relay configuration get/set endpoints for Akuvox devices.
+    Uses autop-format keys for configuration values.
+  version: "1.0.0"
+
+paths:
+  /api/relay/get:
+    get:
+      summary: "Get relay configuration"
+      operationId: getRelayConfig
+      description: >
+        Returns all relay configuration settings. Response data
+        contains autop-format keys (Config.DoorSetting.RELAY.*)
+        with string values.
+      responses:
+        "200":
+          description: "Relay configuration retrieved"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RelayConfigResponse"
+              example:
+                retcode: 0
+                action: "relay"
+                message: "get successfully!"
+                data:
+                  Config.DoorSetting.RELAY.HoldDelayA: "5"
+                  Config.DoorSetting.RELAY.TrigDelayA: "0"
+                  Config.DoorSetting.RELAY.RelayNameA: "Door"
+        "401":
+          description: "Authentication required"
+
+  /api/relay/set:
+    post:
+      summary: "Set relay configuration"
+      operationId: setRelayConfig
+      description: >
+        Update one or more relay configuration settings using
+        autop-format keys. All values are strings. Only provided
+        keys are updated; omitted keys retain current values.
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+            examples:
+              single_key:
+                summary: "Update hold delay"
+                value: >-
+                  {"target": "relay", "action": "set",
+                  "data": {"Config.DoorSetting.RELAY.HoldDelayA": "8"}}
+              multiple_keys:
+                summary: "Update multiple settings"
+                value: >-
+                  {"target": "relay", "action": "set",
+                  "data": {
+                  "Config.DoorSetting.RELAY.HoldDelayA": "8",
+                  "Config.DoorSetting.RELAY.RelayNameA": "Front Door"
+                  }}
+      responses:
+        "200":
+          description: "Relay configuration updated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+              example:
+                retcode: 0
+                action: "relay"
+                message: "set successfully!"
+        "401":
+          description: "Authentication required"
+
+components:
+  schemas:
+    RelayConfigResponse:
+      type: object
+      properties:
+        retcode:
+          type: integer
+          description: "0 = success, negative = error"
+        action:
+          type: string
+        message:
+          type: string
+        data:
+          type: object
+          description: >
+            Key-value pairs using autop-format keys. All values
+            are strings. Keys follow the pattern
+            Config.DoorSetting.RELAY.*.
+          additionalProperties:
+            type: string
+
+    ActionResponse:
+      type: object
+      properties:
+        retcode:
+          type: integer
+        action:
+          type: string
+        message:
+          type: string

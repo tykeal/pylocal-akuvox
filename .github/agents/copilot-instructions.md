@@ -5,11 +5,11 @@ SPDX-License-Identifier: Apache-2.0
 
 # pylocal-akuvox Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-02-13
+Auto-generated from all feature plans. Last updated: 2026-02-24
 
 ## Active Technologies
-
-- Python 3.14 + aiohttp (async HTTP client with built-in auth)
+- Python ≥3.13.2, fully type-annotated (mypy strict)
+- aiohttp ≥3.13 (async HTTP client with built-in auth)
 
 ## Project Structure
 
@@ -27,10 +27,11 @@ uv run ruff check src/ tests/
 
 ## Code Style
 
-Python 3.14: Follow standard conventions
+Python ≥3.13.2: Follow standard conventions
 
 ## Recent Changes
-
+- 002-device-config: Introduced device configuration support
+  using aiohttp-based async HTTP client
 - 001-akuvox-http-library: Akuvox local HTTP API library
 
 <!-- MANUAL ADDITIONS START -->
