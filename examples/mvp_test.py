@@ -131,6 +131,26 @@ async def test_get_relay_status(device: AkuvoxDevice) -> None:
         print(f"  ⚠ Relay status rejected: {exc}")
 
 
+async def test_get_relay_config(device: AkuvoxDevice) -> None:
+    """Test: Get relay configuration."""
+    print_header("GET RELAY CONFIG (/api/relay/get)")
+    try:
+        cfg = await device.get_relay_config()
+        print(f"  Hold Delay A:     {cfg.hold_delay_a}")
+        print(f"  Trig Delay A:     {cfg.trig_delay_a}")
+        print(f"  Relay Name A:     {cfg.relay_name_a}")
+        print(f"  Hold Delay B:     {cfg.hold_delay_b}")
+        print(f"  Trig Delay B:     {cfg.trig_delay_b}")
+        print(f"  Relay Name B:     {cfg.relay_name_b}")
+        if cfg.extra:
+            print(f"  Extra keys:       {cfg.extra}")
+        print("  ✓ get_relay_config() OK")
+    except AkuvoxUnsupportedError as exc:
+        print(f"  ⚠ Relay config not supported: {exc}")
+    except AkuvoxDeviceError as exc:
+        print(f"  ⚠ Relay config rejected: {exc}")
+
+
 async def test_list_schedules(device: AkuvoxDevice) -> None:
     """Test: List all schedules."""
     print_header("LIST SCHEDULES (/api/schedule/get)")
@@ -415,6 +435,7 @@ async def _run_read_tests(device: AkuvoxDevice) -> None:
     await test_get_status(device)
     await test_list_users(device)
     await test_get_relay_status(device)
+    await test_get_relay_config(device)
     await test_list_schedules(device)
     await test_get_door_logs(device)
     await test_get_call_logs(device)

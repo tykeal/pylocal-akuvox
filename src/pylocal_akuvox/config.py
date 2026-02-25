@@ -5,6 +5,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pylocal_akuvox._http import AkuvoxHttpClient
+    from pylocal_akuvox.models import RelayConfig
+
 KEY_MAP: dict[str, str] = {
     "hold_delay_a": "Config.DoorSetting.RELAY.HoldDelayA",
     "trig_delay_a": "Config.DoorSetting.RELAY.TrigDelayA",
@@ -23,3 +29,19 @@ def reverse_key_map() -> dict[str, str]:
     if _REVERSE_MAP is None:
         _REVERSE_MAP = {v: k for k, v in KEY_MAP.items()}
     return _REVERSE_MAP
+
+
+async def get_relay_config(http: AkuvoxHttpClient) -> RelayConfig:
+    """Retrieve relay configuration from the device.
+
+    Args:
+        http: The HTTP client for device communication.
+
+    Returns:
+        A RelayConfig object with the current relay settings.
+
+    """
+    from pylocal_akuvox.models import RelayConfig as _RelayConfig
+
+    data = await http.get("/api/relay/get")
+    return _RelayConfig.from_api_response(data)
