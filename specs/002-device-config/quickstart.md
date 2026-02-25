@@ -68,7 +68,6 @@ asyncio.run(main())
 
 ```python
 import asyncio
-from pylocal_akuvox import AkuvoxDevice
 from pylocal_akuvox import AkuvoxDevice, AuthConfig, AuthMethod
 
 async def main():
