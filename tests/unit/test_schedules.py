@@ -13,6 +13,7 @@ from pylocal_akuvox.exceptions import (
     AkuvoxValidationError,
 )
 from pylocal_akuvox.schedules import (
+    _validate_day_flag,
     validate_daily,
     validate_date,
     validate_schedule_type,
@@ -677,3 +678,113 @@ async def test_delete_schedule_device_error() -> None:
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxDeviceError):
                 await device.delete_schedule(id="1001")
+
+
+# -- Day-of-week flag validation tests --
+
+
+def test_validate_day_flag_accepts_none() -> None:
+    """Verify _validate_day_flag allows None (optional field)."""
+    _validate_day_flag(None, "mon")
+
+
+def test_validate_day_flag_accepts_zero() -> None:
+    """Verify _validate_day_flag allows '0'."""
+    _validate_day_flag("0", "mon")
+
+
+def test_validate_day_flag_accepts_one() -> None:
+    """Verify _validate_day_flag allows '1'."""
+    _validate_day_flag("1", "mon")
+
+
+def test_validate_day_flag_rejects_invalid() -> None:
+    """Verify _validate_day_flag rejects values other than '0' or '1'."""
+    with pytest.raises(AkuvoxValidationError, match="mon must be '0' or '1'"):
+        _validate_day_flag("2", "mon")
+
+
+def test_validate_day_flag_rejects_text() -> None:
+    """Verify _validate_day_flag rejects non-numeric strings."""
+    with pytest.raises(AkuvoxValidationError, match="fri must be '0' or '1'"):
+        _validate_day_flag("yes", "fri")
+
+
+# -- add_schedule with day-of-week fields --
+
+
+async def test_add_schedule_with_day_fields() -> None:
+    """Verify add_schedule includes individual day fields in payload."""
+    with aioresponses() as m:
+        m.post(f"{BASE_URL}/api/schedule/set", payload=_ADD_OK_RESPONSE)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            await device.add_schedule(
+                schedule_type="1",
+                name="MonWed",
+                mon="1",
+                wed="1",
+                time_start="01:00",
+                time_end="13:00",
+            )
+
+        url_key = (
+            "POST",
+            aiohttp.client.URL(f"{BASE_URL}/api/schedule/set"),
+        )
+        call = m.requests[url_key][0]
+        item = call.kwargs.get("json")["data"]["item"][0]
+        assert item["Type"] == "1"
+        assert item["Name"] == "MonWed"
+        assert item["Mon"] == "1"
+        assert item["Wed"] == "1"
+        assert item["TimeStart"] == "01:00"
+        assert item["TimeEnd"] == "13:00"
+        assert "Sun" not in item
+        assert "Tue" not in item
+
+
+async def test_add_schedule_invalid_day_flag_rejected() -> None:
+    """Verify add_schedule rejects invalid day flag values."""
+    with aioresponses() as m:
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxValidationError, match="'0' or '1'"):
+                await device.add_schedule(schedule_type="1", mon="2")
+        assert len(m.requests) == 0
+
+
+# -- modify_schedule with day-of-week fields --
+
+
+async def test_modify_schedule_with_day_fields() -> None:
+    """Verify modify_schedule merges individual day fields."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/schedule/get?page=1",
+            payload=_SCHEDULE_GET_RESPONSE,
+        )
+        m.post(f"{BASE_URL}/api/schedule/set", payload=_SET_OK_RESPONSE)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            await device.modify_schedule(
+                id="1001",
+                mon="1",
+                fri="1",
+            )
+
+        url_key = (
+            "POST",
+            aiohttp.client.URL(f"{BASE_URL}/api/schedule/set"),
+        )
+        call = m.requests[url_key][0]
+        item = call.kwargs.get("json")["data"]["item"][0]
+        assert item["ID"] == "1001"
+        assert item["Mon"] == "1"
+        assert item["Fri"] == "1"
+
+
+async def test_modify_schedule_invalid_day_flag_rejected() -> None:
+    """Verify modify_schedule rejects invalid day flag values."""
+    with aioresponses() as m:
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxValidationError, match="'0' or '1'"):
+                await device.modify_schedule(id="1001", sat="bad")
+        assert len(m.requests) == 0

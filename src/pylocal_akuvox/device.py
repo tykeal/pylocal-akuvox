@@ -174,6 +174,13 @@ class AkuvoxDevice:
         date_end: str | None = None,
         time_start: str | None = None,
         time_end: str | None = None,
+        sun: str | None = None,
+        mon: str | None = None,
+        tue: str | None = None,
+        wed: str | None = None,
+        thur: str | None = None,
+        fri: str | None = None,
+        sat: str | None = None,
     ) -> None:
         """Add an access schedule to the device."""
         from pylocal_akuvox import schedules
@@ -188,6 +195,13 @@ class AkuvoxDevice:
             date_end=date_end,
             time_start=time_start,
             time_end=time_end,
+            sun=sun,
+            mon=mon,
+            tue=tue,
+            wed=wed,
+            thur=thur,
+            fri=fri,
+            sat=sat,
         )
 
     async def list_schedules(self, *, page: int | None = None) -> list[AccessSchedule]:
@@ -208,6 +222,13 @@ class AkuvoxDevice:
         date_end: str | None = None,
         time_start: str | None = None,
         time_end: str | None = None,
+        sun: str | None = None,
+        mon: str | None = None,
+        tue: str | None = None,
+        wed: str | None = None,
+        thur: str | None = None,
+        fri: str | None = None,
+        sat: str | None = None,
     ) -> None:
         """Modify an existing schedule on the device."""
         from pylocal_akuvox import schedules
@@ -223,6 +244,13 @@ class AkuvoxDevice:
             date_end=date_end,
             time_start=time_start,
             time_end=time_end,
+            sun=sun,
+            mon=mon,
+            tue=tue,
+            wed=wed,
+            thur=thur,
+            fri=fri,
+            sat=sat,
         )
 
     async def delete_schedule(self, *, id: str) -> None:
