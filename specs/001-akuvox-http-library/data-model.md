@@ -151,6 +151,13 @@ Represents a time-based access rule on the device.
 | time_end | str | No | End time (HH:MM) |
 | week | str | No | Day codes (0=Sun..6=Sat, e.g. "01" for Sun+Mon) |
 | daily | str | No | Daily time range (HH:MM-HH:MM) |
+| sun | str | No | Sunday flag ("0" or "1") |
+| mon | str | No | Monday flag ("0" or "1") |
+| tue | str | No | Tuesday flag ("0" or "1") |
+| wed | str | No | Wednesday flag ("0" or "1") |
+| thur | str | No | Thursday flag ("0" or "1") |
+| fri | str | No | Friday flag ("0" or "1") |
+| sat | str | No | Saturday flag ("0" or "1") |
 | display_id | str | No | Display identifier |
 | source_type | str | No | 1=Local, 2=Cloud, 3=ACMS, 4=SDMC |
 | mode | str | No | 0=Normal, 1=Weekly, 2=Daily |
@@ -161,6 +168,13 @@ Represents a time-based access rule on the device.
 - Time ranges must be valid HH:MM format
 - Date ranges must be valid YYYYMMDD format
 - Week codes must be digits 0-6
+- Day-of-week flags must be "0" or "1"
+
+**Note**: For weekly schedules (type `1`), the device uses the
+individual day-of-week flags (`sun`..`sat`) to control which days
+are active. The `week` code string is stored but does not activate
+days on E18 firmware. Always set the individual day flags when
+creating or modifying weekly schedules.
 
 ### DoorLogEntry
 

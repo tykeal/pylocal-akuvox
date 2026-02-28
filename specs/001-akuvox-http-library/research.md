@@ -200,7 +200,11 @@ and ScheduleRelay as mandatory fields on user creation.
 
 **Rationale**: Fields extracted from `/api/schedule/get` response.
 Schedule add requires Type (mandatory); Name, Week, Date, Daily are
-optional.
+optional. The individual day-of-week flags (`Sun`..`Sat`) accept
+`"0"` (disabled) or `"1"` (enabled) and are the mechanism the device
+uses for weekly schedules — the `Week` code string alone does not
+activate days on E18 firmware. Both `add_schedule` and
+`modify_schedule` accept these flags as optional parameters.
 
 ## R9: Log Entry Data Models
 
