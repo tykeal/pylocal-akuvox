@@ -102,6 +102,40 @@ def _validate_day_flag(value: str | None, field: str) -> None:
 _DAY_FIELDS = ("sun", "mon", "tue", "wed", "thur", "fri", "sat")
 _DAY_API_KEYS = ("Sun", "Mon", "Tue", "Wed", "Thur", "Fri", "Sat")
 
+
+_DayFlags = tuple[
+    str | None,
+    str | None,
+    str | None,
+    str | None,
+    str | None,
+    str | None,
+    str | None,
+]
+
+
+def _expand_week_to_day_flags(
+    week: str | None,
+    day_values: _DayFlags,
+) -> _DayFlags:
+    """Derive day flags from week codes when no explicit flags set.
+
+    E18 firmware requires individual day-of-week flags (Sun–Sat) to
+    activate schedule days.  When only the ``week`` code string is
+    provided (e.g. ``"13"`` for Mon + Wed), this function converts it
+    to individual ``"0"``/``"1"`` day flags for device compatibility.
+
+    If any explicit day flag is already set the original tuple is
+    returned unchanged so that caller-provided values always win.
+    """
+    if week is None or any(d is not None for d in day_values):
+        return day_values
+    flags: list[str | None] = ["0"] * 7
+    for char in week:
+        flags[int(char)] = "1"
+    return (flags[0], flags[1], flags[2], flags[3], flags[4], flags[5], flags[6])
+
+
 # Maps optional Python parameter names to their API payload keys.
 _OPTIONAL_FIELD_MAP = (
     ("name", "Name"),
@@ -122,7 +156,7 @@ def _validate_schedule_fields(
     date_end: str | None,
     time_start: str | None,
     time_end: str | None,
-    day_values: tuple[str | None, ...],
+    day_values: _DayFlags,
 ) -> None:
     """Run all schedule field validators."""
     if schedule_type is not None:
@@ -140,7 +174,7 @@ def _validate_schedule_fields(
 def _set_optional_fields(
     target: dict[str, Any],
     fields: dict[str, str | None],
-    day_values: tuple[str | None, ...],
+    day_values: _DayFlags,
 ) -> None:
     """Merge non-None optional fields and day flags into *target*."""
     for py_name, api_key in _OPTIONAL_FIELD_MAP:
@@ -198,6 +232,7 @@ async def add_schedule(
         time_end,
         day_values,
     )
+    day_values = _expand_week_to_day_flags(week, day_values)
 
     payload: dict[str, Any] = {"Type": schedule_type}
     _set_optional_fields(
@@ -312,6 +347,7 @@ async def modify_schedule(
         time_end,
         day_values,
     )
+    day_values = _expand_week_to_day_flags(week, day_values)
 
     current = await _get_schedule_by_id(http, id)
     if schedule_type is not None:
