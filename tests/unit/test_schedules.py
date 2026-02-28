@@ -13,6 +13,7 @@ from pylocal_akuvox.exceptions import (
     AkuvoxValidationError,
 )
 from pylocal_akuvox.schedules import (
+    _expand_week_to_day_flags,
     _validate_day_flag,
     validate_daily,
     validate_date,
@@ -839,3 +840,121 @@ async def test_modify_schedule_empty_day_flags_omitted() -> None:
         item = call.kwargs.get("json")["data"]["item"][0]
         assert item["Fri"] == "1"
         assert "Sat" not in item
+
+
+# -- _expand_week_to_day_flags --
+
+
+def test_expand_week_mon_wed() -> None:
+    """Verify week '13' expands to Mon+Wed flags."""
+    all_none = (None,) * 7
+    result = _expand_week_to_day_flags("13", all_none)
+    assert result == ("0", "1", "0", "1", "0", "0", "0")
+
+
+def test_expand_week_all_days() -> None:
+    """Verify week '0123456' expands to all days enabled."""
+    all_none = (None,) * 7
+    result = _expand_week_to_day_flags("0123456", all_none)
+    assert result == ("1", "1", "1", "1", "1", "1", "1")
+
+
+def test_expand_week_none_is_noop() -> None:
+    """Verify None week returns original day_values."""
+    all_none = (None,) * 7
+    result = _expand_week_to_day_flags(None, all_none)
+    assert result == all_none
+
+
+def test_expand_week_skipped_when_explicit_flags() -> None:
+    """Verify expansion is skipped when any explicit day flag is set."""
+    day_values = (None, "1", None, None, None, None, None)
+    result = _expand_week_to_day_flags("13", day_values)
+    assert result == day_values
+
+
+# -- add_schedule week auto-translation --
+
+
+async def test_add_schedule_week_auto_translates_day_flags() -> None:
+    """Verify add_schedule with only week= sets day flags in payload."""
+    with aioresponses() as m:
+        m.post(f"{BASE_URL}/api/schedule/set", payload=_ADD_OK_RESPONSE)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            await device.add_schedule(
+                schedule_type="1",
+                name="WeekTest",
+                week="13",
+                time_start="01:00",
+                time_end="13:00",
+            )
+
+        url_key = (
+            "POST",
+            aiohttp.client.URL(f"{BASE_URL}/api/schedule/set"),
+        )
+        call = m.requests[url_key][0]
+        item = call.kwargs.get("json")["data"]["item"][0]
+        assert item["Mon"] == "1"
+        assert item["Wed"] == "1"
+        assert item["Sun"] == "0"
+        assert item["Tue"] == "0"
+        assert item["Thur"] == "0"
+        assert item["Fri"] == "0"
+        assert item["Sat"] == "0"
+        assert item["Week"] == "13"
+
+
+async def test_add_schedule_week_no_override_explicit_flags() -> None:
+    """Verify week does not override explicitly provided day flags."""
+    with aioresponses() as m:
+        m.post(f"{BASE_URL}/api/schedule/set", payload=_ADD_OK_RESPONSE)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            await device.add_schedule(
+                schedule_type="1",
+                week="13",
+                fri="1",
+            )
+
+        url_key = (
+            "POST",
+            aiohttp.client.URL(f"{BASE_URL}/api/schedule/set"),
+        )
+        call = m.requests[url_key][0]
+        item = call.kwargs.get("json")["data"]["item"][0]
+        assert item["Fri"] == "1"
+        # Explicit flag set, so week should NOT expand
+        assert "Mon" not in item
+        assert "Wed" not in item
+
+
+# -- modify_schedule week auto-translation --
+
+
+async def test_modify_schedule_week_auto_translates() -> None:
+    """Verify modify_schedule with only week= sets day flags."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/schedule/get?page=1",
+            payload=_SCHEDULE_GET_RESPONSE,
+        )
+        m.post(f"{BASE_URL}/api/schedule/set", payload=_SET_OK_RESPONSE)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            await device.modify_schedule(
+                id="1001",
+                week="05",
+            )
+
+        url_key = (
+            "POST",
+            aiohttp.client.URL(f"{BASE_URL}/api/schedule/set"),
+        )
+        call = m.requests[url_key][0]
+        item = call.kwargs.get("json")["data"]["item"][0]
+        assert item["Sun"] == "1"
+        assert item["Fri"] == "1"
+        assert item["Mon"] == "0"
+        assert item["Tue"] == "0"
+        assert item["Wed"] == "0"
+        assert item["Thur"] == "0"
+        assert item["Sat"] == "0"
