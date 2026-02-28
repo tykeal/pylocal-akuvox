@@ -70,12 +70,17 @@ async with AkuvoxDevice("192.168.1.100") as device:
 
 ```python
 async with AkuvoxDevice("192.168.1.100") as device:
-    # Create a weekly schedule
+    # Create a weekly schedule (Mon-Fri, 08:00-18:00)
     await device.add_schedule(
         name="Weekday Access",
         schedule_type="1",
-        week="12345",
-        daily="08:00-18:00",
+        mon="1",
+        tue="1",
+        wed="1",
+        thur="1",
+        fri="1",
+        time_start="08:00",
+        time_end="18:00",
     )
 
     # List schedules

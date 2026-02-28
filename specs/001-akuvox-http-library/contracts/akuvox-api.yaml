@@ -232,8 +232,9 @@ paths:
               type: string
             example: >
               {"Type": "1", "Name": "Weekday Access",
-               "Week": "12345",
-               "Daily": "08:00-18:00"}
+               "Mon": "1", "Tue": "1", "Wed": "1",
+               "Thur": "1", "Fri": "1",
+               "TimeStart": "08:00", "TimeEnd": "18:00"}
       responses:
         "200":
           description: "Schedule added"

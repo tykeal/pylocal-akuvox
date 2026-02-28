@@ -87,6 +87,71 @@ def validate_daily(daily: str | None) -> None:
         raise AkuvoxValidationError(msg)
 
 
+def _validate_day_flag(value: str | None, field: str) -> None:
+    """Validate a day-of-week flag is '0' or '1'.
+
+    None is allowed (optional field).
+    """
+    if value is None:
+        return
+    if value not in ("0", "1"):
+        msg = f"{field} must be '0' or '1'"
+        raise AkuvoxValidationError(msg)
+
+
+_DAY_FIELDS = ("sun", "mon", "tue", "wed", "thur", "fri", "sat")
+_DAY_API_KEYS = ("Sun", "Mon", "Tue", "Wed", "Thur", "Fri", "Sat")
+
+# Maps optional Python parameter names to their API payload keys.
+_OPTIONAL_FIELD_MAP = (
+    ("name", "Name"),
+    ("week", "Week"),
+    ("daily", "Daily"),
+    ("date_start", "DateStart"),
+    ("date_end", "DateEnd"),
+    ("time_start", "TimeStart"),
+    ("time_end", "TimeEnd"),
+)
+
+
+def _validate_schedule_fields(
+    schedule_type: str | None,
+    week: str | None,
+    daily: str | None,
+    date_start: str | None,
+    date_end: str | None,
+    time_start: str | None,
+    time_end: str | None,
+    day_values: tuple[str | None, ...],
+) -> None:
+    """Run all schedule field validators."""
+    if schedule_type is not None:
+        validate_schedule_type(schedule_type)
+    validate_week(week)
+    validate_daily(daily)
+    validate_date(date_start, "date_start")
+    validate_date(date_end, "date_end")
+    validate_time(time_start, "time_start")
+    validate_time(time_end, "time_end")
+    for val, field in zip(day_values, _DAY_FIELDS):
+        _validate_day_flag(val, field)
+
+
+def _set_optional_fields(
+    target: dict[str, Any],
+    fields: dict[str, str | None],
+    day_values: tuple[str | None, ...],
+) -> None:
+    """Merge non-None optional fields and day flags into *target*."""
+    for py_name, api_key in _OPTIONAL_FIELD_MAP:
+        value = fields.get(py_name)
+        if value is not None:
+            target[api_key] = value
+    for val, key in zip(day_values, _DAY_API_KEYS):
+        if val is not None:
+            target[key] = val
+
+
 async def add_schedule(
     http: AkuvoxHttpClient,
     *,
@@ -98,6 +163,13 @@ async def add_schedule(
     date_end: str | None = None,
     time_start: str | None = None,
     time_end: str | None = None,
+    sun: str | None = None,
+    mon: str | None = None,
+    tue: str | None = None,
+    wed: str | None = None,
+    thur: str | None = None,
+    fri: str | None = None,
+    sat: str | None = None,
 ) -> None:
     """Add an access schedule to the device."""
     # Normalize empty strings to None (omit from payload)
@@ -107,30 +179,40 @@ async def add_schedule(
     date_end = date_end or None
     time_start = time_start or None
     time_end = time_end or None
+    sun = sun or None
+    mon = mon or None
+    tue = tue or None
+    wed = wed or None
+    thur = thur or None
+    fri = fri or None
+    sat = sat or None
 
-    validate_schedule_type(schedule_type)
-    validate_week(week)
-    validate_daily(daily)
-    validate_date(date_start, "date_start")
-    validate_date(date_end, "date_end")
-    validate_time(time_start, "time_start")
-    validate_time(time_end, "time_end")
+    day_values = (sun, mon, tue, wed, thur, fri, sat)
+    _validate_schedule_fields(
+        schedule_type,
+        week,
+        daily,
+        date_start,
+        date_end,
+        time_start,
+        time_end,
+        day_values,
+    )
 
     payload: dict[str, Any] = {"Type": schedule_type}
-    if name is not None:
-        payload["Name"] = name
-    if week is not None:
-        payload["Week"] = week
-    if daily is not None:
-        payload["Daily"] = daily
-    if date_start is not None:
-        payload["DateStart"] = date_start
-    if date_end is not None:
-        payload["DateEnd"] = date_end
-    if time_start is not None:
-        payload["TimeStart"] = time_start
-    if time_end is not None:
-        payload["TimeEnd"] = time_end
+    _set_optional_fields(
+        payload,
+        {
+            "name": name,
+            "week": week,
+            "daily": daily,
+            "date_start": date_start,
+            "date_end": date_end,
+            "time_start": time_start,
+            "time_end": time_end,
+        },
+        day_values,
+    )
 
     await http.post("/api/schedule/set", data=_mutation_body("add", payload))
 
@@ -191,6 +273,13 @@ async def modify_schedule(
     date_end: str | None = None,
     time_start: str | None = None,
     time_end: str | None = None,
+    sun: str | None = None,
+    mon: str | None = None,
+    tue: str | None = None,
+    wed: str | None = None,
+    thur: str | None = None,
+    fri: str | None = None,
+    sat: str | None = None,
 ) -> None:
     """Modify an existing schedule on the device.
 
@@ -204,33 +293,42 @@ async def modify_schedule(
     date_end = date_end or None
     time_start = time_start or None
     time_end = time_end or None
+    sun = sun or None
+    mon = mon or None
+    tue = tue or None
+    wed = wed or None
+    thur = thur or None
+    fri = fri or None
+    sat = sat or None
 
-    if schedule_type is not None:
-        validate_schedule_type(schedule_type)
-    validate_week(week)
-    validate_daily(daily)
-    validate_date(date_start, "date_start")
-    validate_date(date_end, "date_end")
-    validate_time(time_start, "time_start")
-    validate_time(time_end, "time_end")
+    day_values = (sun, mon, tue, wed, thur, fri, sat)
+    _validate_schedule_fields(
+        schedule_type,
+        week,
+        daily,
+        date_start,
+        date_end,
+        time_start,
+        time_end,
+        day_values,
+    )
 
     current = await _get_schedule_by_id(http, id)
-    if name is not None:
-        current["Name"] = name
     if schedule_type is not None:
         current["Type"] = schedule_type
-    if week is not None:
-        current["Week"] = week
-    if daily is not None:
-        current["Daily"] = daily
-    if date_start is not None:
-        current["DateStart"] = date_start
-    if date_end is not None:
-        current["DateEnd"] = date_end
-    if time_start is not None:
-        current["TimeStart"] = time_start
-    if time_end is not None:
-        current["TimeEnd"] = time_end
+    _set_optional_fields(
+        current,
+        {
+            "name": name,
+            "week": week,
+            "daily": daily,
+            "date_start": date_start,
+            "date_end": date_end,
+            "time_start": time_start,
+            "time_end": time_end,
+        },
+        day_values,
+    )
 
     await http.post("/api/schedule/set", data=_mutation_body("set", current))
 
