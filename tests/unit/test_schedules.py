@@ -788,3 +788,54 @@ async def test_modify_schedule_invalid_day_flag_rejected() -> None:
             with pytest.raises(AkuvoxValidationError, match="'0' or '1'"):
                 await device.modify_schedule(id="1001", sat="bad")
         assert len(m.requests) == 0
+
+
+# -- Day flag empty-string normalization --
+
+
+async def test_add_schedule_empty_day_flags_omitted() -> None:
+    """Verify add_schedule normalizes empty day flags to None."""
+    with aioresponses() as m:
+        m.post(f"{BASE_URL}/api/schedule/set", payload=_ADD_OK_RESPONSE)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            await device.add_schedule(
+                schedule_type="1",
+                mon="1",
+                tue="",
+                wed="",
+            )
+
+        url_key = (
+            "POST",
+            aiohttp.client.URL(f"{BASE_URL}/api/schedule/set"),
+        )
+        call = m.requests[url_key][0]
+        item = call.kwargs.get("json")["data"]["item"][0]
+        assert item["Mon"] == "1"
+        assert "Tue" not in item
+        assert "Wed" not in item
+
+
+async def test_modify_schedule_empty_day_flags_omitted() -> None:
+    """Verify modify_schedule normalizes empty day flags to None."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/schedule/get?page=1",
+            payload=_SCHEDULE_GET_RESPONSE,
+        )
+        m.post(f"{BASE_URL}/api/schedule/set", payload=_SET_OK_RESPONSE)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            await device.modify_schedule(
+                id="1001",
+                fri="1",
+                sat="",
+            )
+
+        url_key = (
+            "POST",
+            aiohttp.client.URL(f"{BASE_URL}/api/schedule/set"),
+        )
+        call = m.requests[url_key][0]
+        item = call.kwargs.get("json")["data"]["item"][0]
+        assert item["Fri"] == "1"
+        assert "Sat" not in item

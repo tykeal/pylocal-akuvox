@@ -179,6 +179,13 @@ async def add_schedule(
     date_end = date_end or None
     time_start = time_start or None
     time_end = time_end or None
+    sun = sun or None
+    mon = mon or None
+    tue = tue or None
+    wed = wed or None
+    thur = thur or None
+    fri = fri or None
+    sat = sat or None
 
     day_values = (sun, mon, tue, wed, thur, fri, sat)
     _validate_schedule_fields(
@@ -286,6 +293,13 @@ async def modify_schedule(
     date_end = date_end or None
     time_start = time_start or None
     time_end = time_end or None
+    sun = sun or None
+    mon = mon or None
+    tue = tue or None
+    wed = wed or None
+    thur = thur or None
+    fri = fri or None
+    sat = sat or None
 
     day_values = (sun, mon, tue, wed, thur, fri, sat)
     _validate_schedule_fields(
