@@ -49,7 +49,11 @@ def validate_schedule_relay(schedule_relay: str | None) -> None:
     if schedule_relay is None or schedule_relay == "":
         return
     if not _SCHEDULE_RELAY_PATTERN.match(schedule_relay):
-        msg = "schedule_relay must match '<ScheduleID>-<RelayID>' comma-separated"
+        msg = (
+            "schedule_relay must be comma-separated "
+            "'<ScheduleID>-<RelayID>' pairs "
+            "(e.g. '1001-1,1002-2'), optional trailing comma"
+        )
         raise AkuvoxValidationError(msg)
 
 

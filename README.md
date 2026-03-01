@@ -58,7 +58,7 @@ async def main():
             name="Alice",
             user_id="2001",
             web_relay="0",
-            schedule_relay="1001-1;",
+            schedule_relay="1001-1",
             lift_floor_num="0",
             private_pin="1234",
         )

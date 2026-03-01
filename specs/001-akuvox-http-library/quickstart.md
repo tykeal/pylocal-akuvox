@@ -35,7 +35,7 @@ async with AkuvoxDevice("192.168.1.100") as device:
         user_id="2001",
         private_pin="1234",
         web_relay="0",
-        schedule_relay="1001-1;",
+        schedule_relay="1001-1",
         lift_floor_num="0",
     )
 
@@ -139,7 +139,7 @@ try:
         await device.add_user(name="Bob", user_id="2002",
                               private_pin="12ab",
                               web_relay="0",
-                              schedule_relay="1001-1;",
+                              schedule_relay="1001-1",
                               lift_floor_num="0")
 except AkuvoxConnectionError as e:
     print(f"Cannot reach device: {e}")

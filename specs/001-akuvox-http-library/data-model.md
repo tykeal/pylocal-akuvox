@@ -121,9 +121,13 @@ Represents a local user account stored on the device.
 | source_type | str | No | Source type (Local/Cloud/SDMC) |
 | auth_mode | int | No | 0=Any, 1=Face+PIN, 2=Face+RF, 3=RF+PIN |
 
-**`schedule_relay` format**: `<ScheduleID>-<RelayID>;` repeated
-per assigned schedule. The trailing `;` is **required** after each
-pair. Multiple schedules are concatenated, e.g. `"1001-1;1002-2;"`.
+**`schedule_relay` format**: `<ScheduleID>-<RelayID>` with multiple
+entries separated by commas.  A single trailing comma is tolerated.
+Example: `"1001-1"` or `"1001-1,1002-2"`.
+
+> **E18 firmware note**: The device uses comma as the separator for
+> multiple schedule-relay pairs.  Semicolons are silently truncated
+> to only the first entry.
 
 **Validation rules**:
 
@@ -132,7 +136,7 @@ pair. Multiple schedules are concatenated, e.g. `"1001-1;1002-2;"`.
 - PIN must be 4-8 digits only. The API accepts other characters
   but the resulting PIN is unusable at the device. `0000` is valid.
 - WebRelay and LiftFloorNum default to "0" if not applicable
-- schedule_relay entries must match `<int>-<int>;` pattern
+- schedule_relay entries must match `<int>-<int>` comma-separated
 
 **State transitions**: None (CRUD only, no state machine)
 
