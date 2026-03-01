@@ -154,7 +154,7 @@ paths:
             example: >
               {"Name": "John", "UserID": "1001",
                "LiftFloorNum": "0", "WebRelay": "0",
-               "ScheduleRelay": "1001-12;",
+               "ScheduleRelay": "1001-12",
                "PrivatePIN": "1234"}
       responses:
         "200":
@@ -435,10 +435,10 @@ components:
           type: string
         ScheduleRelay:
           type: string
-          description: "Schedule-relay pairs as <ScheduleID>-<RelayID>;
-            per schedule. Trailing semicolon required. Example:
-            1001-1;1002-2;"
-          pattern: "^([0-9]+-[0-9]+;)+$"
+          description: "Schedule-relay pairs as <ScheduleID>-<RelayID>
+            comma-separated. Optional trailing comma. Example:
+            1001-1,1002-2"
+          pattern: "^[0-9]+-[0-9]+(,[0-9]+-[0-9]+)*,?$"
         LiftFloorNum:
           type: string
         Source:

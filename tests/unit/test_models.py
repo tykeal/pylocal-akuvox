@@ -213,7 +213,7 @@ def test_user_from_api_response_all_fields() -> None:
         "PrivatePIN": "1234",
         "CardCode": "ABCD1234",
         "WebRelay": "1",
-        "ScheduleRelay": "1001-1;",
+        "ScheduleRelay": "1001-1",
         "LiftFloorNum": "3",
         "Type": "ordinary",
         "Source": "web",
@@ -226,7 +226,7 @@ def test_user_from_api_response_all_fields() -> None:
     assert user.private_pin == "1234"
     assert user.card_code == "ABCD1234"
     assert user.web_relay == "1"
-    assert user.schedule_relay == "1001-1;"
+    assert user.schedule_relay == "1001-1"
     assert user.lift_floor_num == "3"
     assert user.user_type == "ordinary"
     assert user.source == "web"
@@ -240,7 +240,7 @@ def test_user_from_api_response_optional_defaults() -> None:
         "Name": "Bob",
         "UserID": "2002",
         "WebRelay": "0",
-        "ScheduleRelay": "1001-1;",
+        "ScheduleRelay": "1001-1",
     }
     user = User.from_api_response(data)
     assert user.private_pin is None
@@ -255,7 +255,7 @@ def test_user_from_api_response_missing_name_raises() -> None:
     """Verify missing Name raises AkuvoxParseError."""
     from pylocal_akuvox.exceptions import AkuvoxParseError
 
-    data = {"ID": "1", "UserID": "2002", "WebRelay": "0", "ScheduleRelay": "1001-1;"}
+    data = {"ID": "1", "UserID": "2002", "WebRelay": "0", "ScheduleRelay": "1001-1"}
     with pytest.raises(AkuvoxParseError, match="Missing required field"):
         User.from_api_response(data)
 
@@ -264,7 +264,7 @@ def test_user_from_api_response_missing_user_id_raises() -> None:
     """Verify missing UserID raises AkuvoxParseError."""
     from pylocal_akuvox.exceptions import AkuvoxParseError
 
-    data = {"ID": "1", "Name": "Bob", "WebRelay": "0", "ScheduleRelay": "1001-1;"}
+    data = {"ID": "1", "Name": "Bob", "WebRelay": "0", "ScheduleRelay": "1001-1"}
     with pytest.raises(AkuvoxParseError, match="Missing required field"):
         User.from_api_response(data)
 
@@ -276,7 +276,7 @@ def test_user_is_frozen() -> None:
         "Name": "Charlie",
         "UserID": "2003",
         "WebRelay": "0",
-        "ScheduleRelay": "1001-1;",
+        "ScheduleRelay": "1001-1",
     }
     user = User.from_api_response(data)
     with pytest.raises(AttributeError):
@@ -291,7 +291,7 @@ def test_user_to_api_payload_add() -> None:
         "UserID": "2001",
         "PrivatePIN": "1234",
         "WebRelay": "0",
-        "ScheduleRelay": "1001-1;",
+        "ScheduleRelay": "1001-1",
         "LiftFloorNum": "0",
     }
     user = User.from_api_response(data)
@@ -300,7 +300,7 @@ def test_user_to_api_payload_add() -> None:
     assert payload["UserID"] == "2001"
     assert payload["PrivatePIN"] == "1234"
     assert payload["WebRelay"] == "0"
-    assert payload["ScheduleRelay"] == "1001-1;"
+    assert payload["ScheduleRelay"] == "1001-1"
     assert payload["LiftFloorNum"] == "0"
 
 
@@ -310,7 +310,7 @@ def test_user_to_api_payload_excludes_none() -> None:
         "Name": "Bob",
         "UserID": "2002",
         "WebRelay": "0",
-        "ScheduleRelay": "1001-1;",
+        "ScheduleRelay": "1001-1",
     }
     user = User.from_api_response(data)
     payload = user.to_api_payload()
@@ -329,7 +329,7 @@ def test_user_to_api_payload_all_optional_fields() -> None:
         "PrivatePIN": "1234",
         "CardCode": "RFID999",
         "WebRelay": "0",
-        "ScheduleRelay": "1001-1;",
+        "ScheduleRelay": "1001-1",
         "LiftFloorNum": "3",
         "Type": "admin",
         "Source": "web",

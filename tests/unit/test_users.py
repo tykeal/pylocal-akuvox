@@ -28,7 +28,7 @@ _USER_GET_RESPONSE: dict[str, object] = {
                 "Name": "Alice",
                 "UserID": "2001",
                 "WebRelay": "0",
-                "ScheduleRelay": "1001-1;",
+                "ScheduleRelay": "1001-1",
                 "LiftFloorNum": "0",
                 "PrivatePIN": "",
                 "CardCode": "",
@@ -117,12 +117,17 @@ def test_validate_pin_7_digits() -> None:
 
 def test_validate_schedule_relay_valid_single() -> None:
     """Verify single schedule-relay pair is accepted."""
-    validate_schedule_relay("1001-1;")
+    validate_schedule_relay("1001-1")
 
 
 def test_validate_schedule_relay_valid_multiple() -> None:
     """Verify multiple schedule-relay pairs are accepted."""
-    validate_schedule_relay("1001-1;1002-2;")
+    validate_schedule_relay("1001-1,1002-2")
+
+
+def test_validate_schedule_relay_trailing_comma() -> None:
+    """Verify trailing comma is tolerated."""
+    validate_schedule_relay("1001-1,1002-2,")
 
 
 def test_validate_schedule_relay_none_allowed() -> None:
@@ -139,16 +144,16 @@ def test_validate_schedule_relay_empty_allowed() -> None:
     validate_schedule_relay("")
 
 
-def test_validate_schedule_relay_missing_semicolon() -> None:
-    """Verify missing trailing semicolon is rejected."""
+def test_validate_schedule_relay_semicolon_rejected() -> None:
+    """Verify semicolon separator is rejected (comma is correct)."""
     with pytest.raises(AkuvoxValidationError, match="schedule_relay"):
-        validate_schedule_relay("1001-1")
+        validate_schedule_relay("1001-1;1002-2;")
 
 
 def test_validate_schedule_relay_invalid_format() -> None:
     """Verify non-numeric format is rejected."""
     with pytest.raises(AkuvoxValidationError, match="schedule_relay"):
-        validate_schedule_relay("abc-xyz;")
+        validate_schedule_relay("abc-xyz")
 
 
 # -- T027: User CRUD operation tests --
@@ -171,7 +176,7 @@ async def test_add_user_posts_to_correct_endpoint() -> None:
                 name="Alice",
                 user_id="2001",
                 web_relay="0",
-                schedule_relay="1001-1;",
+                schedule_relay="1001-1",
                 lift_floor_num="0",
             )
 
@@ -184,7 +189,7 @@ async def test_add_user_posts_to_correct_endpoint() -> None:
         assert item["Name"] == "Alice"
         assert item["UserID"] == "2001"
         assert item["WebRelay"] == "0"
-        assert item["ScheduleRelay"] == "1001-1;"
+        assert item["ScheduleRelay"] == "1001-1"
         assert item["LiftFloorNum"] == "0"
 
 
@@ -206,7 +211,7 @@ async def test_add_user_with_pin() -> None:
                 user_id="2001",
                 private_pin="1234",
                 web_relay="0",
-                schedule_relay="1001-1;",
+                schedule_relay="1001-1",
                 lift_floor_num="0",
             )
 
@@ -220,7 +225,7 @@ async def test_add_user_invalid_pin_raises_validation_error() -> None:
                 user_id="2001",
                 private_pin="12ab",
                 web_relay="0",
-                schedule_relay="1001-1;",
+                schedule_relay="1001-1",
                 lift_floor_num="0",
             )
 
@@ -294,7 +299,7 @@ async def test_list_users_posts_to_correct_endpoint() -> None:
                             "PrivatePIN": "1234",
                             "CardCode": "",
                             "WebRelay": "0",
-                            "ScheduleRelay": "1001-1;",
+                            "ScheduleRelay": "1001-1",
                             "LiftFloorNum": "0",
                             "Type": "ordinary",
                             "Source": "web",
@@ -305,7 +310,7 @@ async def test_list_users_posts_to_correct_endpoint() -> None:
                             "Name": "Bob",
                             "UserID": "2002",
                             "WebRelay": "0",
-                            "ScheduleRelay": "1001-1;",
+                            "ScheduleRelay": "1001-1",
                         },
                     ],
                 },
@@ -338,7 +343,7 @@ async def test_list_users_paginated() -> None:
                             "Name": "Alice",
                             "UserID": "2001",
                             "WebRelay": "0",
-                            "ScheduleRelay": "1001-1;",
+                            "ScheduleRelay": "1001-1",
                         },
                     ],
                 },
@@ -430,7 +435,7 @@ async def test_add_user_duplicate_returns_device_error() -> None:
                     name="Alice",
                     user_id="2001",
                     web_relay="0",
-                    schedule_relay="1001-1;",
+                    schedule_relay="1001-1",
                     lift_floor_num="0",
                 )
 
@@ -452,7 +457,7 @@ async def test_add_user_with_card_code() -> None:
                 name="Alice",
                 user_id="2001",
                 web_relay="0",
-                schedule_relay="1001-1;",
+                schedule_relay="1001-1",
                 lift_floor_num="0",
                 card_code="RFID1234",
             )
@@ -492,7 +497,7 @@ async def test_modify_user_all_fields() -> None:
                 private_pin="9999",
                 card_code="NEW_CARD",
                 web_relay="1",
-                schedule_relay="1002-2;",
+                schedule_relay="1002-2",
                 lift_floor_num="5",
             )
 
@@ -550,7 +555,7 @@ async def test_add_user_empty_name_raises() -> None:
                 name="",
                 user_id="2001",
                 web_relay="0",
-                schedule_relay="1001-1;",
+                schedule_relay="1001-1",
                 lift_floor_num="0",
             )
 
@@ -563,7 +568,7 @@ async def test_add_user_empty_user_id_raises() -> None:
                 name="Alice",
                 user_id="",
                 web_relay="0",
-                schedule_relay="1001-1;",
+                schedule_relay="1001-1",
                 lift_floor_num="0",
             )
 
@@ -584,7 +589,7 @@ async def test_add_user_without_web_relay() -> None:
             await device.add_user(
                 name="Alice",
                 user_id="2001",
-                schedule_relay="1001-1;",
+                schedule_relay="1001-1",
                 lift_floor_num="0",
             )
 
@@ -616,7 +621,7 @@ async def test_list_users_non_dict_items_skipped() -> None:
                             "Name": "Alice",
                             "UserID": "2001",
                             "WebRelay": "0",
-                            "ScheduleRelay": "1001-1;",
+                            "ScheduleRelay": "1001-1",
                         },
                         "not-a-dict",
                         42,

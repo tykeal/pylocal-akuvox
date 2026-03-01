@@ -238,7 +238,7 @@ async def test_add_user(device: AkuvoxDevice) -> str | None:
             user_id=test_user_id,
             private_pin="1234",
             web_relay="0",
-            schedule_relay="1001-1;",
+            schedule_relay="1001-1",
             lift_floor_num="0",
         )
         print(f"  Added user: {test_name} (UserID={test_user_id}, PIN=1234)")
@@ -377,7 +377,7 @@ async def test_validation() -> None:
             user_id="0001",
             private_pin="12ab",
             web_relay="0",
-            schedule_relay="1001-1;",
+            schedule_relay="1001-1",
             lift_floor_num="0",
         ),
     )
@@ -387,7 +387,7 @@ async def test_validation() -> None:
             name="",
             user_id="0001",
             web_relay="0",
-            schedule_relay="1001-1;",
+            schedule_relay="1001-1",
             lift_floor_num="0",
         ),
     )

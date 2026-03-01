@@ -59,7 +59,7 @@ async def test_manage_users() -> None:
                     "PrivatePIN": "1234",
                     "CardCode": "",
                     "WebRelay": "0",
-                    "ScheduleRelay": "1001-1;",
+                    "ScheduleRelay": "1001-1",
                     "LiftFloorNum": "0",
                 }
             ],
@@ -83,7 +83,7 @@ async def test_manage_users() -> None:
                 user_id="2001",
                 private_pin="1234",
                 web_relay="0",
-                schedule_relay="1001-1;",
+                schedule_relay="1001-1",
                 lift_floor_num="0",
             )
             users = await device.list_users()
@@ -272,6 +272,6 @@ async def test_error_handling_validation() -> None:
                 user_id="2002",
                 private_pin="12ab",
                 web_relay="0",
-                schedule_relay="1001-1;",
+                schedule_relay="1001-1",
                 lift_floor_num="0",
             )

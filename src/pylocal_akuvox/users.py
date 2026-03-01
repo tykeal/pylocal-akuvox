@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from pylocal_akuvox._http import AkuvoxHttpClient
 
 _PIN_PATTERN = re.compile(r"^[0-9]{4,8}$")
-_SCHEDULE_RELAY_PATTERN = re.compile(r"^([0-9]+-[0-9]+;)+$")
+_SCHEDULE_RELAY_PATTERN = re.compile(r"^[0-9]+-[0-9]+(,[0-9]+-[0-9]+)*,?$")
 
 
 def _mutation_body(action: str, item: dict[str, Any]) -> dict[str, Any]:
@@ -40,14 +40,20 @@ def validate_pin(pin: str | None) -> None:
 
 
 def validate_schedule_relay(schedule_relay: str | None) -> None:
-    """Validate schedule_relay matches <int>-<int>; pattern.
+    """Validate schedule_relay matches comma-separated pairs.
 
-    None and empty string are allowed.
+    Expected format: ``<ScheduleID>-<RelayID>`` with multiple
+    entries separated by commas.  A single trailing comma is
+    tolerated.  None and empty string are allowed.
     """
     if schedule_relay is None or schedule_relay == "":
         return
     if not _SCHEDULE_RELAY_PATTERN.match(schedule_relay):
-        msg = "schedule_relay must match '<ScheduleID>-<RelayID>;' pattern"
+        msg = (
+            "schedule_relay must be comma-separated "
+            "'<ScheduleID>-<RelayID>' pairs "
+            "(e.g. '1001-1,1002-2'), optional trailing comma"
+        )
         raise AkuvoxValidationError(msg)
 
 
