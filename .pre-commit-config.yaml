@@ -66,7 +66,7 @@ repos:
       - id: trailing-whitespace
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: 76b3d32d3f4b965e1d6425253c59407420ae2c43  # frozen: v0.47.0
+    rev: e72a3ca1632f0b11a07d171449fe447a7ff6795e  # frozen: v0.48.0
     hooks:
       - id: markdownlint
         args: ["--fix"]
@@ -94,7 +94,7 @@ repos:
           ^.specify/scripts/
 
   - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
-    rev: 694e2c0dfb4253d51f3c6c54b8f9fec0a16764dc  # frozen: v1.7.11.24
+    rev: c04ed26e40637cab1aa9879c693832a9c120fb20  # frozen: v1.7.12.24
     hooks:
       - id: actionlint
 
@@ -110,7 +110,7 @@ repos:
           ]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: a27a2e47c7751b639d2b5badf0ef6ff11fee893f  # frozen: v0.15.4
+    rev: b831c3dc5d27d9da294ae4e915773b99aa24a7c5  # frozen: v0.15.10
     hooks:
       - id: ruff-check
         args: [--fix, --exit-non-zero-on-fix]
@@ -146,7 +146,7 @@ repos:
 
   # Check for misspellings in documentation files
   - repo: https://github.com/codespell-project/codespell
-    rev: 63c8f8312b7559622c0d82815639671ae42132ac # frozen: v2.4.1
+    rev: 2ccb47ff45ad361a21071a7eedda4c37e6ae8c5a  # frozen: v2.4.2
     hooks:
       - id: codespell
 
@@ -166,7 +166,7 @@ repos:
           - setuptools
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: a66e98df7b4aeeb3724184b332785976d062b92e  # frozen: v1.19.1
+    rev: 0f369d245750787ce34997d464ed9605391a5283  # frozen: v1.20.1
     hooks:
       - id: mypy
         verbose: true
