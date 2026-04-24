@@ -30,6 +30,8 @@ uv run ruff check src/ tests/
 Python ≥3.13.2: Follow standard conventions
 
 ## Recent Changes
+- 003-group-management: Added group CRUD operations
+  (list, add, modify, delete) for device access groups
 - 002-device-config: Introduced device configuration support
   using aiohttp-based async HTTP client
 - 001-akuvox-http-library: Akuvox local HTTP API library

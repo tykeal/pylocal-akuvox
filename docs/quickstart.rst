@@ -115,6 +115,32 @@ Manage Schedules
 
    asyncio.run(main())
 
+Manage Groups
+-------------
+
+.. code-block:: python
+
+   import asyncio
+   from pylocal_akuvox import AkuvoxDevice
+
+   async def main():
+       async with AkuvoxDevice("192.168.1.100") as device:
+           # List existing groups
+           groups = await device.list_groups()
+           for g in groups:
+               print(f"[{g.id}] {g.name}")
+
+           # Create a new group
+           await device.add_group(name="Residents")
+
+           # Rename a group
+           await device.modify_group(id="1", name="Tenants")
+
+           # Delete a group
+           await device.delete_group(id="1")
+
+   asyncio.run(main())
+
 Retrieve Logs
 -------------
 

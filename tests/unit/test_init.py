@@ -48,3 +48,15 @@ def test_version_fallback() -> None:
 
         mod = imp.reload(pylocal_akuvox)
         assert mod.__version__ == "0.0.0"
+
+
+def test_group_in_all() -> None:
+    """Verify Group is exported in __all__."""
+    assert "Group" in pylocal_akuvox.__all__
+
+
+def test_group_importable() -> None:
+    """Verify Group is importable from pylocal_akuvox."""
+    from pylocal_akuvox import Group
+
+    assert Group is not None

@@ -17,6 +17,7 @@ if TYPE_CHECKING:
         CallLogEntry,
         DeviceConfig,
         DoorLogEntry,
+        Group,
         User,
     )
 
@@ -258,6 +259,39 @@ class AkuvoxDevice:
         from pylocal_akuvox import schedules
 
         await schedules.delete_schedule(self._http, id=id)
+
+    async def list_groups(
+        self,
+        *,
+        page: int | None = None,
+    ) -> list[Group]:
+        """List groups from the device."""
+        from pylocal_akuvox import groups
+
+        return await groups.list_groups(self._http, page=page)
+
+    async def add_group(self, *, name: str) -> None:
+        """Add a group to the device."""
+        from pylocal_akuvox import groups
+
+        await groups.add_group(self._http, name=name)
+
+    async def modify_group(
+        self,
+        *,
+        id: str,
+        name: str,
+    ) -> None:
+        """Modify an existing group on the device."""
+        from pylocal_akuvox import groups
+
+        await groups.modify_group(self._http, id=id, name=name)
+
+    async def delete_group(self, *, id: str) -> None:
+        """Delete a group from the device."""
+        from pylocal_akuvox import groups
+
+        await groups.delete_group(self._http, id=id)
 
     async def get_door_logs(self, *, page: int | None = None) -> list[DoorLogEntry]:
         """Retrieve door access logs from the device."""
