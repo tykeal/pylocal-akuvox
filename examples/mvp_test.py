@@ -180,6 +180,16 @@ async def test_list_groups(device: AkuvoxDevice) -> None:
     print("  ✓ list_groups() OK")
 
 
+async def test_list_contacts(device: AkuvoxDevice) -> None:
+    """Test: List all contacts."""
+    print_header("LIST CONTACTS (/api/contact/get)")
+    contacts = await device.list_contacts()
+    print(f"  Found {len(contacts)} contact(s)")
+    for c in contacts:
+        print(f"    ID={c.id}  Name={c.name}  Phone={c.phone}  Group={c.group}")
+    print("  ✓ list_contacts() OK")
+
+
 async def test_get_door_logs(device: AkuvoxDevice) -> None:
     """Test: Retrieve door access logs."""
     print_header("GET DOOR LOGS (/api/doorlog/get)")
@@ -392,6 +402,60 @@ async def test_delete_group(
     await asyncio.sleep(_MUTATION_SETTLE_SECS)
 
 
+async def test_add_contact(device: AkuvoxDevice) -> str | None:
+    """Test: Add a contact and return its internal ID."""
+    print_header("ADD CONTACT (/api/contact/set action:add)")
+    try:
+        await device.add_contact(
+            name="__test_contact__",
+            phone="5550000",
+            group="Default",
+        )
+        print("  Sent add_contact(name='__test_contact__')")
+        print("  ✓ add_contact() OK")
+    except AkuvoxDeviceError as exc:
+        print(f"  ✗ Device rejected add_contact: {exc}")
+        return None
+
+    await asyncio.sleep(_MUTATION_SETTLE_SECS)
+    contacts = await device.list_contacts()
+    for c in contacts:
+        if c.name == "__test_contact__" and c.id is not None:
+            print(f"  → Assigned internal ID: {c.id}")
+            return c.id
+    print("  ⚠ Contact created but not found in list")
+    return None
+
+
+async def test_delete_contact(
+    device: AkuvoxDevice,
+    internal_id: str,
+) -> None:
+    """Test: Delete the test contact."""
+    print_header("DELETE CONTACT (/api/contact/set action:del)")
+    await device.delete_contact(id=internal_id)
+    print(f"  Deleted contact ID={internal_id}")
+    print("  ✓ delete_contact() OK")
+    await asyncio.sleep(_MUTATION_SETTLE_SECS)
+
+
+async def test_modify_contact(
+    device: AkuvoxDevice,
+    internal_id: str,
+) -> None:
+    """Test: Modify a contact's group membership."""
+    print_header("MODIFY CONTACT (/api/contact/set action:set)")
+    await device.modify_contact(id=internal_id, group="Default")
+    print(f"  Modified contact ID={internal_id} group→Default")
+    await asyncio.sleep(_MUTATION_SETTLE_SECS)
+    contacts = await device.list_contacts()
+    for c in contacts:
+        if c.id == internal_id:
+            print(f"  → Group is now: {c.group}")
+            break
+    print("  ✓ modify_contact() OK")
+
+
 async def _check_validation(label: str, coro: Coroutine[object, object, None]) -> None:
     """Run a single validation check and print the result."""
     try:
@@ -474,6 +538,10 @@ async def test_validation() -> None:
         "Empty group modify name rejected",
         device.modify_group(id="1", name=""),
     )
+    await _check_validation(
+        "Empty contact name rejected",
+        device.add_contact(name=""),
+    )
 
     print("  ✓ All validation checks passed")
 
@@ -507,6 +575,7 @@ async def _run_read_tests(device: AkuvoxDevice) -> None:
     await test_discover_config_keys(device)
     await test_list_schedules(device)
     await test_list_groups(device)
+    await test_list_contacts(device)
     await test_get_door_logs(device)
     await test_get_call_logs(device)
 
@@ -601,6 +670,24 @@ async def _run_write_tests(device_kwargs: dict[str, Any]) -> None:
                 print("  ✓ Group successfully removed")
             else:
                 print("  ✗ Group still present after delete!")
+
+    # Cooldown before contact tests
+    print("\n  ⏳ Waiting for device to settle…")
+    await asyncio.sleep(_MUTATION_SETTLE_SECS * 3)
+
+    async with AkuvoxDevice(**device_kwargs) as device:
+        # Contact add + modify + delete
+        contact_id = await test_add_contact(device)
+        if contact_id:
+            await test_modify_contact(device, contact_id)
+            await test_delete_contact(device, contact_id)
+            print_header("VERIFY CONTACT DELETION")
+            contacts = await device.list_contacts()
+            found = any(c.id == contact_id for c in contacts)
+            if not found:
+                print("  ✓ Contact successfully removed")
+            else:
+                print("  ✗ Contact still present after delete!")
 
     # Cooldown before read tests
     print("\n  ⏳ Waiting for device to settle…")

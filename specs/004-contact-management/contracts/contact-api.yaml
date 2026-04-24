@@ -1,0 +1,322 @@
+# SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
+# SPDX-License-Identifier: Apache-2.0
+#
+# Contact Management API Contract
+#
+# Documents the contact CRUD endpoints used by the 004-contact-management
+# feature. Verified via live device testing (2026-07-22).
+---
+openapi: "3.0.1"
+info:
+  title: "Contact Management API (Client Contract)"
+  description: >
+    Contact CRUD endpoints for Akuvox devices. Contacts represent
+    address book / directory entries with name, phone, and group
+    assignment. Contacts are separate from users (who have access
+    control credentials). Group assignment is writable on contacts,
+    enabling group membership management.
+  version: "1.0.0"
+
+paths:
+  /api/contact/get:
+    get:
+      summary: "List all contacts"
+      operationId: listContacts
+      description: >
+        Returns all contacts configured on the device. Supports
+        pagination via the `page` query parameter.
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          description: "Page number for paginated retrieval"
+      responses:
+        "200":
+          description: "Contacts retrieved"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContactListResponse"
+              examples:
+                populated:
+                  summary: "Device with contacts"
+                  value:
+                    retcode: 0
+                    action: "get"
+                    message: "OK"
+                    data:
+                      num: 2
+                      item:
+                        - ID: "1"
+                          Name: "Alice"
+                          Phone: "555-0100"
+                          Group: "Residents"
+                        - ID: "2"
+                          Name: "Bob"
+                          Phone: ""
+                          Group: "Default"
+                empty:
+                  summary: "Device with no contacts"
+                  value:
+                    retcode: 0
+                    action: "get"
+                    message: "OK"
+                    data:
+                      num: 0
+                      item: []
+        "401":
+          description: "Authentication required"
+
+  /api/contact/set:
+    post:
+      summary: "Add, modify, or delete contacts"
+      operationId: mutateContact
+      description: >
+        Single mutation endpoint for all contact operations. The
+        `action` field in the request body determines the operation:
+        `add` (create), `set` (modify), or `del` (delete). This
+        matches the user management pattern (single endpoint with
+        action routing), NOT the group management pattern (separate
+        endpoints per action).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactMutationRequest"
+            examples:
+              add:
+                summary: "Add a contact"
+                value:
+                  target: "contact"
+                  action: "add"
+                  data:
+                    item:
+                      - Name: "Alice"
+                        Phone: "555-0100"
+                        Group: "Residents"
+              add_name_only:
+                summary: "Add with name only (device defaults)"
+                value:
+                  target: "contact"
+                  action: "add"
+                  data:
+                    item:
+                      - Name: "Bob"
+              modify:
+                summary: "Modify a contact (full record required)"
+                value:
+                  target: "contact"
+                  action: "set"
+                  data:
+                    item:
+                      - ID: "1"
+                        Name: "Alice"
+                        Phone: "555-0200"
+                        Group: "Staff"
+              delete_single:
+                summary: "Delete a single contact"
+                value:
+                  target: "contact"
+                  action: "del"
+                  data:
+                    item:
+                      - ID: "1"
+              delete_batch:
+                summary: "Batch delete multiple contacts"
+                value:
+                  target: "contact"
+                  action: "del"
+                  data:
+                    item:
+                      - ID: "1"
+                      - ID: "2"
+                      - ID: "3"
+      responses:
+        "200":
+          description: "Mutation completed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContactMutationResponse"
+              examples:
+                add_success:
+                  summary: "Contact added successfully"
+                  value:
+                    retcode: 0
+                    action: "add"
+                    message: "OK"
+                    data:
+                      num: 1
+                      item:
+                        - ID: "3"
+                          Name: "Alice"
+                          Phone: "555-0100"
+                          Group: "Residents"
+                          Ret: 0
+                modify_success:
+                  summary: "Contact modified successfully"
+                  value:
+                    retcode: 0
+                    action: "set"
+                    message: "OK"
+                    data:
+                      num: 1
+                      item:
+                        - ID: "1"
+                          Name: "Alice"
+                          Phone: "555-0200"
+                          Group: "Staff"
+                          Ret: 0
+                modify_not_found:
+                  summary: "Modify non-existent ID"
+                  value:
+                    retcode: -1
+                    action: "set"
+                    message: "Error"
+                    data:
+                      num: 1
+                      item:
+                        - ID: "999"
+                          Ret: -7
+                delete_success:
+                  summary: "Contact deleted"
+                  value:
+                    retcode: 0
+                    action: "del"
+                    message: "OK"
+                    data:
+                      num: 1
+                      item:
+                        - ID: "1"
+                          Ret: 0
+                delete_not_found:
+                  summary: "Delete non-existent ID"
+                  value:
+                    retcode: -1
+                    action: "del"
+                    message: "Error"
+                    data:
+                      num: 1
+                      item:
+                        - ID: "999"
+                          Ret: -7
+                add_nonexistent_group:
+                  summary: "Add with non-existent group (device defaults)"
+                  value:
+                    retcode: 0
+                    action: "add"
+                    message: "OK"
+                    data:
+                      num: 1
+                      item:
+                        - ID: "4"
+                          Name: "Charlie"
+                          Phone: ""
+                          Group: "Default"
+                          Ret: 0
+        "401":
+          description: "Authentication required"
+
+components:
+  schemas:
+    ContactListResponse:
+      type: object
+      required: [retcode]
+      properties:
+        retcode:
+          type: integer
+          description: "0 = success, negative = error"
+        action:
+          type: string
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            num:
+              type: integer
+              description: "Total number of contacts"
+            item:
+              type: array
+              items:
+                $ref: "#/components/schemas/ContactItem"
+
+    ContactItem:
+      type: object
+      required: [Name]
+      properties:
+        ID:
+          type: string
+          description: "Device-assigned internal identifier"
+        Name:
+          type: string
+          description: "Human-readable contact name"
+        Phone:
+          type: string
+          description: "Phone number (empty string if unset)"
+        Group:
+          type: string
+          description: >
+            Group name. Defaults to "Default" if omitted or if
+            specified group does not exist. Writable on contacts
+            (unlike users where Group is read-only).
+
+    ContactMutationRequest:
+      type: object
+      required: [target, action, data]
+      properties:
+        target:
+          type: string
+          enum: ["contact"]
+        action:
+          type: string
+          enum: ["add", "set", "del"]
+          description: >
+            All actions go through the single /api/contact/set
+            endpoint. The action field routes the request.
+        data:
+          type: object
+          required: [item]
+          properties:
+            item:
+              type: array
+              description: >
+                Array of contact items. For add/set, each item
+                contains the contact fields. For del, each item
+                contains only the ID. Batch operations (multiple
+                items) are supported for delete.
+              items:
+                $ref: "#/components/schemas/ContactItem"
+
+    ContactMutationResponse:
+      type: object
+      required: [retcode]
+      properties:
+        retcode:
+          type: integer
+          description: "0 = success, negative = error"
+        action:
+          type: string
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            num:
+              type: integer
+            item:
+              type: array
+              items:
+                allOf:
+                  - $ref: "#/components/schemas/ContactItem"
+                  - type: object
+                    properties:
+                      Ret:
+                        type: integer
+                        description: >
+                          Per-item result code. 0 = success.
+                          -7 = contact not found (modify/delete).
