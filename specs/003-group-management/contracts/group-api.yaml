@@ -1,0 +1,289 @@
+# SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
+# SPDX-License-Identifier: Apache-2.0
+#
+# Group Management API Contract
+#
+# Documents the group CRUD endpoints used by the 003-group-management
+# feature. Verified via live device testing (2026-04-24).
+---
+openapi: "3.0.1"
+info:
+  title: "Group Management API (Client Contract)"
+  description: >
+    Group CRUD endpoints for Akuvox devices. Groups organize users
+    for access control. The model is minimal: only ID (device-assigned)
+    and Name (human-readable label).
+  version: "1.0.0"
+
+paths:
+  /api/group/get:
+    get:
+      summary: "List all groups"
+      operationId: listGroups
+      description: >
+        Returns all groups configured on the device. Supports
+        pagination via the `page` query parameter.
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          description: "Page number for paginated retrieval"
+      responses:
+        "200":
+          description: "Groups retrieved"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupListResponse"
+              examples:
+                populated:
+                  summary: "Device with groups"
+                  value:
+                    retcode: 0
+                    action: "get"
+                    message: "OK"
+                    data:
+                      num: 2
+                      item:
+                        - ID: "1"
+                          Name: "Residents"
+                        - ID: "2"
+                          Name: "Visitors"
+                empty:
+                  summary: "Device with no groups"
+                  value:
+                    retcode: 0
+                    action: "get"
+                    message: "OK"
+                    data:
+                      num: 0
+                      item: []
+        "401":
+          description: "Authentication required"
+
+  /api/group/add:
+    post:
+      summary: "Add a new group"
+      operationId: addGroup
+      description: >
+        Creates a new group on the device. The device assigns the
+        internal ID automatically. Name is the only required field.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupMutationRequest"
+            example:
+              target: "group"
+              action: "add"
+              data:
+                item:
+                  - Name: "Staff"
+      responses:
+        "200":
+          description: "Group added"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupMutationResponse"
+              examples:
+                success:
+                  summary: "Group created successfully"
+                  value:
+                    retcode: 0
+                    action: "add"
+                    message: "OK"
+                    data:
+                      num: 1
+                      item:
+                        - ID: "3"
+                          Name: "Staff"
+                          Ret: 0
+                empty_name:
+                  summary: "Empty name rejected"
+                  value:
+                    retcode: -1
+                    action: "add"
+                    message: "Error"
+                    data:
+                      num: 1
+                      item:
+                        - Name: ""
+                          Ret: 14
+        "401":
+          description: "Authentication required"
+
+  /api/group/set:
+    post:
+      summary: "Modify an existing group"
+      operationId: modifyGroup
+      description: >
+        Updates an existing group identified by internal ID.
+        Since the model has only ID + Name, the full payload
+        is sent directly (no fetch-merge-write needed).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupMutationRequest"
+            example:
+              target: "group"
+              action: "set"
+              data:
+                item:
+                  - ID: "1"
+                    Name: "Updated Residents"
+      responses:
+        "200":
+          description: "Group modified"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupMutationResponse"
+              examples:
+                success:
+                  summary: "Group modified successfully"
+                  value:
+                    retcode: 0
+                    action: "set"
+                    message: "OK"
+                    data:
+                      num: 1
+                      item:
+                        - ID: "1"
+                          Name: "Updated Residents"
+                          Ret: 0
+                not_found:
+                  summary: "Non-existent ID"
+                  value:
+                    retcode: -1
+                    action: "set"
+                    message: "Error"
+                    data:
+                      num: 1
+                      item:
+                        - ID: "999"
+                          Name: "Ghost"
+                          Ret: -4
+        "401":
+          description: "Authentication required"
+
+  /api/group/del:
+    post:
+      summary: "Delete a group"
+      operationId: deleteGroup
+      description: >
+        Removes a group from the device by internal ID. Delete is
+        idempotent: deleting a non-existent ID returns success.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupMutationRequest"
+            example:
+              target: "group"
+              action: "del"
+              data:
+                item:
+                  - ID: "1"
+      responses:
+        "200":
+          description: "Group deleted"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupMutationResponse"
+              example:
+                retcode: 0
+                action: "del"
+                message: "OK"
+                data: {}
+        "401":
+          description: "Authentication required"
+
+components:
+  schemas:
+    GroupListResponse:
+      type: object
+      required: [retcode]
+      properties:
+        retcode:
+          type: integer
+          description: "0 = success, negative = error"
+        action:
+          type: string
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            num:
+              type: integer
+              description: "Total number of groups"
+            item:
+              type: array
+              items:
+                $ref: "#/components/schemas/GroupItem"
+
+    GroupItem:
+      type: object
+      required: [Name]
+      properties:
+        ID:
+          type: string
+          description: "Device-assigned internal identifier"
+        Name:
+          type: string
+          description: "Human-readable group name"
+
+    GroupMutationRequest:
+      type: object
+      required: [target, action, data]
+      properties:
+        target:
+          type: string
+          enum: ["group"]
+        action:
+          type: string
+          enum: ["add", "set", "del"]
+        data:
+          type: object
+          required: [item]
+          properties:
+            item:
+              type: array
+              items:
+                $ref: "#/components/schemas/GroupItem"
+
+    GroupMutationResponse:
+      type: object
+      required: [retcode]
+      properties:
+        retcode:
+          type: integer
+          description: "0 = success, negative = error"
+        action:
+          type: string
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            num:
+              type: integer
+            item:
+              type: array
+              items:
+                allOf:
+                  - $ref: "#/components/schemas/GroupItem"
+                  - type: object
+                    properties:
+                      Ret:
+                        type: integer
+                        description: "Per-item result code (0 = success)"
