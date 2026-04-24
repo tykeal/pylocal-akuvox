@@ -10,6 +10,7 @@ API Reference
 
    device
    models
+   groups
    config
    auth
    exceptions
