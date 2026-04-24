@@ -11,6 +11,7 @@ from pylocal_akuvox.models import (
     DeviceInfo,
     DeviceStatus,
     DoorLogEntry,
+    Group,
     Relay,
     User,
 )
@@ -805,3 +806,82 @@ def test_device_config_is_frozen() -> None:
     cfg = DeviceConfig.from_api_response({"Key.A": "val"})
     with pytest.raises(AttributeError):
         cfg.data = {}  # type: ignore[misc]
+
+
+# -- Group model tests (T001–T003) --
+
+
+def test_group_creation_with_name_and_id() -> None:
+    """Verify Group created with both name and id."""
+    g = Group(name="Residents", id="1")
+    assert g.name == "Residents"
+    assert g.id == "1"
+
+
+def test_group_creation_name_only() -> None:
+    """Verify Group created with name only; id defaults to None."""
+    g = Group(name="Visitors")
+    assert g.name == "Visitors"
+    assert g.id is None
+
+
+def test_group_is_frozen() -> None:
+    """Verify Group is immutable."""
+    g = Group(name="Staff", id="2")
+    with pytest.raises(AttributeError):
+        g.name = "Changed"  # type: ignore[misc]
+
+
+def test_group_kw_only() -> None:
+    """Verify Group requires keyword arguments."""
+    with pytest.raises(TypeError):
+        Group("Staff")  # type: ignore[misc]
+
+
+def test_group_from_api_response_valid() -> None:
+    """Verify from_api_response parses ID and Name."""
+    g = Group.from_api_response({"ID": "3", "Name": "Guards"})
+    assert g.name == "Guards"
+    assert g.id == "3"
+
+
+def test_group_from_api_response_missing_name_raises() -> None:
+    """Verify missing Name raises AkuvoxParseError."""
+    from pylocal_akuvox.exceptions import AkuvoxParseError
+
+    with pytest.raises(AkuvoxParseError, match="Name"):
+        Group.from_api_response({"ID": "1"})
+
+
+def test_group_from_api_response_id_defaults_none() -> None:
+    """Verify optional ID defaults to None."""
+    g = Group.from_api_response({"Name": "Open"})
+    assert g.id is None
+    assert g.name == "Open"
+
+
+def test_group_from_api_response_extra_fields_ignored() -> None:
+    """Verify extra fields are silently ignored."""
+    g = Group.from_api_response({"ID": "5", "Name": "VIP", "Extra": "ignored"})
+    assert g.name == "VIP"
+    assert g.id == "5"
+
+
+def test_group_to_api_payload_with_id() -> None:
+    """Verify to_api_payload includes ID when present."""
+    g = Group(name="Staff", id="2")
+    assert g.to_api_payload() == {"ID": "2", "Name": "Staff"}
+
+
+def test_group_to_api_payload_without_id() -> None:
+    """Verify to_api_payload omits ID when None."""
+    g = Group(name="Visitors")
+    assert g.to_api_payload() == {"Name": "Visitors"}
+
+
+def test_group_to_api_payload_name_always_present() -> None:
+    """Verify Name is always in the payload."""
+    g = Group(name="A")
+    payload = g.to_api_payload()
+    assert "Name" in payload
+    assert payload["Name"] == "A"

@@ -24,6 +24,7 @@ from pylocal_akuvox.models import (
     DeviceInfo,
     DeviceStatus,
     DoorLogEntry,
+    Group,
     Relay,
     User,
 )
@@ -49,10 +50,11 @@ __all__: list[str] = [
     "AuthConfig",
     "AuthMethod",
     "CallLogEntry",
+    "DeviceConfig",
     "DeviceInfo",
     "DeviceStatus",
     "DoorLogEntry",
+    "Group",
     "Relay",
-    "DeviceConfig",
     "User",
 ]
