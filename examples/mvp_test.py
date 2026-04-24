@@ -170,6 +170,16 @@ async def test_list_schedules(device: AkuvoxDevice) -> None:
     print("  ✓ list_schedules() OK")
 
 
+async def test_list_groups(device: AkuvoxDevice) -> None:
+    """Test: List all groups."""
+    print_header("LIST GROUPS (/api/group/get)")
+    groups = await device.list_groups()
+    print(f"  Found {len(groups)} group(s)")
+    for grp in groups:
+        print(f"    ID={grp.id}  Name={grp.name}")
+    print("  ✓ list_groups() OK")
+
+
 async def test_get_door_logs(device: AkuvoxDevice) -> None:
     """Test: Retrieve door access logs."""
     print_header("GET DOOR LOGS (/api/doorlog/get)")
@@ -355,6 +365,33 @@ async def test_delete_schedule(device: AkuvoxDevice, internal_id: str) -> None:
     await asyncio.sleep(_MUTATION_SETTLE_SECS)
 
 
+async def test_add_group(device: AkuvoxDevice) -> str | None:
+    """Test: Add a group and return its internal ID."""
+    print_header("ADD GROUP (/api/group/add)")
+    await device.add_group(name="__test_group__")
+    print("  Sent add_group(name='__test_group__')")
+    await asyncio.sleep(_MUTATION_SETTLE_SECS)
+    groups = await device.list_groups()
+    for grp in groups:
+        if grp.name == "__test_group__" and grp.id is not None:
+            print(f"  ✓ add_group() OK — ID={grp.id}")
+            return grp.id
+    print("  ⚠ Group created but not found in list")
+    return None
+
+
+async def test_delete_group(
+    device: AkuvoxDevice,
+    internal_id: str,
+) -> None:
+    """Test: Delete the test group."""
+    print_header("DELETE GROUP (/api/group/del)")
+    await device.delete_group(id=internal_id)
+    print(f"  Deleted group ID={internal_id}")
+    print("  ✓ delete_group() OK")
+    await asyncio.sleep(_MUTATION_SETTLE_SECS)
+
+
 async def _check_validation(label: str, coro: Coroutine[object, object, None]) -> None:
     """Run a single validation check and print the result."""
     try:
@@ -429,6 +466,14 @@ async def test_validation() -> None:
         "Invalid schedule date rejected",
         device.add_schedule(schedule_type="0", date_start="2026-01"),
     )
+    await _check_validation(
+        "Empty group name rejected",
+        device.add_group(name=""),
+    )
+    await _check_validation(
+        "Empty group modify name rejected",
+        device.modify_group(id="1", name=""),
+    )
 
     print("  ✓ All validation checks passed")
 
@@ -461,6 +506,7 @@ async def _run_read_tests(device: AkuvoxDevice) -> None:
     await test_get_device_config(device)
     await test_discover_config_keys(device)
     await test_list_schedules(device)
+    await test_list_groups(device)
     await test_get_door_logs(device)
     await test_get_call_logs(device)
 
@@ -538,6 +584,23 @@ async def _run_write_tests(device_kwargs: dict[str, Any]) -> None:
 
         # Config set + read-back verification
         await test_set_device_config(device)
+
+    # Cooldown before group tests
+    print("\n  ⏳ Waiting for device to settle…")
+    await asyncio.sleep(_MUTATION_SETTLE_SECS * 3)
+
+    async with AkuvoxDevice(**device_kwargs) as device:
+        # Group add + delete
+        group_id = await test_add_group(device)
+        if group_id:
+            await test_delete_group(device, group_id)
+            print_header("VERIFY GROUP DELETION")
+            grps = await device.list_groups()
+            found = any(g.id == group_id for g in grps)
+            if not found:
+                print("  ✓ Group successfully removed")
+            else:
+                print("  ✗ Group still present after delete!")
 
     # Cooldown before read tests
     print("\n  ⏳ Waiting for device to settle…")
