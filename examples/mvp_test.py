@@ -439,6 +439,23 @@ async def test_delete_contact(
     await asyncio.sleep(_MUTATION_SETTLE_SECS)
 
 
+async def test_modify_contact(
+    device: AkuvoxDevice,
+    internal_id: str,
+) -> None:
+    """Test: Modify a contact's group membership."""
+    print_header("MODIFY CONTACT (/api/contact/set action:set)")
+    await device.modify_contact(id=internal_id, group="Default")
+    print(f"  Modified contact ID={internal_id} group→Default")
+    await asyncio.sleep(_MUTATION_SETTLE_SECS)
+    contacts = await device.list_contacts()
+    for c in contacts:
+        if c.id == internal_id:
+            print(f"  → Group is now: {c.group}")
+            break
+    print("  ✓ modify_contact() OK")
+
+
 async def _check_validation(label: str, coro: Coroutine[object, object, None]) -> None:
     """Run a single validation check and print the result."""
     try:
@@ -659,9 +676,10 @@ async def _run_write_tests(device_kwargs: dict[str, Any]) -> None:
     await asyncio.sleep(_MUTATION_SETTLE_SECS * 3)
 
     async with AkuvoxDevice(**device_kwargs) as device:
-        # Contact add + delete
+        # Contact add + modify + delete
         contact_id = await test_add_contact(device)
         if contact_id:
+            await test_modify_contact(device, contact_id)
             await test_delete_contact(device, contact_id)
             print_header("VERIFY CONTACT DELETION")
             contacts = await device.list_contacts()

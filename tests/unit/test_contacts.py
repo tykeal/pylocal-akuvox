@@ -299,6 +299,17 @@ async def test_modify_contact_not_found_raises() -> None:
                 await device.modify_contact(id="999", name="Ghost")
 
 
+@pytest.mark.asyncio
+async def test_modify_contact_no_fields_raises() -> None:
+    """Verify modify_contact raises when no fields are provided."""
+    async with AkuvoxDevice("192.168.1.100") as device:
+        with pytest.raises(
+            AkuvoxValidationError,
+            match="at least one of name, phone, or group",
+        ):
+            await device.modify_contact(id="1")
+
+
 # -- delete_contact tests --
 
 

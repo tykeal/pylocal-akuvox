@@ -102,6 +102,9 @@ async def modify_contact(
     The device requires a full contact record for set operations,
     so this fetches the current record and merges changes.
     """
+    if name is None and phone is None and group is None:
+        msg = "at least one of name, phone, or group is required for modify_contact"
+        raise AkuvoxValidationError(msg)
     current = await _get_contact_by_id(http, id)
     if name is not None:
         current["Name"] = name

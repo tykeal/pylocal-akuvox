@@ -27,15 +27,15 @@ testing (2026-07-22).
 | `name` | `str` | Yes | `Name` | — | Human-readable display name |
 | `id` | `str \| None` | No | `ID` | `None` | Device-assigned; created |
 | | | | | | as `None` |
-| `phone` | `str` | No | `Phone` | `""` | Phone number; empty if unset |
-| `group` | `str` | No | `Group` | `"Default"` | Group membership; writable |
+| `phone` | `str \| None` | No | `Phone` | `None` | Phone; None if unset |
+| `group` | `str \| None` | No | `Group` | `None` | Group membership |
 
 **Design rationale**: `name` is listed first because it is the only
 required field for creation. `id` follows as the identity field
-(device-assigned). `phone` and `group` are optional with device-
-consistent defaults. The `group` field defaults to `"Default"` in
-`from_api_response()` to match device behavior when the field is
-omitted from the response.
+(device-assigned). `phone` and `group` are optional and normalize
+empty strings to `None` in `from_api_response()`. The device itself
+defaults Group to `"Default"` when creating contacts, but the model
+uses `None` for absent or empty values to distinguish unset fields.
 
 **Key differentiator from User**: The `group` field is writable on
 contacts. On users, Group is read-only via the API. This makes
