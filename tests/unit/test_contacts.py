@@ -323,6 +323,60 @@ async def test_modify_contact_not_found_raises() -> None:
 
 
 @pytest.mark.asyncio
+async def test_modify_contact_non_list_items_raises() -> None:
+    """Verify modify_contact raises when item is not a list."""
+    non_list_response: dict[str, object] = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {"num": 0, "item": "not-a-list"},
+    }
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/contact/get?page=1",
+            payload=non_list_response,
+        )
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(
+                AkuvoxDeviceError,
+                match="Contact ID 1 not found",
+            ):
+                await device.modify_contact(id="1", name="Ghost")
+
+
+@pytest.mark.asyncio
+async def test_modify_contact_non_dict_entries_raises() -> None:
+    """Verify modify_contact raises when items contain non-dicts."""
+    non_dict_response: dict[str, object] = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {"num": 2, "item": ["string-entry", 42]},
+    }
+    empty_response: dict[str, object] = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {"num": 0, "item": []},
+    }
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/contact/get?page=1",
+            payload=non_dict_response,
+        )
+        m.get(
+            f"{BASE_URL}/api/contact/get?page=2",
+            payload=empty_response,
+        )
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(
+                AkuvoxDeviceError,
+                match="Contact ID 1 not found",
+            ):
+                await device.modify_contact(id="1", name="Ghost")
+
+
+@pytest.mark.asyncio
 async def test_modify_contact_no_fields_raises() -> None:
     """Verify modify_contact raises when no fields are provided."""
     async with AkuvoxDevice("192.168.1.100") as device:
