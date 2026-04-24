@@ -11,6 +11,7 @@ API Reference
    device
    models
    groups
+   contacts
    config
    auth
    exceptions

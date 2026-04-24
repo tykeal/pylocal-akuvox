@@ -141,6 +141,39 @@ Manage Groups
 
    asyncio.run(main())
 
+Manage Contacts
+---------------
+
+.. code-block:: python
+
+   import asyncio
+   from pylocal_akuvox import AkuvoxDevice
+
+   async def main():
+       async with AkuvoxDevice("192.168.1.100") as device:
+           # List all contacts
+           contacts = await device.list_contacts()
+           for c in contacts:
+               print(f"{c.name} ({c.group}): {c.phone}")
+
+           # Add a contact to a group
+           await device.add_contact(
+               name="Alice",
+               phone="5551234",
+               group="Residents",
+           )
+
+           # Move a contact to another group
+           await device.modify_contact(id="1", group="Staff")
+
+           # Delete a contact
+           await device.delete_contact(id="1")
+
+           # Batch delete
+           await device.delete_contact(id=["2", "3"])
+
+   asyncio.run(main())
+
 Retrieve Logs
 -------------
 

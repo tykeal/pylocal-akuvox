@@ -16,7 +16,7 @@ Key features:
 
 * **Async-only** — designed for ``asyncio`` event loops and Home Assistant
 * **Single runtime dependency** — only ``aiohttp``
-* **Full device management** — users, groups, PINs, relays, schedules, and logs
+* **Full device management** — users, groups, contacts, PINs, relays, schedules, and logs
 * **Multiple auth modes** — None, AllowList, Basic, and Digest
 * **SSL support** — including self-signed certificate handling
 * **Comprehensive error handling** — typed exception hierarchy
