@@ -8,6 +8,7 @@ import pytest
 from pylocal_akuvox.models import (
     AccessSchedule,
     CallLogEntry,
+    Contact,
     DeviceInfo,
     DeviceStatus,
     DoorLogEntry,
@@ -885,3 +886,68 @@ def test_group_to_api_payload_name_always_present() -> None:
     payload = g.to_api_payload()
     assert "Name" in payload
     assert payload["Name"] == "A"
+
+
+# -- Contact model tests --
+
+
+def test_contact_creation() -> None:
+    """Verify Contact created with all fields."""
+    c = Contact(name="Alice", id="1", phone="5551234", group="Default")
+    assert c.name == "Alice"
+    assert c.id == "1"
+    assert c.phone == "5551234"
+    assert c.group == "Default"
+
+
+def test_contact_frozen() -> None:
+    """Verify Contact is immutable."""
+    c = Contact(name="Alice", id="1")
+    with pytest.raises(AttributeError):
+        c.name = "Bob"  # type: ignore[misc]
+
+
+def test_contact_kw_only() -> None:
+    """Verify Contact requires keyword arguments."""
+    with pytest.raises(TypeError):
+        Contact("Alice")  # type: ignore[misc]
+
+
+def test_contact_from_api_response() -> None:
+    """Verify from_api_response parses all fields."""
+    data = {"ID": "1", "Name": "Alice", "Phone": "5551234", "Group": "Default"}
+    c = Contact.from_api_response(data)
+    assert c.name == "Alice"
+    assert c.id == "1"
+    assert c.phone == "5551234"
+    assert c.group == "Default"
+
+
+def test_contact_from_api_response_missing_name() -> None:
+    """Verify missing Name raises AkuvoxParseError."""
+    from pylocal_akuvox.exceptions import AkuvoxParseError
+
+    with pytest.raises(AkuvoxParseError, match="Missing required field"):
+        Contact.from_api_response({"ID": "1", "Phone": "555"})
+
+
+def test_contact_to_api_payload() -> None:
+    """Verify to_api_payload round-trip with all fields."""
+    c = Contact(name="Alice", id="1", phone="5551234", group="Default")
+    payload = c.to_api_payload()
+    assert payload == {
+        "Name": "Alice",
+        "ID": "1",
+        "Phone": "5551234",
+        "Group": "Default",
+    }
+
+
+def test_contact_to_api_payload_minimal() -> None:
+    """Verify to_api_payload with only name."""
+    c = Contact(name="Bob")
+    payload = c.to_api_payload()
+    assert payload == {"Name": "Bob"}
+    assert "ID" not in payload
+    assert "Phone" not in payload
+    assert "Group" not in payload

@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from pylocal_akuvox.models import (
         AccessSchedule,
         CallLogEntry,
+        Contact,
         DeviceConfig,
         DoorLogEntry,
         Group,
@@ -292,6 +293,58 @@ class AkuvoxDevice:
         from pylocal_akuvox import groups
 
         await groups.delete_group(self._http, id=id)
+
+    async def list_contacts(
+        self,
+        *,
+        page: int | None = None,
+    ) -> list[Contact]:
+        """List contacts from the device."""
+        from pylocal_akuvox import contacts
+
+        return await contacts.list_contacts(self._http, page=page)
+
+    async def add_contact(
+        self,
+        *,
+        name: str,
+        phone: str | None = None,
+        group: str | None = None,
+    ) -> None:
+        """Add a contact to the device address book."""
+        from pylocal_akuvox import contacts
+
+        await contacts.add_contact(
+            self._http,
+            name=name,
+            phone=phone,
+            group=group,
+        )
+
+    async def modify_contact(
+        self,
+        *,
+        id: str,
+        name: str | None = None,
+        phone: str | None = None,
+        group: str | None = None,
+    ) -> None:
+        """Modify an existing contact on the device."""
+        from pylocal_akuvox import contacts
+
+        await contacts.modify_contact(
+            self._http,
+            id=id,
+            name=name,
+            phone=phone,
+            group=group,
+        )
+
+    async def delete_contact(self, *, id: str | list[str]) -> None:
+        """Delete one or more contacts from the device."""
+        from pylocal_akuvox import contacts
+
+        await contacts.delete_contact(self._http, id=id)
 
     async def get_door_logs(self, *, page: int | None = None) -> list[DoorLogEntry]:
         """Retrieve door access logs from the device."""

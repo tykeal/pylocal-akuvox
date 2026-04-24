@@ -60,3 +60,15 @@ def test_group_importable() -> None:
     from pylocal_akuvox import Group
 
     assert Group is not None
+
+
+def test_contact_in_all() -> None:
+    """Verify Contact is exported in __all__."""
+    assert "Contact" in pylocal_akuvox.__all__
+
+
+def test_contact_importable() -> None:
+    """Verify Contact is importable from pylocal_akuvox."""
+    from pylocal_akuvox import Contact
+
+    assert Contact is not None

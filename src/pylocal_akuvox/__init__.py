@@ -20,6 +20,7 @@ from pylocal_akuvox.exceptions import (
 from pylocal_akuvox.models import (
     AccessSchedule,
     CallLogEntry,
+    Contact,
     DeviceConfig,
     DeviceInfo,
     DeviceStatus,
@@ -50,6 +51,7 @@ __all__: list[str] = [
     "AuthConfig",
     "AuthMethod",
     "CallLogEntry",
+    "Contact",
     "DeviceConfig",
     "DeviceInfo",
     "DeviceStatus",
