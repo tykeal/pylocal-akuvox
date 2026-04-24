@@ -59,24 +59,23 @@ Contact(name="Alice", id="1", phone="555-0100", group="Residents")
 # Minimal input (name only):
 {"Name": "Bob"}
 # Returns:
-Contact(name="Bob", id=None, phone="", group="Default")
+Contact(name="Bob", id=None, phone=None, group=None)
 ```
 
 **`to_api_payload(self) -> dict[str, str]`**
 
 Instance method. Converts to PascalCase dict for add/set API
 calls. Always includes Name. Includes ID, Phone, and Group only
-when non-default (non-None for ID; always included for Phone and
-Group to preserve device state during fetch-merge-write).
+when their values are not `None`.
 
 ```python
 # Contact(name="Alice", id="1", phone="555-0100", group="Residents")
 # Returns:
 {"ID": "1", "Name": "Alice", "Phone": "555-0100", "Group": "Residents"}
 
-# Contact(name="Bob", id=None, phone="", group="Default")
+# Contact(name="Bob", id=None, phone=None, group=None)
 # Returns:
-{"Name": "Bob", "Phone": "", "Group": "Default"}
+{"Name": "Bob"}
 ```
 
 ## Relationships

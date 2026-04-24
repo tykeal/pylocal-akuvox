@@ -181,6 +181,29 @@ async def test_list_contacts_skips_non_dict() -> None:
             assert contacts[0].name == "Alice"
 
 
+@pytest.mark.asyncio
+async def test_list_contacts_missing_name_raises() -> None:
+    """Verify list_contacts raises AkuvoxParseError for missing Name."""
+    from pylocal_akuvox.exceptions import AkuvoxParseError
+
+    bad_response: dict[str, object] = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {
+            "num": 1,
+            "item": [
+                {"ID": "1", "Phone": "5551234", "Group": "Default"},
+            ],
+        },
+    }
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/contact/get", payload=bad_response)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxParseError, match="Missing required field"):
+                await device.list_contacts()
+
+
 # -- add_contact tests --
 
 

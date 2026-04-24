@@ -53,20 +53,23 @@ The model follows the existing `User` and `Group` patterns with
 | --- | --- | --- | --- |
 | `ID` | `id` | `str \| None` | Device-assigned; `None` on creation |
 | `Name` | `name` | `str` | Required; human-readable display name |
-| `Phone` | `phone` | `str` | Optional; defaults to `""` on device |
-| `Group` | `group` | `str` | Optional; defaults to `"Default"` |
+| `Phone` | `phone` | `str \| None` | Optional; `None` when unset |
+| `Group` | `group` | `str \| None` | Optional; `None` when unset |
 
 **Alternatives considered**:
 
 - Dict-based model — rejected; FR-014 requires immutable data
   structure; consistency with existing models.
-- Storing phone and group as `None` when empty — rejected; device
-  returns empty string for phone and "Default" for group; preserving
-  device semantics is cleaner and avoids lossy round-trips.
-- Making `group` default to `"Default"` in the dataclass — rejected;
-  the device handles defaulting. The model should reflect what the
-  device returns. The `from_api_response()` method will use
-  `.get("Group", "Default")` to handle omission defensively.
+- Preserving raw device values for optional fields in the
+  dataclass (for example `""` for phone or `"Default"` for
+  group) — rejected; the Python model should normalize empty or
+  omitted optional values to `None` in `from_api_response()`
+  for a cleaner API.
+- Making `group` default to `"Default"` in the dataclass —
+  rejected; device-side defaults should not be hard-coded into
+  the model. `from_api_response()` should normalize
+  missing/empty group values to `None` rather than inventing a
+  `"Default"` value defensively.
 
 ## R3: Fetch-Merge-Write for Modify
 
