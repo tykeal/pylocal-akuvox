@@ -1,7 +1,16 @@
 # SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
 # SPDX-License-Identifier: Apache-2.0
 
-"""Group management operations for Akuvox devices."""
+"""Group management operations for Akuvox devices.
+
+.. note::
+
+   This module uses the ``/api/group/*`` HTTP endpoints which manage a
+   **separate data store** from the Akuvox device web UI.  Groups created
+   via these endpoints will **not** appear in the web UI, and vice-versa.
+   The web UI uses session-authenticated ``/web/usergroup/*`` endpoints
+   that are not supported by this library.
+"""
 
 from __future__ import annotations
 

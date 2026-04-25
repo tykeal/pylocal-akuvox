@@ -1,7 +1,16 @@
 # SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
 # SPDX-License-Identifier: Apache-2.0
 
-"""Contact management operations for Akuvox devices."""
+"""Contact management operations for Akuvox devices.
+
+.. note::
+
+   This module uses the ``/api/contact/*`` HTTP endpoints which manage a
+   **separate data store** from the Akuvox device web UI.  Contacts
+   created via these endpoints will **not** appear in the web UI, and
+   vice-versa.  The web UI uses session-authenticated ``/web/`` endpoints
+   that are not supported by this library.
+"""
 
 from __future__ import annotations
 
