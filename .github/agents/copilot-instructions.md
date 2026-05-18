@@ -10,6 +10,7 @@ Auto-generated from all feature plans. Last updated: 2026-02-24
 ## Active Technologies
 - Python ≥3.13.2, fully type-annotated (mypy strict)
 - aiohttp ≥3.13 (async HTTP client with built-in auth)
+- Python ≥3.13.2 + aiohttp ≥3.13 (005-request-delay)
 
 ## Project Structure
 
@@ -30,11 +31,11 @@ uv run ruff check src/ tests/
 Python ≥3.13.2: Follow standard conventions
 
 ## Recent Changes
+- 005-request-delay: Added Python ≥3.13.2 + aiohttp ≥3.13
 - 004-contact-management: Added contact CRUD with group
   membership support for the device address book
 - 003-group-management: Added group CRUD operations
   (list, add, modify, delete) for device access groups
-- 002-device-config: Introduced device configuration support
   using aiohttp-based async HTTP client
 
 <!-- MANUAL ADDITIONS START -->
