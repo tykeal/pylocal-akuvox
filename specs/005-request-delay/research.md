@@ -44,7 +44,8 @@ async def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str
 **Alternatives considered**:
 
 - Sleep outside the lock (after release) — doesn't guarantee the delay is observed by the next request because another coroutine could acquire the lock immediately.
-- Sleep before the request — contradicts FR-005 ("no delay before the first request") and spec assumption about delay being post-response.
+- Unconditional sleep before every request — contradicts FR-005 ("no delay before the first request") and adds latency ahead of every call.
+- Timestamp-based pre-request throttling after a prior success — feasible, but more complex than a post-response sleep inside the existing lock for this feature.
 
 ---
 

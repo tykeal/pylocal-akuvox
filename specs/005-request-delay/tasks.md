@@ -68,7 +68,7 @@ SPDX-License-Identifier: Apache-2.0
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
 - [ ] T007 [P] [US1] Write test that two sequential successful requests have ~0.25s delay between them (default settings) in `tests/unit/test_http.py`
-- [ ] T008 [P] [US1] Write test that a single request completes with no added delay in `tests/unit/test_http.py`
+- [ ] T008 [P] [US1] Write test that a single request is sent immediately with no pre-request delay in `tests/unit/test_http.py`
 - [ ] T009 [P] [US1] Write test that five sequential requests each have ~0.25s delay after the previous success in `tests/unit/test_http.py`
 
 ### Implementation for User Story 1

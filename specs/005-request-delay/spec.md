@@ -97,7 +97,7 @@ As a library consumer, I want the inter-request delay to be skipped when a reque
 - **SC-002**: The time between consecutive successful requests is within 10% of the configured delay value (e.g., 0.225–0.275s for default 0.25s setting).
 - **SC-003**: Setting `request_delay=0.0` results in no measurable overhead compared to current behavior (less than 1ms added latency between requests).
 - **SC-004**: All existing library consumers continue to function without code changes after the feature is added (no breaking API changes).
-- **SC-005**: A single isolated request completes with no added latency — delay only affects subsequent requests in a sequence.
+- **SC-005**: A single isolated request is sent with no pre-request latency; any configured delay is applied only after a successful response.
 
 ## Assumptions
 
