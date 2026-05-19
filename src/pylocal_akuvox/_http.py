@@ -42,14 +42,33 @@ class AkuvoxHttpClient:
         *,
         use_ssl: bool = False,
         verify_ssl: bool = True,
+        request_delay: float = 0.25,
     ) -> None:
-        """Initialize the HTTP client."""
+        """Initialize the HTTP client.
+
+        Args:
+            host: Device host name or IP address.
+            timeout: Total request timeout in seconds.
+            auth: Optional authentication configuration.
+            use_ssl: Whether to use HTTPS for requests.
+            verify_ssl: Whether to verify TLS certificates.
+            request_delay: Delay in seconds after each successful request.
+
+        Raises:
+            ValueError: If request_delay is negative.
+
+        """
+        if request_delay < 0:
+            msg = "request_delay must be non-negative"
+            raise ValueError(msg)
+
         scheme = "https" if use_ssl else "http"
         self._base_url = f"{scheme}://{host}"
         self._timeout = aiohttp.ClientTimeout(total=timeout)
         self._auth = auth
         self._verify_ssl = verify_ssl
         self._use_ssl = use_ssl
+        self._request_delay = request_delay
         self._session: aiohttp.ClientSession | None = None
         self._lock = asyncio.Lock()
 
@@ -88,14 +107,23 @@ class AkuvoxHttpClient:
     ) -> dict[str, Any]:
         """Send a GET request and return parsed envelope data."""
         async with self._lock:
-            return await self._request("GET", path, params=params)
+            result = await self._request("GET", path, params=params)
+            await self._post_request_delay()
+            return result
 
     async def post(
         self, path: str, data: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Send a POST request with JSON payload."""
         async with self._lock:
-            return await self._request("POST", path, data=data)
+            result = await self._request("POST", path, data=data)
+            await self._post_request_delay()
+            return result
+
+    async def _post_request_delay(self) -> None:
+        """Pause after a successful request to avoid overwhelming the device."""
+        if self._request_delay > 0:
+            await asyncio.sleep(self._request_delay)
 
     async def _request(
         self,

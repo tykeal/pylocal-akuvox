@@ -6,6 +6,7 @@
 import asyncio
 import ssl
 from typing import Any
+from unittest.mock import AsyncMock, call, patch
 
 import aiohttp
 import pytest
@@ -22,12 +23,18 @@ from pylocal_akuvox.exceptions import (
 )
 
 BASE_URL = "http://192.168.1.100"
+SUCCESS_RESPONSE = {
+    "retcode": 0,
+    "action": "getSystemInfo",
+    "message": "Success",
+    "data": {"Status": {"Model": "E16C"}},
+}
 
 
 @pytest.fixture
 def client() -> AkuvoxHttpClient:
-    """Create test HTTP client."""
-    return AkuvoxHttpClient(host="192.168.1.100", timeout=5)
+    """Create test HTTP client with no delay for existing tests."""
+    return AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.0)
 
 
 async def test_successful_get(client: AkuvoxHttpClient) -> None:
@@ -511,3 +518,179 @@ async def test_ssl_no_verify_connector_receives_context() -> None:
     c = AkuvoxHttpClient(host="192.168.1.100", use_ssl=True, verify_ssl=False)
     async with c:
         assert c._session is not None
+
+
+async def test_negative_request_delay_raises_value_error() -> None:
+    """Verify negative request_delay is rejected."""
+    with pytest.raises(ValueError, match="request_delay must be non-negative"):
+        AkuvoxHttpClient(host="192.168.1.100", request_delay=-1.0)
+
+
+async def test_post_request_delay_calls_sleep() -> None:
+    """Verify successful requests await the configured post-request delay."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.3)
+    with (
+        aioresponses() as m,
+        patch(
+            "pylocal_akuvox._http.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep,
+    ):
+        m.get(f"{BASE_URL}/api/system/info", payload=SUCCESS_RESPONSE)
+        async with client:
+            await client.get("/api/system/info")
+    mock_sleep.assert_awaited_once_with(0.3)
+
+
+async def test_post_request_delay_skipped_when_zero() -> None:
+    """Verify zero request_delay skips the post-request pause."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.0)
+    with (
+        aioresponses() as m,
+        patch(
+            "pylocal_akuvox._http.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep,
+    ):
+        m.get(f"{BASE_URL}/api/system/info", payload=SUCCESS_RESPONSE)
+        async with client:
+            await client.get("/api/system/info")
+    mock_sleep.assert_not_awaited()
+
+
+async def test_default_delay_between_sequential_requests() -> None:
+    """Verify the default request delay is applied to each successful request."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5)
+    with (
+        aioresponses() as m,
+        patch(
+            "pylocal_akuvox._http.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep,
+    ):
+        m.get(f"{BASE_URL}/api/system/info", payload=SUCCESS_RESPONSE, repeat=True)
+        async with client:
+            await client.get("/api/system/info")
+            await client.get("/api/system/info")
+    assert mock_sleep.await_args_list == [call(0.25), call(0.25)]
+
+
+async def test_single_request_no_pre_request_delay() -> None:
+    """Verify the delay occurs only after the request completes."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5)
+    events: list[str] = []
+    original_request = client._request
+
+    async def instrumented_request(
+        method: str,
+        path: str,
+        data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Record request execution order around the wrapped call."""
+        events.append("request-start")
+        result = await original_request(method, path, data, params)
+        events.append("request-end")
+        return result
+
+    def record_sleep(_: float) -> None:
+        """Record the mocked post-request delay."""
+        events.append("sleep")
+
+    client._request = instrumented_request  # type: ignore[method-assign]
+
+    with (
+        aioresponses() as m,
+        patch(
+            "pylocal_akuvox._http.asyncio.sleep",
+            new=AsyncMock(side_effect=record_sleep),
+        ),
+    ):
+        m.get(f"{BASE_URL}/api/system/info", payload=SUCCESS_RESPONSE)
+        async with client:
+            await client.get("/api/system/info")
+
+    assert events == ["request-start", "request-end", "sleep"]
+
+
+async def test_five_sequential_requests_each_delayed() -> None:
+    """Verify each successful request in a batch applies the configured delay."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5)
+    with (
+        aioresponses() as m,
+        patch(
+            "pylocal_akuvox._http.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep,
+    ):
+        m.get(f"{BASE_URL}/api/system/info", payload=SUCCESS_RESPONSE, repeat=True)
+        async with client:
+            for _ in range(5):
+                await client.get("/api/system/info")
+    assert mock_sleep.await_count == 5
+
+
+async def test_custom_delay_0_5_produces_matching_pause() -> None:
+    """Verify custom request_delay values are awaited exactly."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.5)
+    with (
+        aioresponses() as m,
+        patch(
+            "pylocal_akuvox._http.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep,
+    ):
+        m.get(f"{BASE_URL}/api/system/info", payload=SUCCESS_RESPONSE)
+        async with client:
+            await client.get("/api/system/info")
+    mock_sleep.assert_awaited_once_with(0.5)
+
+
+async def test_zero_delay_no_pause_backward_compatible() -> None:
+    """Verify request_delay=0 preserves the previous no-delay behavior."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.0)
+    with (
+        aioresponses() as m,
+        patch(
+            "pylocal_akuvox._http.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep,
+    ):
+        m.get(f"{BASE_URL}/api/system/info", payload=SUCCESS_RESPONSE)
+        async with client:
+            await client.get("/api/system/info")
+    mock_sleep.assert_not_awaited()
+
+
+async def test_no_delay_on_connection_error() -> None:
+    """Verify failed requests do not await the post-request delay."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5)
+    with (
+        aioresponses() as m,
+        patch(
+            "pylocal_akuvox._http.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep,
+    ):
+        m.get(
+            f"{BASE_URL}/api/system/info",
+            exception=aiohttp.ClientError("Connection refused"),
+        )
+        async with client:
+            with pytest.raises(AkuvoxConnectionError):
+                await client.get("/api/system/info")
+    mock_sleep.assert_not_awaited()
+
+
+async def test_delay_after_error_then_success() -> None:
+    """Verify only successful requests apply the post-request delay."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5)
+    with (
+        aioresponses() as m,
+        patch(
+            "pylocal_akuvox._http.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep,
+    ):
+        m.get(
+            f"{BASE_URL}/api/system/error",
+            exception=aiohttp.ClientError("Connection refused"),
+        )
+        m.get(f"{BASE_URL}/api/system/info", payload=SUCCESS_RESPONSE)
+        async with client:
+            with pytest.raises(AkuvoxConnectionError):
+                await client.get("/api/system/error")
+            await client.get("/api/system/info")
+    mock_sleep.assert_awaited_once_with(0.25)

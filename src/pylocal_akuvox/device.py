@@ -34,14 +34,26 @@ class AkuvoxDevice:
         *,
         use_ssl: bool = False,
         verify_ssl: bool = True,
+        request_delay: float = 0.25,
     ) -> None:
-        """Initialize the device connection parameters."""
+        """Initialize the device connection parameters.
+
+        Args:
+            host: Device host name or IP address.
+            auth: Optional authentication configuration.
+            timeout: Total request timeout in seconds.
+            use_ssl: Whether to use HTTPS for requests.
+            verify_ssl: Whether to verify TLS certificates.
+            request_delay: Delay in seconds after each successful request.
+
+        """
         self._http = AkuvoxHttpClient(
             host=host,
             auth=auth,
             timeout=timeout,
             use_ssl=use_ssl,
             verify_ssl=verify_ssl,
+            request_delay=request_delay,
         )
 
     async def __aenter__(self) -> AkuvoxDevice:
