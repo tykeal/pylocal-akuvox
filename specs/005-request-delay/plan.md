@@ -23,7 +23,7 @@ Add a configurable inter-request delay to `AkuvoxHttpClient` that pauses for a d
 **Project Type**: Single Python library
 **Performance Goals**: `request_delay=0.0` must add <1ms latency; default 0.25s must be within ±10% (SC-002, SC-003)
 **Constraints**: Must not block the event loop (uses `asyncio.sleep`); no breaking API changes (FR-010)
-**Scale/Scope**: Two files modified (`_http.py`, `device.py`), one test file added/extended
+**Scale/Scope**: Two source files modified (`_http.py`, `device.py`), two test files added/extended (`tests/unit/test_http.py`, `tests/unit/test_device.py`)
 
 ## Constitution Check
 
