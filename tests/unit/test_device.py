@@ -105,6 +105,18 @@ async def test_device_with_auth() -> None:
     assert device._http._auth is auth
 
 
+async def test_device_passes_request_delay_to_http_client() -> None:
+    """Verify AkuvoxDevice passes request_delay to AkuvoxHttpClient."""
+    device = AkuvoxDevice("192.168.1.100", request_delay=0.5)
+    assert device._http._request_delay == 0.5
+
+
+async def test_device_default_request_delay() -> None:
+    """Verify AkuvoxDevice uses default 0.25s delay."""
+    device = AkuvoxDevice("192.168.1.100")
+    assert device._http._request_delay == 0.25
+
+
 async def test_nested_context_manager_raises() -> None:
     """Verify re-entering context manager raises AkuvoxConnectionError."""
     device = AkuvoxDevice("192.168.1.100")
