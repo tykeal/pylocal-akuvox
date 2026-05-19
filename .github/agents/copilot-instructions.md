@@ -36,6 +36,7 @@ Python ≥3.13.2: Follow standard conventions
   membership support for the device address book
 - 003-group-management: Added group CRUD operations
   (list, add, modify, delete) for device access groups
+- 002-device-config: Introduced device configuration support
   using aiohttp-based async HTTP client
 
 <!-- MANUAL ADDITIONS START -->

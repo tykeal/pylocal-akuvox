@@ -12,7 +12,7 @@ SPDX-License-Identifier: Apache-2.0
 
 ## Content Quality
 
-- [x] No implementation details (languages, frameworks, APIs)
+- [x] Public API details are limited to concepts needed for clarity
 - [x] Focused on user value and business needs
 - [x] Written for non-technical stakeholders
 - [x] All mandatory sections completed
@@ -22,7 +22,7 @@ SPDX-License-Identifier: Apache-2.0
 - [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
-- [x] Success criteria are technology-agnostic (no implementation details)
+- [x] Success criteria focus on externally visible behavior
 - [x] All acceptance scenarios are defined
 - [x] Edge cases are identified
 - [x] Scope is clearly bounded
@@ -33,10 +33,11 @@ SPDX-License-Identifier: Apache-2.0
 - [x] All functional requirements have clear acceptance criteria
 - [x] User scenarios cover primary flows
 - [x] Feature meets measurable outcomes defined in Success Criteria
-- [x] No implementation details leak into specification
+- [x] Implementation-specific terms are intentional and public-facing
 
 ## Notes
 
 - All items pass validation. Spec is ready for `/speckit.clarify` or `/speckit.plan`.
 - The feature is well-scoped with clear acceptance criteria from the original issue (#96).
+- Public API terminology is used intentionally where it clarifies the user-facing behavior.
 - No clarification markers needed — the issue and design proposal provided sufficient detail.

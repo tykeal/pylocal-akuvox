@@ -65,20 +65,20 @@ async def main():
 asyncio.run(main())
 ```
 
-## Direct HTTP Client Usage
+## Longer Delay for Sequential Reads
 
 ```python
 import asyncio
-from pylocal_akuvox._http import AkuvoxHttpClient
+from pylocal_akuvox import AkuvoxDevice
 
 async def main():
-    async with AkuvoxHttpClient(
+    async with AkuvoxDevice(
         host="192.168.1.100",
         request_delay=1.0,  # 1 second between requests
-    ) as client:
-        await client.get("/api/system/info")
-        # 1.0s delay happens here (inside the lock)
-        await client.get("/api/system/status")
+    ) as device:
+        await device.get_info()
+        # 1.0s delay happens here before the next request starts
+        await device.get_status()
 
 asyncio.run(main())
 ```
