@@ -68,7 +68,12 @@ async def add_user(
     private_pin: str | None = None,
     card_code: str | None = None,
 ) -> None:
-    """Add a local user to the device."""
+    """Add a local user to the device.
+
+    The primary relay schedule is emitted as both ``ScheduleRelay`` and
+    ``Schedule-Relay`` for cross-firmware compatibility. This is an
+    internal request-shaping detail; the public Python API is unchanged.
+    """
     if not name:
         msg = "name is required for add_user"
         raise AkuvoxValidationError(msg)
@@ -85,6 +90,7 @@ async def add_user(
         "Name": name,
         "UserID": user_id,
         "ScheduleRelay": schedule_relay,
+        "Schedule-Relay": schedule_relay,
         "LiftFloorNum": lift_floor_num,
     }
     if web_relay is not None:
@@ -149,10 +155,15 @@ async def modify_user(
 ) -> None:
     """Modify an existing user on the device.
 
-    The device requires a full user record for set operations,
-    so this fetches the current record and merges changes.
+    The device generally requires a full user record for set operations,
+    so this fetches the current record and merges changes. Primary schedule
+    fields are the compatibility exception: when supplied, the schedule is
+    emitted as both ``ScheduleRelay`` and ``Schedule-Relay``; when unset,
+    both primary schedule keys are omitted to avoid conflicting values across
+    firmwares. This is an internal request-shaping detail; the public Python
+    API is unchanged.
     """
-    # Normalize empty strings to None (skip update for these fields)
+    # Normalize empty strings to None for optional update handling.
     private_pin = private_pin or None
     schedule_relay = schedule_relay or None
 
@@ -173,6 +184,10 @@ async def modify_user(
         current["WebRelay"] = web_relay
     if schedule_relay is not None:
         current["ScheduleRelay"] = schedule_relay
+        current["Schedule-Relay"] = schedule_relay
+    else:
+        current.pop("ScheduleRelay", None)
+        current.pop("Schedule-Relay", None)
     if lift_floor_num is not None:
         current["LiftFloorNum"] = lift_floor_num
 
