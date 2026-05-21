@@ -193,6 +193,64 @@ async def test_add_user_posts_to_correct_endpoint() -> None:
         assert item["LiftFloorNum"] == "0"
 
 
+async def test_add_user_emits_dual_primary_relay_schedule_keys() -> None:
+    """Verify add_user emits both primary schedule field names."""
+    with aioresponses() as m:
+        m.post(
+            f"{BASE_URL}/api/user/set",
+            payload={
+                "retcode": 0,
+                "action": "add",
+                "message": "",
+                "data": {},
+            },
+        )
+        async with AkuvoxDevice("192.168.1.100") as device:
+            await device.add_user(
+                name="Alice",
+                user_id="2001",
+                web_relay="0",
+                schedule_relay="1001-1",
+                lift_floor_num="0",
+            )
+
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+        call = m.requests[url_key][0]
+        body = call.kwargs.get("json")
+        item = body["data"]["item"][0]
+        assert item["ScheduleRelay"] == "1001-1"
+        assert item["Schedule-Relay"] == "1001-1"
+
+
+async def test_add_user_does_not_introduce_secondary_relay_keys() -> None:
+    """Verify add_user does not emit secondary schedule fields."""
+    with aioresponses() as m:
+        m.post(
+            f"{BASE_URL}/api/user/set",
+            payload={
+                "retcode": 0,
+                "action": "add",
+                "message": "",
+                "data": {},
+            },
+        )
+        async with AkuvoxDevice("192.168.1.100") as device:
+            await device.add_user(
+                name="Alice",
+                user_id="2001",
+                web_relay="0",
+                schedule_relay="1001-1",
+                lift_floor_num="0",
+            )
+
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+        call = m.requests[url_key][0]
+        body = call.kwargs.get("json")
+        item = body["data"]["item"][0]
+        assert "ScheduleSRelay" not in item
+        assert "Schedule-SRelay" not in item
+
+
 async def test_add_user_with_pin() -> None:
     """Verify add_user includes optional PIN in payload."""
     with aioresponses() as m:
@@ -390,6 +448,85 @@ async def test_modify_user_posts_to_correct_endpoint() -> None:
         )
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.modify_user(id="1", private_pin="5678")
+
+
+async def test_modify_user_emits_dual_primary_relay_schedule_keys() -> None:
+    """Verify modify_user emits both primary schedule field names."""
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
+        m.post(
+            f"{BASE_URL}/api/user/set",
+            payload=_SET_OK_RESPONSE,
+        )
+        async with AkuvoxDevice("192.168.1.100") as device:
+            await device.modify_user(id="1", schedule_relay="1002-2")
+
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+        call = m.requests[url_key][0]
+        body = call.kwargs.get("json")
+        item = body["data"]["item"][0]
+        assert item["ScheduleRelay"] == "1002-2"
+        assert item["Schedule-Relay"] == "1002-2"
+
+
+async def test_modify_user_omits_primary_schedule_keys_when_unset() -> None:
+    """Verify modify_user omits primary schedule fields when unset."""
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
+        m.post(
+            f"{BASE_URL}/api/user/set",
+            payload=_SET_OK_RESPONSE,
+        )
+        async with AkuvoxDevice("192.168.1.100") as device:
+            await device.modify_user(id="1", name="Updated")
+
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+        call = m.requests[url_key][0]
+        body = call.kwargs.get("json")
+        item = body["data"]["item"][0]
+        assert "ScheduleRelay" not in item
+        assert "Schedule-Relay" not in item
+
+
+async def test_modify_user_keeps_secondary_relay_single_key() -> None:
+    """Verify ScheduleSRelay keeps no hyphenated companion."""
+    response: dict[str, object] = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {
+            "num": 1,
+            "item": [
+                {
+                    "ID": "1",
+                    "Name": "Alice",
+                    "UserID": "2001",
+                    "WebRelay": "0",
+                    "ScheduleRelay": "1001-1",
+                    "ScheduleSRelay": "1001-2",
+                    "LiftFloorNum": "0",
+                    "PrivatePIN": "",
+                    "CardCode": "",
+                },
+            ],
+        },
+    }
+
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=response)
+        m.post(
+            f"{BASE_URL}/api/user/set",
+            payload=_SET_OK_RESPONSE,
+        )
+        async with AkuvoxDevice("192.168.1.100") as device:
+            await device.modify_user(id="1", schedule_relay="1002-2")
+
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+        call = m.requests[url_key][0]
+        body = call.kwargs.get("json")
+        item = body["data"]["item"][0]
+        assert item["ScheduleSRelay"] == "1001-2"
+        assert "Schedule-SRelay" not in item
 
 
 async def test_modify_user_invalid_pin_raises() -> None:
