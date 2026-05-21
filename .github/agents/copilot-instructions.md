@@ -10,6 +10,7 @@ Auto-generated from all feature plans. Last updated: 2026-05-18
 ## Active Technologies
 - Python ≥3.13.2, fully type-annotated (mypy strict)
 - aiohttp ≥3.13 (async HTTP client with built-in auth)
+- pytest, pytest-asyncio, aioresponses (test tooling)
 
 ## Project Structure
 
@@ -30,6 +31,8 @@ uv run ruff check src/ tests/
 Python ≥3.13.2: Follow standard conventions
 
 ## Recent Changes
+- 006-schedule-relay-compat: Added spec/design artifacts for
+  Schedule-Relay field compatibility
 - 005-request-delay: Added spec/design artifacts for configurable
   inter-request delay
 - 004-contact-management: Added contact CRUD with group
