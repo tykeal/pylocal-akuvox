@@ -248,6 +248,18 @@ SSL Connections
    certificate into your trust store so that you can keep
    ``verify_ssl=True`` in production deployments.
 
+.. warning::
+
+   Some older Akuvox devices (e.g. the S562 indoor monitor) ship with
+   legacy 1024-bit Diffie-Hellman parameters that OpenSSL's default
+   security level rejects with a ``dh key too small`` handshake error.
+   When ``verify_ssl=False``, this library lowers OpenSSL's security
+   level to ``0`` so these legacy handshakes succeed. This relaxation
+   is **only** active in the no-verify path; the verified path
+   (``verify_ssl=True``) uses Python's OpenSSL defaults unchanged.
+   Because it weakens TLS protections, it is intended for trusted LAN
+   use only.
+
 Error Handling
 --------------
 

@@ -216,6 +216,12 @@ class AkuvoxHttpClient:
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
+        # Some Akuvox devices (e.g. S562 indoor monitor) ship
+        # 1024-bit DH parameters, which OpenSSL's default
+        # SECLEVEL=2 rejects with "dh key too small". Lower the
+        # security level to allow legacy primes/ciphers. Only in
+        # effect when the caller has already disabled verification.
+        ctx.set_ciphers("DEFAULT@SECLEVEL=0")
         return ctx
 
     def _resolve_auth(

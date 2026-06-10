@@ -501,6 +501,36 @@ def test_ssl_no_verify_creates_permissive_context() -> None:
     assert ctx.check_hostname is False
 
 
+def test_ssl_no_verify_lowers_seclevel_for_legacy_dh() -> None:
+    """Verify ssl+no verify lowers OpenSSL SECLEVEL for legacy DH.
+
+    Some Akuvox devices (e.g. S562) ship 1024-bit DH parameters that
+    OpenSSL's default SECLEVEL=2 rejects. The no-verify path lowers
+    SECLEVEL to 0 so the handshake succeeds.
+    """
+    c = AkuvoxHttpClient(host="192.168.1.100", use_ssl=True, verify_ssl=False)
+    ctx = c._build_ssl_context()
+    assert isinstance(ctx, ssl.SSLContext)
+
+    # Build a reference context at SECLEVEL=0 for comparison.
+    ref = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ref.set_ciphers("DEFAULT@SECLEVEL=0")
+    ref_names = {cipher["name"] for cipher in ref.get_ciphers()}
+
+    # A default context (no set_ciphers) represents the unchanged
+    # OpenSSL default the verified path would use.
+    default = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    default_names = {cipher["name"] for cipher in default.get_ciphers()}
+
+    ctx_names = {cipher["name"] for cipher in ctx.get_ciphers()}
+
+    # The lowered context must match the SECLEVEL=0 cipher list,
+    # proving set_ciphers("DEFAULT@SECLEVEL=0") was applied, and must
+    # differ from the untouched default cipher list.
+    assert ctx_names == ref_names
+    assert ctx_names != default_names
+
+
 def test_ssl_verify_default_returns_none() -> None:
     """Verify ssl+verify_ssl=True returns None (default validation)."""
     c = AkuvoxHttpClient(host="192.168.1.100", use_ssl=True, verify_ssl=True)

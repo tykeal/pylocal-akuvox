@@ -19,6 +19,7 @@ Key features:
 * **Full device management** — users, groups, contacts, PINs, relays, schedules, and logs
 * **Multiple auth modes** — None, AllowList, Basic, and Digest
 * **SSL support** — including self-signed certificate handling
+* **Legacy TLS compatibility** — automatic OpenSSL SECLEVEL relaxation for older Akuvox devices (e.g. S562) when certificate verification is disabled
 * **Comprehensive error handling** — typed exception hierarchy
 
 .. code-block:: python
