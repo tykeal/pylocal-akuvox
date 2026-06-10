@@ -506,29 +506,37 @@ def test_ssl_no_verify_lowers_seclevel_for_legacy_dh() -> None:
 
     Some Akuvox devices (e.g. S562) ship 1024-bit DH parameters that
     OpenSSL's default SECLEVEL=2 rejects. The no-verify path lowers
-    SECLEVEL to 0 so the handshake succeeds.
+    SECLEVEL to 0 so the handshake succeeds. Assert via a spy on
+    ``set_ciphers`` because comparing ``get_ciphers()`` name lists is
+    unreliable: SECLEVEL mainly gates handshake parameter checks and
+    many backends expose identical cipher names at SECLEVEL 0 and 2.
     """
     c = AkuvoxHttpClient(host="192.168.1.100", use_ssl=True, verify_ssl=False)
-    ctx = c._build_ssl_context()
+    with patch.object(ssl.SSLContext, "set_ciphers") as mock_set_ciphers:
+        ctx = c._build_ssl_context()
     assert isinstance(ctx, ssl.SSLContext)
+    assert ctx.verify_mode == ssl.CERT_NONE
+    assert ctx.check_hostname is False
+    mock_set_ciphers.assert_called_once_with("DEFAULT@SECLEVEL=0")
 
-    # Build a reference context at SECLEVEL=0 for comparison.
-    ref = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    ref.set_ciphers("DEFAULT@SECLEVEL=0")
-    ref_names = {cipher["name"] for cipher in ref.get_ciphers()}
 
-    # A default context (no set_ciphers) represents the unchanged
-    # OpenSSL default the verified path would use.
-    default = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    default_names = {cipher["name"] for cipher in default.get_ciphers()}
+def test_ssl_no_verify_tolerates_seclevel_unsupported() -> None:
+    """Verify SECLEVEL relaxation degrades gracefully when unsupported.
 
-    ctx_names = {cipher["name"] for cipher in ctx.get_ciphers()}
-
-    # The lowered context must match the SECLEVEL=0 cipher list,
-    # proving set_ciphers("DEFAULT@SECLEVEL=0") was applied, and must
-    # differ from the untouched default cipher list.
-    assert ctx_names == ref_names
-    assert ctx_names != default_names
+    TLS backends without OpenSSL's ``@SECLEVEL`` syntax (e.g. some
+    LibreSSL builds) raise ``ssl.SSLError`` from ``set_ciphers``. The
+    no-verify path must still return a usable context rather than
+    failing session creation.
+    """
+    c = AkuvoxHttpClient(host="192.168.1.100", use_ssl=True, verify_ssl=False)
+    with patch.object(
+        ssl.SSLContext,
+        "set_ciphers",
+        side_effect=ssl.SSLError("unsupported cipher string"),
+    ):
+        ctx = c._build_ssl_context()
+    assert isinstance(ctx, ssl.SSLContext)
+    assert ctx.verify_mode == ssl.CERT_NONE
 
 
 def test_ssl_verify_default_returns_none() -> None:

@@ -221,7 +221,13 @@ class AkuvoxHttpClient:
         # SECLEVEL=2 rejects with "dh key too small". Lower the
         # security level to allow legacy primes/ciphers. Only in
         # effect when the caller has already disabled verification.
-        ctx.set_ciphers("DEFAULT@SECLEVEL=0")
+        try:
+            ctx.set_ciphers("DEFAULT@SECLEVEL=0")
+        except ssl.SSLError:
+            # TLS backends without OpenSSL's @SECLEVEL syntax (e.g.
+            # some LibreSSL builds) reject this string. Fall back to
+            # backend defaults rather than failing session creation.
+            pass
         return ctx
 
     def _resolve_auth(
