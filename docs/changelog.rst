@@ -18,3 +18,6 @@ Unreleased
 * Authentication: None, AllowList, Basic, Digest
 * SSL support with self-signed certificate handling
 * Typed exception hierarchy for error handling
+* Lowered OpenSSL security level to 0 in the no-verify SSL path to
+  support older Akuvox devices (e.g. S562) that ship with 1024-bit DH
+  parameters

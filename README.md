@@ -24,6 +24,7 @@ and log retrieval over the device's local HTTP API.
 - **Full device management** — users, PINs, relays, schedules, and logs
 - **Multiple auth modes** — None, Allowlist, Basic, and Digest
 - **SSL support** — including self-signed certificate handling
+- **Legacy TLS compatibility** — OpenSSL SECLEVEL relaxation for old devices
 - **Comprehensive error handling** — typed exception hierarchy
 
 ## Installation

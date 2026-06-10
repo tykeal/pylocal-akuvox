@@ -501,6 +501,44 @@ def test_ssl_no_verify_creates_permissive_context() -> None:
     assert ctx.check_hostname is False
 
 
+def test_ssl_no_verify_lowers_seclevel_for_legacy_dh() -> None:
+    """Verify ssl+no verify lowers OpenSSL SECLEVEL for legacy DH.
+
+    Some Akuvox devices (e.g. S562) ship 1024-bit DH parameters that
+    OpenSSL's default SECLEVEL=2 rejects. The no-verify path lowers
+    SECLEVEL to 0 so the handshake succeeds. Assert via a spy on
+    ``set_ciphers`` because comparing ``get_ciphers()`` name lists is
+    unreliable: SECLEVEL mainly gates handshake parameter checks and
+    many backends expose identical cipher names at SECLEVEL 0 and 2.
+    """
+    c = AkuvoxHttpClient(host="192.168.1.100", use_ssl=True, verify_ssl=False)
+    with patch.object(ssl.SSLContext, "set_ciphers") as mock_set_ciphers:
+        ctx = c._build_ssl_context()
+    assert isinstance(ctx, ssl.SSLContext)
+    assert ctx.verify_mode == ssl.CERT_NONE
+    assert ctx.check_hostname is False
+    mock_set_ciphers.assert_called_once_with("DEFAULT@SECLEVEL=0")
+
+
+def test_ssl_no_verify_tolerates_seclevel_unsupported() -> None:
+    """Verify SECLEVEL relaxation degrades gracefully when unsupported.
+
+    TLS backends without OpenSSL's ``@SECLEVEL`` syntax (e.g. some
+    LibreSSL builds) raise ``ssl.SSLError`` from ``set_ciphers``. The
+    no-verify path must still return a usable context rather than
+    failing session creation.
+    """
+    c = AkuvoxHttpClient(host="192.168.1.100", use_ssl=True, verify_ssl=False)
+    with patch.object(
+        ssl.SSLContext,
+        "set_ciphers",
+        side_effect=ssl.SSLError("unsupported cipher string"),
+    ):
+        ctx = c._build_ssl_context()
+    assert isinstance(ctx, ssl.SSLContext)
+    assert ctx.verify_mode == ssl.CERT_NONE
+
+
 def test_ssl_verify_default_returns_none() -> None:
     """Verify ssl+verify_ssl=True returns None (default validation)."""
     c = AkuvoxHttpClient(host="192.168.1.100", use_ssl=True, verify_ssl=True)
