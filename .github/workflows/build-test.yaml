@@ -15,15 +15,9 @@ on:
         default: false
         required: false
   pull_request:
-    types: [opened, reopened, edited, synchronize]
+    types: [opened, reopened, synchronize]
     branches:
       - main
-      - master
-    paths:
-      - '**'
-      - '!.github/**'
-      - '!.*'
-      - '!tox.ini'
 
 concurrency:
   group: "${{ github.workflow }}-${{ github.ref }}"
@@ -166,6 +160,7 @@ jobs:
     name: 'Python Tests'
     runs-on: 'ubuntu-latest'
     needs: 'python-build'
+    if: ${{ !cancelled() && needs.python-build.result == 'success' }}
     # Matrix job
     strategy:
       fail-fast: false
@@ -188,11 +183,17 @@ jobs:
         uses: lfreleng-actions/python-test-action@aa753462f090101dcb0c4708e9499f55e276e373  # v1.1.2
         with:
           python_version: ${{ matrix.python-version }}
+        env:
+          # CPython 3.14 strict AST validation breaks pytest assertion
+          # rewriting; disable until pytest upstream fixes the issue
+          # yamllint disable-line rule:line-length
+          PYTEST_ADDOPTS: "${{ startsWith(matrix.python-version, '3.14') && '--assert=plain' || '' }}"
 
   python-audit:
     name: 'Python Audit'
     runs-on: 'ubuntu-latest'
     needs: 'python-build'
+    if: ${{ !cancelled() && needs.python-build.result == 'success' }}
     # Matrix job
     strategy:
       fail-fast: false
