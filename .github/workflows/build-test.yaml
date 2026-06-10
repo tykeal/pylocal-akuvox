@@ -29,8 +29,7 @@ concurrency:
   group: "${{ github.workflow }}-${{ github.ref }}"
   cancel-in-progress: true
 
-permissions:
-  actions: write  # Required for cache deletion when clear_cache is true
+permissions: {}
 
 jobs:
   repository-metadata:
@@ -62,8 +61,84 @@ jobs:
           artifact_upload: 'true'
           artifact_formats: 'json'
 
+  clear-cache:
+    name: 'Clear Python Caches'
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && github.event.inputs.clear_cache == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+    steps:
+      # yamllint disable-line rule:line-length
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
+        with:
+          egress-policy: 'audit'
+
+      - name: 'Clear Python dependency caches'
+        env:
+          REPO: "${{ github.repository }}"
+        run: |
+          # Clear Python dependency caches
+          echo "Clearing Python dependency caches 🗑️"
+          deleted=0
+          failed=0
+          for prefix in python- setup-python- setup-uv-; do
+            while true; do
+              if ! keys=$(gh cache list --repo "$REPO" \
+                --key "$prefix" --limit 100 \
+                --json key --jq '.[].key' 2>&1); then
+                echo "::warning::Failed to list caches" \
+                  "for prefix '$prefix': $keys"
+                echo "Warning: failed to list caches for" \
+                  "prefix \`$prefix\`: $keys" \
+                  >> "$GITHUB_STEP_SUMMARY"
+                failed=1
+                break
+              fi
+              [ -n "$keys" ] || break
+
+              batch_deleted=0
+              while IFS= read -r key; do
+                [ -n "$key" ] || continue
+                if delete_out=$(gh cache delete "$key" \
+                  --repo "$REPO" 2>&1); then
+                  echo "Deleted cache: $key"
+                  deleted=$((deleted + 1))
+                  batch_deleted=$((batch_deleted + 1))
+                else
+                  echo "::warning::Failed to delete" \
+                    "cache '$key': $delete_out"
+                  echo "Warning: failed to delete cache" \
+                    "\`$key\`: $delete_out" \
+                    >> "$GITHUB_STEP_SUMMARY"
+                  failed=1
+                fi
+              done <<< "$keys"
+
+              [ "$batch_deleted" -gt 0 ] || break
+            done
+          done
+          if [ "$deleted" -gt 0 ]; then
+            echo "Cleared $deleted Python cache(s) ✅" \
+              >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$failed" -eq 0 ]; then
+            echo "No Python caches found to clear 💬" \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "$failed" -ne 0 ]; then
+            echo "Cache clearing completed with errors ❌" \
+              >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
   python-build:
     name: 'Python Build'
+    needs: 'clear-cache'
+    if: ${{ always() && !cancelled() }}
     runs-on: 'ubuntu-latest'
     outputs:
       matrix_json: "${{ steps.python-build.outputs.matrix_json }}"
@@ -71,10 +146,7 @@ jobs:
       artefact_path: "${{ steps.python-build.outputs.artefact_path }}"
     permissions:
       contents: read
-      actions: write  # Required for cache deletion when clear_cache is true
     timeout-minutes: 12
-    env:
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
     steps:
       # Harden the runner used by this workflow
       # yamllint disable-line rule:line-length
@@ -89,8 +161,6 @@ jobs:
         id: python-build
         # yamllint disable-line rule:line-length
         uses: lfreleng-actions/python-build-action@5f570d5d17a7315074a824a91c6a705b6fc5c7dd  # v1.1.2
-        with:
-          clear_cache: ${{ github.event.inputs.clear_cache || 'false' }}
 
   python-tests:
     name: 'Python Tests'
