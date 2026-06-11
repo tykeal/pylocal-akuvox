@@ -253,6 +253,82 @@ def test_user_from_api_response_optional_defaults() -> None:
     assert user.source_type is None
 
 
+def test_user_from_api_response_schedule_variant() -> None:
+    """Verify User accepts the X915S Schedule field variant."""
+    data = {
+        "Name": "X915S User",
+        "UserID": "2915",
+        "Schedule": "43939-1",
+    }
+    user = User.from_api_response(data)
+    assert user.schedule_relay == "43939-1"
+
+
+def test_user_from_api_response_schedule_relay_variant() -> None:
+    """Verify User accepts defensive Schedule-Relay field variant."""
+    data = {
+        "Name": "E18 User",
+        "UserID": "1800",
+        "Schedule-Relay": "2002-1",
+    }
+    user = User.from_api_response(data)
+    assert user.schedule_relay == "2002-1"
+
+
+def test_user_from_api_response_prefers_schedule_relay() -> None:
+    """Verify User prefers canonical ScheduleRelay when all variants exist."""
+    data = {
+        "Name": "Canonical User",
+        "UserID": "1000",
+        "ScheduleRelay": "canonical-1",
+        "Schedule-Relay": "hyphen-1",
+        "Schedule": "short-1",
+    }
+    user = User.from_api_response(data)
+    assert user.schedule_relay == "canonical-1"
+
+
+def test_user_from_api_response_missing_schedule_raises() -> None:
+    """Verify missing schedule variants raise AkuvoxParseError."""
+    from pylocal_akuvox.exceptions import AkuvoxParseError
+
+    data = {"Name": "No Schedule", "UserID": "9999"}
+    with pytest.raises(AkuvoxParseError) as exc_info:
+        User.from_api_response(data)
+
+    msg = str(exc_info.value)
+    assert "'ScheduleRelay'" in msg
+    assert "'Schedule-Relay'" in msg
+    assert "'Schedule'" in msg
+
+
+def test_user_from_api_response_empty_schedule_relay() -> None:
+    """Verify empty canonical ScheduleRelay value is preserved."""
+    data = {
+        "Name": "Empty Schedule",
+        "UserID": "1001",
+        "ScheduleRelay": "",
+        "Schedule-Relay": "hyphen-1",
+        "Schedule": "short-1",
+    }
+    user = User.from_api_response(data)
+    assert user.schedule_relay == ""
+
+
+def test_user_schedule_variant_round_trips_canonical_key() -> None:
+    """Verify Schedule-only reads emit canonical ScheduleRelay writes."""
+    data = {
+        "Name": "X915S User",
+        "UserID": "2915",
+        "Schedule": "43939-1",
+    }
+    user = User.from_api_response(data)
+    payload = user.to_api_payload()
+    assert payload["ScheduleRelay"] == "43939-1"
+    assert "Schedule" not in payload
+    assert "Schedule-Relay" not in payload
+
+
 def test_user_from_api_response_missing_name_raises() -> None:
     """Verify missing Name raises AkuvoxParseError."""
     from pylocal_akuvox.exceptions import AkuvoxParseError

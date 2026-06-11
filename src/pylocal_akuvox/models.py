@@ -136,11 +136,24 @@ class User:
     @classmethod
     def from_api_response(cls, data: dict[str, Any]) -> User:
         """Create User from API response data."""
+        missing = object()
+        schedule_relay: Any = missing
+        for key in ("ScheduleRelay", "Schedule-Relay", "Schedule"):
+            if key in data:
+                schedule_relay = data[key]
+                break
+        if schedule_relay is missing:
+            msg = (
+                "Missing required field 'ScheduleRelay' (or 'Schedule-Relay'/"
+                "'Schedule' on some firmwares) in user data"
+            )
+            raise AkuvoxParseError(msg)
+
         try:
             return cls(
                 name=data["Name"],
                 user_id=data["UserID"],
-                schedule_relay=data["ScheduleRelay"],
+                schedule_relay=schedule_relay,
                 id=data.get("ID"),
                 web_relay=data.get("WebRelay"),
                 private_pin=data.get("PrivatePIN") or None,
