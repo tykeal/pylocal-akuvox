@@ -40,7 +40,7 @@ import traceback
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from collections.abc import Coroutine
+    from collections.abc import Awaitable, Coroutine
 
 from pylocal_akuvox import (
     AkuvoxDevice,
@@ -50,9 +50,7 @@ from pylocal_akuvox import (
 from pylocal_akuvox.exceptions import (
     AkuvoxAuthenticationError,
     AkuvoxConnectionError,
-    AkuvoxDeviceError,
     AkuvoxError,
-    AkuvoxUnsupportedError,
     AkuvoxValidationError,
 )
 
@@ -60,6 +58,117 @@ SEPARATOR = "-" * 60
 # Akuvox devices need time to persist mutations before the next
 # API call; two seconds is sufficient based on testing.
 _MUTATION_SETTLE_SECS = 2
+
+
+class TestStepFailed(Exception):
+    """Expected diagnostic step failure that does not need a traceback."""
+
+
+class TestStepSkipped(Exception):
+    """Diagnostic step skip with a reason for the summary."""
+
+
+class TestResults:
+    """Collect diagnostic test outcomes for the final summary."""
+
+    def __init__(self) -> None:
+        """Initialize empty result buckets."""
+        self.passed: list[str] = []
+        self.failed: list[tuple[str, str]] = []
+        self.skipped: list[tuple[str, str]] = []
+
+    @property
+    def total(self) -> int:
+        """Return the total number of recorded test steps."""
+        return len(self.passed) + len(self.failed) + len(self.skipped)
+
+    def mark_passed(self, label: str) -> None:
+        """Record a passed test step."""
+        self.passed.append(label)
+
+    def mark_failed(self, label: str, reason: str) -> None:
+        """Record a failed test step with its reason."""
+        self.failed.append((label, reason))
+
+    def mark_skipped(self, label: str, reason: str) -> None:
+        """Record a skipped test step with its reason."""
+        self.skipped.append((label, reason))
+
+    def was_passed(self, label: str) -> bool:
+        """Return whether a test step passed."""
+        return label in self.passed
+
+    def print_summary(self) -> None:
+        """Print a summary of all recorded diagnostic test steps."""
+        print(f"\n{'=' * 60}")
+        print("  SUMMARY")
+        print("=" * 60)
+        print(f"  Total:    {self.total:3}")
+        print(f"  ✓ Passed: {len(self.passed):3}")
+        print(f"  ✗ Failed: {len(self.failed):3}")
+        print(f"  ⊘ Skipped:{len(self.skipped):3}")
+
+        _print_summary_section("Passed", [(label, "") for label in self.passed])
+        _print_summary_section("Failures", self.failed)
+        _print_summary_section("Skipped", self.skipped)
+
+
+def _print_summary_section(
+    title: str,
+    entries: list[tuple[str, str]],
+) -> None:
+    """Print one section of the diagnostic summary."""
+    if not entries:
+        return
+
+    print(f"\n  {title}:")
+    for label, reason in entries:
+        suffix = f": {reason}" if reason else ""
+        print(f"    - {label}{suffix}")
+
+
+def skip_step(results: TestResults, label: str, reason: str) -> None:
+    """Record and print a skipped diagnostic step."""
+    results.mark_skipped(label, reason)
+    print(f"  ⊘ {label} skipped: {reason}")
+
+
+async def run_step[T](
+    results: TestResults,
+    label: str,
+    coro: Awaitable[T],
+) -> T | None:
+    """Run one diagnostic coroutine and continue after non-fatal errors."""
+    try:
+        result = await coro
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        raise
+    except (AkuvoxConnectionError, AkuvoxAuthenticationError):
+        raise
+    except TestStepSkipped as exc:
+        message = str(exc)
+        results.mark_skipped(label, message)
+        print(f"  ⊘ {label} skipped: {message}")
+        return None
+    except TestStepFailed as exc:
+        message = str(exc)
+        results.mark_failed(label, message)
+        print(f"  ✗ {label}: {message}")
+        return None
+    except AkuvoxError as exc:
+        message = str(exc)
+        results.mark_failed(label, message)
+        print(f"  ✗ {label}: {message}")
+        return None
+    except Exception as exc:  # noqa: BLE001 - diagnostic script safety net
+        message = f"{type(exc).__name__}: {exc}"
+        results.mark_failed(label, message)
+        print(f"  ✗ {label}: {message}")
+        traceback.print_exc()
+        return None
+
+    results.mark_passed(label)
+    return result
 
 
 def build_auth(args: argparse.Namespace) -> AuthConfig | None:
@@ -121,38 +230,28 @@ async def test_list_users(device: AkuvoxDevice) -> None:
 async def test_get_relay_status(device: AkuvoxDevice) -> None:
     """Test: Get relay status."""
     print_header("GET RELAY STATUS (/api/relay/status)")
-    try:
-        status = await device.get_relay_status()
-        print(f"  Raw status: {status}")
-        print("  ✓ get_relay_status() OK")
-    except AkuvoxUnsupportedError as exc:
-        print(f"  ⚠ Relay status not supported: {exc}")
-    except AkuvoxDeviceError as exc:
-        print(f"  ⚠ Relay status rejected: {exc}")
+    status = await device.get_relay_status()
+    print(f"  Raw status: {status}")
+    print("  ✓ get_relay_status() OK")
 
 
 async def test_get_device_config(device: AkuvoxDevice) -> None:
     """Test: Get full device configuration."""
     print_header("GET DEVICE CONFIG (/api/config/get)")
-    try:
-        cfg = await device.get_device_config()
-        print(f"  Total keys:       {len(cfg)}")
-        # Show sample keys by category
-        categories: dict[str, int] = {}
-        for key in cfg.keys():
-            parts = key.split(".")
-            cat = ".".join(parts[:2]) if len(parts) >= 2 else key
-            categories[cat] = categories.get(cat, 0) + 1
-        print(f"  Categories:       {len(categories)}")
-        for cat, count in sorted(categories.items())[:10]:
-            print(f"    {cat}: {count} keys")
-        if len(categories) > 10:
-            print(f"    ... and {len(categories) - 10} more categories")
-        print("  ✓ get_device_config() OK")
-    except AkuvoxUnsupportedError as exc:
-        print(f"  ⚠ Device config not supported: {exc}")
-    except AkuvoxDeviceError as exc:
-        print(f"  ⚠ Device config rejected: {exc}")
+    cfg = await device.get_device_config()
+    print(f"  Total keys:       {len(cfg)}")
+    # Show sample keys by category
+    categories: dict[str, int] = {}
+    for key in cfg.keys():
+        parts = key.split(".")
+        cat = ".".join(parts[:2]) if len(parts) >= 2 else key
+        categories[cat] = categories.get(cat, 0) + 1
+    print(f"  Categories:       {len(categories)}")
+    for cat, count in sorted(categories.items())[:10]:
+        print(f"    {cat}: {count} keys")
+    if len(categories) > 10:
+        print(f"    ... and {len(categories) - 10} more categories")
+    print("  ✓ get_device_config() OK")
 
 
 async def test_list_schedules(device: AkuvoxDevice) -> None:
@@ -193,14 +292,7 @@ async def test_list_contacts(device: AkuvoxDevice) -> None:
 async def test_get_door_logs(device: AkuvoxDevice) -> None:
     """Test: Retrieve door access logs."""
     print_header("GET DOOR LOGS (/api/doorlog/get)")
-    try:
-        entries = await device.get_door_logs()
-    except AkuvoxUnsupportedError as exc:
-        print(f"  ⚠ Door logs not supported: {exc}")
-        return
-    except AkuvoxDeviceError as exc:
-        print(f"  ⚠ Door logs rejected: {exc}")
-        return
+    entries = await device.get_door_logs()
     print(f"  Found {len(entries)} door log entry(ies)")
     for entry in entries[:5]:
         print(
@@ -221,14 +313,7 @@ async def test_get_door_logs(device: AkuvoxDevice) -> None:
 async def test_get_call_logs(device: AkuvoxDevice) -> None:
     """Test: Retrieve call logs."""
     print_header("GET CALL LOGS (/api/calllog/get)")
-    try:
-        entries = await device.get_call_logs()
-    except AkuvoxUnsupportedError as exc:
-        print(f"  ⚠ Call logs not supported: {exc}")
-        return
-    except AkuvoxDeviceError as exc:
-        print(f"  ⚠ Call logs rejected: {exc}")
-        return
+    entries = await device.get_call_logs()
     print(f"  Found {len(entries)} call log entry(ies)")
     for entry in entries[:5]:
         print(
@@ -246,27 +331,22 @@ async def test_get_call_logs(device: AkuvoxDevice) -> None:
     print("  ✓ get_call_logs(page=1) OK")
 
 
-async def test_add_user(device: AkuvoxDevice) -> str | None:
-    """Test: Add a test user. Returns the user's internal ID if found."""
+async def test_add_user(device: AkuvoxDevice) -> str:
+    """Test: Add a test user and return its internal ID."""
     print_header("ADD USER (/api/user/set action:add)")
     test_name = "pylocal-test"
     test_user_id = "9999"
 
-    try:
-        await device.add_user(
-            name=test_name,
-            user_id=test_user_id,
-            private_pin="1234",
-            web_relay="0",
-            schedule_relay="1001-1",
-            lift_floor_num="0",
-        )
-        print(f"  Added user: {test_name} (UserID={test_user_id}, PIN=1234)")
-        print("  ✓ add_user() OK")
-    except AkuvoxDeviceError as exc:
-        print(f"  ✗ Device rejected add_user: {exc}")
-        print("    (User may already exist or schedule 1001 may not exist)")
-        return None
+    await device.add_user(
+        name=test_name,
+        user_id=test_user_id,
+        private_pin="1234",
+        web_relay="0",
+        schedule_relay="1001-1",
+        lift_floor_num="0",
+    )
+    print(f"  Added user: {test_name} (UserID={test_user_id}, PIN=1234)")
+    print("  ✓ add_user() OK")
 
     # Device needs time to persist the new record
     await asyncio.sleep(_MUTATION_SETTLE_SECS)
@@ -274,17 +354,15 @@ async def test_add_user(device: AkuvoxDevice) -> str | None:
     # Search for the newly added user (page 1 has all items)
     users = await device.list_users()
     for user in users:
-        if user.user_id == test_user_id:
+        if user.user_id == test_user_id and user.id is not None:
             print(f"  → Assigned internal ID: {user.id}")
             return user.id
 
-    print("  ⚠ User added but not found in list")
-    return None
+    msg = "User added but internal ID not found in list"
+    print(f"  ⚠ {msg}")
+    raise TestStepFailed(msg)
 
 
-# Not called in the current test flow — modify operations are
-# reserved for future testing once firmware behavior is fully
-# characterized.  Kept as a ready-to-use helper.
 async def test_modify_user(device: AkuvoxDevice, internal_id: str) -> None:
     """Test: Modify the test user's PIN."""
     print_header("MODIFY USER (/api/user/set)")
@@ -306,52 +384,40 @@ async def test_delete_user(device: AkuvoxDevice, internal_id: str) -> None:
 async def test_trigger_relay(device: AkuvoxDevice) -> None:
     """Test: Trigger relay 1 with auto-close."""
     print_header("TRIGGER RELAY (/api/relay/trig)")
-    try:
-        await device.trigger_relay(num=1, delay=1)
-        print("  Triggered relay 1 (auto-close, delay=1s)")
-        print("  ✓ trigger_relay() OK")
-    except AkuvoxUnsupportedError as exc:
-        print(f"  ⚠ Relay trigger not supported: {exc}")
-    except AkuvoxDeviceError as exc:
-        print(f"  ⚠ Relay trigger rejected by device: {exc}")
-        print("  (Some models do not support relay trigger)")
+    await device.trigger_relay(num=1, delay=1)
+    print("  Triggered relay 1 (auto-close, delay=1s)")
+    print("  ✓ trigger_relay() OK")
 
 
-async def test_add_schedule(device: AkuvoxDevice) -> str | None:
-    """Test: Add a test schedule. Returns schedule ID if found."""
+async def test_add_schedule(device: AkuvoxDevice) -> str:
+    """Test: Add a test schedule and return its internal ID."""
     print_header("ADD SCHEDULE (/api/schedule/set action:add)")
     test_name = "pylocal-test-sched"
 
-    try:
-        await device.add_schedule(
-            schedule_type="1",
-            name=test_name,
-            week="12345",
-            time_start="08:00",
-            time_end="18:00",
-        )
-        print(f"  Added schedule: {test_name} (Weekly, Mon-Fri 08-18)")
-        print("  ✓ add_schedule() OK")
-    except AkuvoxDeviceError as exc:
-        print(f"  ✗ Device rejected add_schedule: {exc}")
-        return None
+    await device.add_schedule(
+        schedule_type="1",
+        name=test_name,
+        week="12345",
+        time_start="08:00",
+        time_end="18:00",
+    )
+    print(f"  Added schedule: {test_name} (Weekly, Mon-Fri 08-18)")
+    print("  ✓ add_schedule() OK")
 
     # Device needs time to persist the new record
     await asyncio.sleep(_MUTATION_SETTLE_SECS)
 
     schedules = await device.list_schedules()
     for sched in schedules:
-        if sched.name == test_name:
+        if sched.name == test_name and sched.id is not None:
             print(f"  → Assigned internal ID: {sched.id}")
             return sched.id
 
-    print("  ⚠ Schedule added but not found in list")
-    return None
+    msg = "Schedule added but internal ID not found in list"
+    print(f"  ⚠ {msg}")
+    raise TestStepFailed(msg)
 
 
-# Not called in the current test flow — modify operations are
-# reserved for future testing once firmware behavior is fully
-# characterized.  Kept as a ready-to-use helper.
 async def test_modify_schedule(device: AkuvoxDevice, internal_id: str) -> None:
     """Test: Modify the test schedule."""
     print_header("MODIFY SCHEDULE (/api/schedule/set)")
@@ -375,7 +441,7 @@ async def test_delete_schedule(device: AkuvoxDevice, internal_id: str) -> None:
     await asyncio.sleep(_MUTATION_SETTLE_SECS)
 
 
-async def test_add_group(device: AkuvoxDevice) -> str | None:
+async def test_add_group(device: AkuvoxDevice) -> str:
     """Test: Add a group and return its internal ID."""
     print_header("ADD GROUP (/api/group/add)")
     await device.add_group(name="__test_group__")
@@ -386,8 +452,9 @@ async def test_add_group(device: AkuvoxDevice) -> str | None:
         if grp.name == "__test_group__" and grp.id is not None:
             print(f"  ✓ add_group() OK — ID={grp.id}")
             return grp.id
-    print("  ⚠ Group created but not found in list")
-    return None
+    msg = "Group created but not found in list"
+    print(f"  ⚠ {msg}")
+    raise TestStepFailed(msg)
 
 
 async def test_delete_group(
@@ -402,20 +469,16 @@ async def test_delete_group(
     await asyncio.sleep(_MUTATION_SETTLE_SECS)
 
 
-async def test_add_contact(device: AkuvoxDevice) -> str | None:
+async def test_add_contact(device: AkuvoxDevice) -> str:
     """Test: Add a contact and return its internal ID."""
     print_header("ADD CONTACT (/api/contact/set action:add)")
-    try:
-        await device.add_contact(
-            name="__test_contact__",
-            phone="5550000",
-            group="Default",
-        )
-        print("  Sent add_contact(name='__test_contact__')")
-        print("  ✓ add_contact() OK")
-    except AkuvoxDeviceError as exc:
-        print(f"  ✗ Device rejected add_contact: {exc}")
-        return None
+    await device.add_contact(
+        name="__test_contact__",
+        phone="5550000",
+        group="Default",
+    )
+    print("  Sent add_contact(name='__test_contact__')")
+    print("  ✓ add_contact() OK")
 
     await asyncio.sleep(_MUTATION_SETTLE_SECS)
     contacts = await device.list_contacts()
@@ -423,8 +486,9 @@ async def test_add_contact(device: AkuvoxDevice) -> str | None:
         if c.name == "__test_contact__" and c.id is not None:
             print(f"  → Assigned internal ID: {c.id}")
             return c.id
-    print("  ⚠ Contact created but not found in list")
-    return None
+    msg = "Contact created but not found in list"
+    print(f"  ⚠ {msg}")
+    raise TestStepFailed(msg)
 
 
 async def test_delete_contact(
@@ -549,35 +613,32 @@ async def test_validation() -> None:
 async def test_discover_config_keys(device: AkuvoxDevice) -> None:
     """Test: Discover all configuration key categories."""
     print_header("DISCOVER CONFIG KEYS")
-    try:
-        cfg = await device.get_device_config()
-        categories: dict[str, int] = {}
-        for key in cfg.keys():
-            parts = key.split(".")
-            cat = ".".join(parts[:2]) if len(parts) >= 2 else key
-            categories[cat] = categories.get(cat, 0) + 1
-        print(f"  Total keys:       {len(cfg)}")
-        print(f"  Categories:       {len(categories)}")
-        for cat, count in sorted(categories.items()):
-            print(f"    {cat}: {count} keys")
-        print("  ✓ Key discovery OK")
-    except AkuvoxDeviceError as exc:
-        print(f"  ⚠ Config read failed: {exc}")
+    cfg = await device.get_device_config()
+    categories: dict[str, int] = {}
+    for key in cfg.keys():
+        parts = key.split(".")
+        cat = ".".join(parts[:2]) if len(parts) >= 2 else key
+        categories[cat] = categories.get(cat, 0) + 1
+    print(f"  Total keys:       {len(cfg)}")
+    print(f"  Categories:       {len(categories)}")
+    for cat, count in sorted(categories.items()):
+        print(f"    {cat}: {count} keys")
+    print("  ✓ Key discovery OK")
 
 
-async def _run_read_tests(device: AkuvoxDevice) -> None:
+async def _run_read_tests(device: AkuvoxDevice, results: TestResults) -> None:
     """Run all read-only tests against a connected device."""
-    await test_get_info(device)
-    await test_get_status(device)
-    await test_list_users(device)
-    await test_get_relay_status(device)
-    await test_get_device_config(device)
-    await test_discover_config_keys(device)
-    await test_list_schedules(device)
-    await test_list_groups(device)
-    await test_list_contacts(device)
-    await test_get_door_logs(device)
-    await test_get_call_logs(device)
+    await run_step(results, "GET DEVICE INFO", test_get_info(device))
+    await run_step(results, "GET DEVICE STATUS", test_get_status(device))
+    await run_step(results, "LIST USERS", test_list_users(device))
+    await run_step(results, "GET RELAY STATUS", test_get_relay_status(device))
+    await run_step(results, "GET DEVICE CONFIG", test_get_device_config(device))
+    await run_step(results, "DISCOVER CONFIG KEYS", test_discover_config_keys(device))
+    await run_step(results, "LIST SCHEDULES", test_list_schedules(device))
+    await run_step(results, "LIST GROUPS", test_list_groups(device))
+    await run_step(results, "LIST CONTACTS", test_list_contacts(device))
+    await run_step(results, "GET DOOR LOGS", test_get_door_logs(device))
+    await run_step(results, "GET CALL LOGS", test_get_call_logs(device))
 
 
 async def test_set_device_config(device: AkuvoxDevice) -> None:
@@ -585,13 +646,15 @@ async def test_set_device_config(device: AkuvoxDevice) -> None:
     print_header("SET DEVICE CONFIG (/api/config/set)")
     key = "Config.DoorSetting.RELAY.HoldDelayA"
     original: str | None = None
+    # Read current value
+    cfg = await device.get_device_config()
+    original = cfg.get(key)
+    if original is None:
+        msg = f"Config key {key!r} not present"
+        print(f"  ⚠ {msg}; skipping")
+        raise TestStepSkipped(msg)
+    primary_error = False
     try:
-        # Read current value
-        cfg = await device.get_device_config()
-        original = cfg.get(key)
-        if original is None:
-            print(f"  ⚠ Config key {key!r} not present; skipping")
-            return
         # Write a different value
         new_val = "7" if original != "7" else "6"
         await device.set_device_config({key: new_val})
@@ -603,33 +666,110 @@ async def test_set_device_config(device: AkuvoxDevice) -> None:
             print(f"  ✓ Read-back confirmed: {readback}")
             print("  ✓ set_device_config() OK")
         else:
-            print(f"  ✗ Read-back mismatch: {readback!r}")
-    except AkuvoxDeviceError as exc:
-        print(f"  ⚠ Config set rejected: {exc}")
+            msg = f"Read-back mismatch: {readback!r}"
+            raise TestStepFailed(msg)
+    except Exception:
+        primary_error = True
+        raise
     finally:
-        if original is not None:
-            try:
-                await device.set_device_config({key: original})
-                print(f"  Restored {key} = {original}")
-            except AkuvoxDeviceError as exc:
-                print(f"  ⚠ Restore failed: {exc}")
+        try:
+            await device.set_device_config({key: original})
+            print(f"  Restored {key} = {original}")
+        except Exception as exc:
+            if not primary_error:
+                raise
+            print(f"  ⚠ Restore failed after earlier failure: {exc}")
 
 
-async def _run_write_tests(device_kwargs: dict[str, Any]) -> None:
+async def test_verify_user_deletion(
+    device: AkuvoxDevice,
+    internal_id: str,
+) -> None:
+    """Test: Verify the test user was deleted."""
+    print_header("VERIFY USER DELETION")
+    users = await device.list_users()
+    found = any(u.id == internal_id for u in users)
+    if found:
+        raise TestStepFailed("User still present after delete")
+    print("  ✓ User successfully removed")
+
+
+async def test_verify_schedule_deletion(
+    device: AkuvoxDevice,
+    internal_id: str,
+) -> None:
+    """Test: Verify the test schedule was deleted."""
+    print_header("VERIFY SCHEDULE DELETION")
+    scheds = await device.list_schedules()
+    found = any(s.id == internal_id for s in scheds)
+    if found:
+        raise TestStepFailed("Schedule still present after delete")
+    print("  ✓ Schedule successfully removed")
+
+
+async def test_verify_group_deletion(
+    device: AkuvoxDevice,
+    internal_id: str,
+) -> None:
+    """Test: Verify the test group was deleted."""
+    print_header("VERIFY GROUP DELETION")
+    grps = await device.list_groups()
+    found = any(g.id == internal_id for g in grps)
+    if found:
+        raise TestStepFailed("Group still present after delete")
+    print("  ✓ Group successfully removed")
+
+
+async def test_verify_contact_deletion(
+    device: AkuvoxDevice,
+    internal_id: str,
+) -> None:
+    """Test: Verify the test contact was deleted."""
+    print_header("VERIFY CONTACT DELETION")
+    contacts = await device.list_contacts()
+    found = any(c.id == internal_id for c in contacts)
+    if found:
+        raise TestStepFailed("Contact still present after delete")
+    print("  ✓ Contact successfully removed")
+
+
+async def _run_write_tests(
+    device_kwargs: dict[str, Any],
+    results: TestResults,
+) -> None:
     """Run write tests (user/schedule CRUD, relay trigger)."""
     async with AkuvoxDevice(**device_kwargs) as device:
         # User add + delete FIRST — before any other
         # requests to avoid CGI state corruption.
-        internal_id = await test_add_user(device)
-        if internal_id:
-            await test_delete_user(device, internal_id)
-            print_header("VERIFY USER DELETION")
-            users = await device.list_users()
-            found = any(u.id == internal_id for u in users)
-            if not found:
-                print("  ✓ User successfully removed")
+        internal_id = await run_step(results, "ADD USER", test_add_user(device))
+        if internal_id is None:
+            reason = "requires internal ID from ADD USER"
+            skip_step(results, "MODIFY USER", reason)
+            skip_step(results, "DELETE USER", reason)
+            skip_step(results, "VERIFY USER DELETION", reason)
+        else:
+            await run_step(
+                results,
+                "MODIFY USER",
+                test_modify_user(device, internal_id),
+            )
+            await run_step(
+                results,
+                "DELETE USER",
+                test_delete_user(device, internal_id),
+            )
+            if results.was_passed("DELETE USER"):
+                await run_step(
+                    results,
+                    "VERIFY USER DELETION",
+                    test_verify_user_deletion(device, internal_id),
+                )
             else:
-                print("  ✗ User still present after delete!")
+                skip_step(
+                    results,
+                    "VERIFY USER DELETION",
+                    "requires DELETE USER to pass",
+                )
 
     # Device needs cooldown between request groups
     print("\n  ⏳ Waiting for device to settle…")
@@ -637,22 +777,41 @@ async def _run_write_tests(device_kwargs: dict[str, Any]) -> None:
 
     async with AkuvoxDevice(**device_kwargs) as device:
         # Schedule add + delete
-        sched_id = await test_add_schedule(device)
-        if sched_id:
-            await test_delete_schedule(device, sched_id)
-            print_header("VERIFY SCHEDULE DELETION")
-            scheds = await device.list_schedules()
-            found = any(s.id == sched_id for s in scheds)
-            if not found:
-                print("  ✓ Schedule successfully removed")
+        sched_id = await run_step(results, "ADD SCHEDULE", test_add_schedule(device))
+        if sched_id is None:
+            reason = "requires internal ID from ADD SCHEDULE"
+            skip_step(results, "MODIFY SCHEDULE", reason)
+            skip_step(results, "DELETE SCHEDULE", reason)
+            skip_step(results, "VERIFY SCHEDULE DELETION", reason)
+        else:
+            await run_step(
+                results,
+                "MODIFY SCHEDULE",
+                test_modify_schedule(device, sched_id),
+            )
+            await run_step(
+                results,
+                "DELETE SCHEDULE",
+                test_delete_schedule(device, sched_id),
+            )
+            if results.was_passed("DELETE SCHEDULE"):
+                await run_step(
+                    results,
+                    "VERIFY SCHEDULE DELETION",
+                    test_verify_schedule_deletion(device, sched_id),
+                )
             else:
-                print("  ✗ Schedule still present after delete!")
+                skip_step(
+                    results,
+                    "VERIFY SCHEDULE DELETION",
+                    "requires DELETE SCHEDULE to pass",
+                )
 
         # Relay trigger (safe: auto-close after 1s)
-        await test_trigger_relay(device)
+        await run_step(results, "TRIGGER RELAY", test_trigger_relay(device))
 
         # Config set + read-back verification
-        await test_set_device_config(device)
+        await run_step(results, "SET DEVICE CONFIG", test_set_device_config(device))
 
     # Cooldown before group tests
     print("\n  ⏳ Waiting for device to settle…")
@@ -660,16 +819,29 @@ async def _run_write_tests(device_kwargs: dict[str, Any]) -> None:
 
     async with AkuvoxDevice(**device_kwargs) as device:
         # Group add + delete
-        group_id = await test_add_group(device)
-        if group_id:
-            await test_delete_group(device, group_id)
-            print_header("VERIFY GROUP DELETION")
-            grps = await device.list_groups()
-            found = any(g.id == group_id for g in grps)
-            if not found:
-                print("  ✓ Group successfully removed")
+        group_id = await run_step(results, "ADD GROUP", test_add_group(device))
+        if group_id is None:
+            reason = "requires internal ID from ADD GROUP"
+            skip_step(results, "DELETE GROUP", reason)
+            skip_step(results, "VERIFY GROUP DELETION", reason)
+        else:
+            await run_step(
+                results,
+                "DELETE GROUP",
+                test_delete_group(device, group_id),
+            )
+            if results.was_passed("DELETE GROUP"):
+                await run_step(
+                    results,
+                    "VERIFY GROUP DELETION",
+                    test_verify_group_deletion(device, group_id),
+                )
             else:
-                print("  ✗ Group still present after delete!")
+                skip_step(
+                    results,
+                    "VERIFY GROUP DELETION",
+                    "requires DELETE GROUP to pass",
+                )
 
     # Cooldown before contact tests
     print("\n  ⏳ Waiting for device to settle…")
@@ -677,17 +849,35 @@ async def _run_write_tests(device_kwargs: dict[str, Any]) -> None:
 
     async with AkuvoxDevice(**device_kwargs) as device:
         # Contact add + modify + delete
-        contact_id = await test_add_contact(device)
-        if contact_id:
-            await test_modify_contact(device, contact_id)
-            await test_delete_contact(device, contact_id)
-            print_header("VERIFY CONTACT DELETION")
-            contacts = await device.list_contacts()
-            found = any(c.id == contact_id for c in contacts)
-            if not found:
-                print("  ✓ Contact successfully removed")
+        contact_id = await run_step(results, "ADD CONTACT", test_add_contact(device))
+        if contact_id is None:
+            reason = "requires internal ID from ADD CONTACT"
+            skip_step(results, "MODIFY CONTACT", reason)
+            skip_step(results, "DELETE CONTACT", reason)
+            skip_step(results, "VERIFY CONTACT DELETION", reason)
+        else:
+            await run_step(
+                results,
+                "MODIFY CONTACT",
+                test_modify_contact(device, contact_id),
+            )
+            await run_step(
+                results,
+                "DELETE CONTACT",
+                test_delete_contact(device, contact_id),
+            )
+            if results.was_passed("DELETE CONTACT"):
+                await run_step(
+                    results,
+                    "VERIFY CONTACT DELETION",
+                    test_verify_contact_deletion(device, contact_id),
+                )
             else:
-                print("  ✗ Contact still present after delete!")
+                skip_step(
+                    results,
+                    "VERIFY CONTACT DELETION",
+                    "requires DELETE CONTACT to pass",
+                )
 
     # Cooldown before read tests
     print("\n  ⏳ Waiting for device to settle…")
@@ -714,6 +904,7 @@ async def run_all(args: argparse.Namespace) -> None:
         "use_ssl": args.ssl,
         "verify_ssl": not args.no_verify_ssl,
     }
+    results = TestResults()
 
     # 1. Validation tests (offline)
     await test_validation()
@@ -727,10 +918,10 @@ async def run_all(args: argparse.Namespace) -> None:
     # connection with a cooldown pause between groups.
     try:
         if args.write:
-            await _run_write_tests(device_kwargs)
+            await _run_write_tests(device_kwargs, results)
 
         async with AkuvoxDevice(**device_kwargs) as device:
-            await _run_read_tests(device)
+            await _run_read_tests(device, results)
 
             if not args.write:
                 print_header("SKIPPING WRITE TESTS")
@@ -752,6 +943,7 @@ async def run_all(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     print_header("ALL TESTS COMPLETE ✓")
+    results.print_summary()
 
 
 def main() -> None:
