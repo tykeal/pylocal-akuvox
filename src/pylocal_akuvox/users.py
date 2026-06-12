@@ -170,7 +170,6 @@ async def modify_user(
     validate_pin(private_pin)
     validate_schedule_relay(schedule_relay)
 
-    # Fetch current user record and apply overrides
     current = await _get_user_by_id(http, id)
     if name is not None:
         current["Name"] = name
