@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from pylocal_akuvox.exceptions import AkuvoxValidationError
 from pylocal_akuvox.models import AccessSchedule
@@ -114,6 +114,19 @@ _DayFlags = tuple[
 ]
 
 
+class _ScheduleValidationFields(TypedDict):
+    """Schedule fields validated before creating a mutation payload."""
+
+    schedule_type: str | None
+    week: str | None
+    daily: str | None
+    date_start: str | None
+    date_end: str | None
+    time_start: str | None
+    time_end: str | None
+    day_values: _DayFlags
+
+
 def _expand_week_to_day_flags(
     week: str | None,
     day_values: _DayFlags,
@@ -149,25 +162,18 @@ _OPTIONAL_FIELD_MAP = (
 
 
 def _validate_schedule_fields(
-    schedule_type: str | None,
-    week: str | None,
-    daily: str | None,
-    date_start: str | None,
-    date_end: str | None,
-    time_start: str | None,
-    time_end: str | None,
-    day_values: _DayFlags,
+    fields: _ScheduleValidationFields,
 ) -> None:
     """Run all schedule field validators."""
-    if schedule_type is not None:
-        validate_schedule_type(schedule_type)
-    validate_week(week)
-    validate_daily(daily)
-    validate_date(date_start, "date_start")
-    validate_date(date_end, "date_end")
-    validate_time(time_start, "time_start")
-    validate_time(time_end, "time_end")
-    for val, field in zip(day_values, _DAY_FIELDS):
+    if fields["schedule_type"] is not None:
+        validate_schedule_type(fields["schedule_type"])
+    validate_week(fields["week"])
+    validate_daily(fields["daily"])
+    validate_date(fields["date_start"], "date_start")
+    validate_date(fields["date_end"], "date_end")
+    validate_time(fields["time_start"], "time_start")
+    validate_time(fields["time_end"], "time_end")
+    for val, field in zip(fields["day_values"], _DAY_FIELDS):
         _validate_day_flag(val, field)
 
 
@@ -222,16 +228,17 @@ async def add_schedule(
     sat = sat or None
 
     day_values = (sun, mon, tue, wed, thur, fri, sat)
-    _validate_schedule_fields(
-        schedule_type,
-        week,
-        daily,
-        date_start,
-        date_end,
-        time_start,
-        time_end,
-        day_values,
-    )
+    validation_fields: _ScheduleValidationFields = {
+        "schedule_type": schedule_type,
+        "week": week,
+        "daily": daily,
+        "date_start": date_start,
+        "date_end": date_end,
+        "time_start": time_start,
+        "time_end": time_end,
+        "day_values": day_values,
+    }
+    _validate_schedule_fields(validation_fields)
     day_values = _expand_week_to_day_flags(week, day_values)
 
     payload: dict[str, Any] = {"Type": schedule_type}
@@ -337,16 +344,17 @@ async def modify_schedule(
     sat = sat or None
 
     day_values = (sun, mon, tue, wed, thur, fri, sat)
-    _validate_schedule_fields(
-        schedule_type,
-        week,
-        daily,
-        date_start,
-        date_end,
-        time_start,
-        time_end,
-        day_values,
-    )
+    validation_fields: _ScheduleValidationFields = {
+        "schedule_type": schedule_type,
+        "week": week,
+        "daily": daily,
+        "date_start": date_start,
+        "date_end": date_end,
+        "time_start": time_start,
+        "time_end": time_end,
+        "day_values": day_values,
+    }
+    _validate_schedule_fields(validation_fields)
     day_values = _expand_week_to_day_flags(week, day_values)
 
     current = await _get_schedule_by_id(http, id)
