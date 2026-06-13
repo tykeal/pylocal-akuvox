@@ -54,9 +54,9 @@ The 10 acceptance-criteria items in issue #123 each map to one or more functiona
 
 - [x] `"No hanlders for this request"` typo is recognized <!-- codespell:ignore hanlders --> → FR-004
 - [x] `"Api unsupported"` is recognized as an existing unsupported marker → FR-004
-- [x] `"unsupported action"` is distinguished from "endpoint missing" → FR-004, edge cases section
+- [x] `"unsupported action"` and `"unsupport action"` are distinguished from "endpoint missing" → FR-004, edge cases section <!-- codespell:ignore unsupport -->
 - [x] HTTP 500 is recorded but not classified as supported/unsupported → FR-004
-- [x] HTTP 401/403 aborts probe with auth error rather than partial report → FR-004
+- [x] Step-1 HTTP 401/403 aborts with matching errors rather than partial report → FR-004
 - [x] Provenance staleness path documented (firmware update invalidating entries) → FR-007, edge cases section
 - [x] Unknown-device first contact behavior is conservative → FR-013
 - [x] Probe-vs-matrix precedence is defined (probe wins) → FR-009

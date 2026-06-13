@@ -89,9 +89,11 @@ single_request_latency` (sub-second on a healthy LAN).
   HTTP handlers (observed on IT83).
 - Bounding timeout per-call (not just total) means a device that
   silently drops one request does not stall the whole probe.
-- 401/403 short-circuits: if `system/info` returns auth-failure, the
-  probe raises `AkuvoxAuthenticationError` immediately and produces no
-  partial report (FR-004, edge case "auth failure during probe").
+- Step-1 401/403 short-circuits: if `system/info` returns HTTP 401, the
+  probe raises `AkuvoxAuthenticationError` immediately. If it returns HTTP
+  403, the probe raises `AkuvoxRequestError` for insufficient permissions.
+  Both cases produce no partial report and align with existing `_http.py`
+  semantics (FR-004, edge case "auth/authorization failure during probe").
 
 **Alternatives considered**:
 

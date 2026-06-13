@@ -28,20 +28,27 @@ class AkuvoxDevice:
                 default of 5.0. The total wall-clock cost is bounded by
                 ``len(probe_steps) × timeout``; a typical run is much
                 shorter because the probe issues calls sequentially and
-                short-circuits on step-1 auth failure.
+                short-circuits on step-1 authentication/authorization failure.
 
         Returns:
             A new ``DeviceCapabilities`` populated from observed
             responses. Replaces this connection's effective profile.
 
         Raises:
-            AkuvoxAuthenticationError: Credentials rejected (HTTP 401/403)
+            AkuvoxAuthenticationError: Credentials rejected (HTTP 401)
                 during the first ``GET /api/system/info`` call. The probe
                 aborts cleanly after exactly 1 call and does not return a
-                partial profile. **Later-step 401/403 does NOT raise this
+                partial profile. **Later-step 401 does NOT raise this
                 exception** — it records the affected capability as
                 ``UNKNOWN`` and the probe continues per the
                 Call-count invariant in §"Probe step sequence".
+            AkuvoxRequestError: Forbidden response (HTTP 403) during the
+                first ``GET /api/system/info`` call. The probe treats this
+                as insufficient permissions, matching the existing HTTP
+                layer's 4xx handling, and aborts after exactly 1 call.
+                **Later-step 403 does NOT raise this exception** — it
+                records the affected capability as ``UNKNOWN`` and the
+                probe continues.
             AkuvoxConnectionError: Network/transport failure during any
                 probe step.
             AkuvoxParseError: ``GET /api/system/info`` returned a payload
@@ -98,13 +105,14 @@ outcome of step 1:
   action"`, or any other non-fatal failure shape — those classify as
   `UNKNOWN`/`SUPPORTED`/`UNSUPPORTED` per the classification table
   below and the probe CONTINUES to the next step.
-- **Step-1 auth-failure path** (HTTP 401 or HTTP 403 on
-  `/api/system/info`): the probe issues exactly **1** call, then
-  raises `AkuvoxAuthenticationError` and aborts. No `DeviceCapabilities`
-  is returned. (Without credentials, classifying the rest of the
-  capability surface is meaningless — every endpoint would return
-  401/403 and produce a profile with every capability `UNKNOWN`,
-  which is indistinguishable from a misconfigured probe.)
+- **Step-1 authentication/authorization failure path**: HTTP 401 on
+  `/api/system/info` raises `AkuvoxAuthenticationError`.
+  HTTP 403 raises `AkuvoxRequestError("step-1 HTTP 403: insufficient permissions to read
+  /api/system/info")`. In both cases, the probe issues exactly **1** call
+  and aborts with no `DeviceCapabilities` returned. This split matches the
+  existing `_http.py` semantics: 401 is authentication failure, while 403 is
+  a generic 4xx request error. Without access to step 1, classifying the rest
+  of the capability surface would produce a misleading all-`UNKNOWN` profile.
 - **Later-step 401/403** (steps 2–9): the affected step's capability
   marker is recorded as `UNKNOWN`, with `notes["<endpoint_slug>_body"]
   = "<status_code>: <body>"` (e.g. `notes["user_get_body"] = "401:
@@ -122,7 +130,8 @@ success path is a fatal abort that returns no `DeviceCapabilities`
 | Step-1 outcome | Probe behaviour | Calls | Exception |
 |---|---|---|---|
 | HTTP 2xx + body parses to `DeviceInfo` | continue to steps 2–9 | 9 | — (returns `DeviceCapabilities`) |
-| HTTP 401/403 | abort | 1 | `AkuvoxAuthenticationError` |
+| HTTP 401 | abort | 1 | `AkuvoxAuthenticationError` |
+| HTTP 403 | abort | 1 | `AkuvoxRequestError` |
 | HTTP 2xx + body unparsable to `DeviceInfo` (3 sub-cases: invalid JSON; envelope missing/malformed `retcode`; `DeviceInfo.from_api_response(data)` raises on missing required fields) | abort | 1 | `AkuvoxParseError` |
 | HTTP 5xx, or HTTP 4xx other than 401/403 (e.g. 404) | abort | 1 | `AkuvoxConnectionError` (wrap) |
 | Transport failure (timeout, connection refused, DNS) | abort | 0–1 | `AkuvoxConnectionError` |
@@ -132,7 +141,7 @@ per-step notes:
 
 | # | Method | URL | Capability marker | Notes |
 |---|--------|-----|-------------------|-------|
-| 1 | GET | `/api/system/info`             | `KEY_DISCOVERY` | Mandatory; classifies device class + firmware. Issued via `_request_raw("GET", "/api/system/info", timeout=probe_timeout)`. The probe inspects the returned tuple: if `status in (401, 403)`, raises `AkuvoxAuthenticationError` itself (short-circuit). |
+| 1 | GET | `/api/system/info`             | `KEY_DISCOVERY` | Mandatory; classifies device class + firmware. Issued via `_request_raw("GET", "/api/system/info", timeout=probe_timeout)`. The probe inspects the returned tuple: if `status == 401`, raises `AkuvoxAuthenticationError`. Other step-1 failures follow the table above, including the forbidden-response `AkuvoxRequestError` row. |
 | 2 | GET | `/api/system/status`           | (none — health probe) | Device-health probe only. Result recorded as a free-form note under `DeviceCapabilities.notes["system_status"]` (raw body or short summary like `"ok"` / `"http_500"`). Does NOT classify any capability — `/api/system/status` is universal device-health, NOT relay status. (`RELAY_STATUS` is classified solely by step 9 below.) Per spec FR-011 + `data-model.md` §"Explicit out-of-scope", `AkuvoxDevice.get_status()` is not capability-gated, so step 2's role is connectivity sanity-check + a free-form note for maintainers. |
 | 3 | GET | `/api/user/get?page=1`         | `USER_LIST`    | Records observed `ScheduleRelay`/`Schedule-Relay`/`Schedule` field aliases (read direction); records observed presence of `Building`/`Room`/`EffectiveType` for note. |
 | 4 | GET | `/api/contact/get?page=1`      | `CONTACT_LIST` | Records observed schema shape (`APTName`/`APTNum`/`Building`/`Landline` → `APARTMENT_BOOK`; otherwise `DOOR_PHONE`). |
@@ -152,7 +161,7 @@ through `_handle_response` (`_http.py:177-204`), which translates HTTP
 4xx/5xx into `AkuvoxRequestError`/`AkuvoxAuthenticationError`/
 `AkuvoxDeviceError`, translates `"Api unsupported"` envelopes into
 `AkuvoxUnsupportedError`, and translates other `retcode < 0` envelopes
-(including `"unsupported action"`) into `AkuvoxDeviceError` — hiding exactly the signals the probe needs to
+(including `"unsupported action"` / `"unsupport action"`) into `AkuvoxDeviceError` — hiding exactly the signals the probe needs to <!-- codespell:ignore unsupport -->
 classify.
 
 Phase 1 therefore adds a low-level sibling helper:
@@ -172,15 +181,18 @@ async def _request_raw(
     Bypasses ``_handle_response`` translation: returns the raw HTTP
     status and the unparsed body text for every non-transport outcome,
     including HTTP 4xx/5xx and JSON envelopes with ``retcode < 0`` or
-    ``message == "unsupported action"``. The probe is the sole intended
+    ``message == "unsupported action"`` or ``"unsupport action"``. The probe is the sole intended <!-- codespell:ignore unsupport -->
     consumer.
 
     Raises ``AkuvoxConnectionError`` only for transport-level failures
     (connection refused, DNS failure, asyncio ``TimeoutError`` — same
     wrapper as the existing public methods). Authentication
     classification (status 401/403) is the **caller's** responsibility:
-    the probe inspects the returned tuple itself and raises
-    ``AkuvoxAuthenticationError`` on step 1 when ``status in (401, 403)``.
+    the probe inspects the returned tuple itself. On step 1, ``status ==
+    401`` raises ``AkuvoxAuthenticationError``.
+    ``status == 403`` raises ``AkuvoxRequestError`` for insufficient permissions.
+    Later-step 401/403
+    responses are recorded as ``UNKNOWN`` and do not raise.
     """
 ```
 
@@ -206,9 +218,9 @@ probe-output mapping minimal, it makes the matrix-merge rule's "matrix
 UNKNOWN means absent-from-matrix" branch and the probe-`UNKNOWN`
 branch behaviourally identical, and it gives `status_of` a single
 source-of-truth for "no positive evidence either way". **A read
-endpoint returning `"unsupported action"` does NOT propagate to its
+endpoint returning `"unsupported action"` or `"unsupport action"` does NOT propagate to its <!-- codespell:ignore unsupport -->
 write counterpart(s)** — the read capability is recorded as
-`UNSUPPORTED` per the classification table below, and the `unsupported action` body is
+`UNSUPPORTED` per the classification table below, and the raw unsupported-action body is
 preserved verbatim in `DeviceCapabilities.notes` under a per-endpoint
 key (e.g. `notes["contact_get_body"]`) for maintainer review, but every
 write capability in the same domain (`*_ADD`, `*_MODIFY`, `*_DELETE`)
@@ -225,7 +237,7 @@ rejection envelope is not evidence about the other). The earlier,
 rejected heuristic (read-success + non-indoor model prefix → write
 supported) is **not** used; see the "Alternatives considered" item
 below. The earlier, also-rejected heuristic
-(read-`unsupported action` → write-`UNSUPPORTED`) is likewise **not**
+(read-unsupported-action → write-`UNSUPPORTED`) is likewise **not**
 used; the probe records the read-endpoint signal in `notes` under a
 per-endpoint key (e.g. `notes["contact_get_body"]`) and leaves write
 status to curated matrix evidence.
@@ -245,10 +257,11 @@ notes record only.
 | HTTP 2xx + envelope contains `"No handlers for this request"` | `UNSUPPORTED_NO_HANDLER` | `UNSUPPORTED`. Note recorded under `notes["<endpoint_slug>_body"]` (e.g. `notes["relay_status_body"]`). |
 | HTTP 2xx + envelope contains `"No hanlders for this request"` (device typo) | `UNSUPPORTED_NO_HANDLER` | Same as the corrected spelling. <!-- codespell:ignore hanlders --> |
 | HTTP 2xx + envelope contains `"Api unsupported"` | `UNSUPPORTED_API` | `UNSUPPORTED`. Mirrors the existing `_http.py` `_UNSUPPORTED_MSG` marker. |
-| HTTP 2xx + envelope contains `"unsupported action"` | `UNSUPPORTED_ACTION` | `UNSUPPORTED` for the probed read capability. Note recorded under `notes["<endpoint_slug>_body"]` with the raw body. **The write counterpart remains `UNKNOWN`** — the probe does NOT propagate read-endpoint signals to write capabilities; only a curated matrix entry can promote a write to a non-`UNKNOWN` status (see §"Probe step sequence" Write-capabilities paragraph). |
+| HTTP 2xx + envelope contains `"unsupported action"` or `"unsupport action"` (device typo) | `UNSUPPORTED_ACTION` | `UNSUPPORTED` for the probed read capability. Note recorded under `notes["<endpoint_slug>_body"]` with the raw body. **The write counterpart remains `UNKNOWN`** — the probe does NOT propagate read-endpoint signals to write capabilities; only a curated matrix entry can promote a write to a non-`UNKNOWN` status (see §"Probe step sequence" Write-capabilities paragraph). | <!-- codespell:ignore unsupport -->
 | HTTP 5xx | `INDETERMINATE` | `UNKNOWN`. Note records the raw status + body under `notes["<endpoint_slug>_body"]` so a maintainer can decide. (Spec edge case "HTTP 500"; X915S `2915.30.10.113`.) |
 | HTTP 4xx (other than 401/403) | `INDETERMINATE` | `UNKNOWN`. Note recorded under `notes["<endpoint_slug>_body"]`. |
-| HTTP 401 / 403 on step 1 | (raise) | Probe aborts with `AkuvoxAuthenticationError`. |
+| HTTP 401 on step 1 | (raise) | Probe aborts with `AkuvoxAuthenticationError`. |
+| HTTP 403 on step 1 | (raise) | Probe aborts with `AkuvoxRequestError` for insufficient permissions. |
 | HTTP 401 / 403 on later steps | `INDETERMINATE` | `UNKNOWN`; probe continues. (A device that requires fresh auth per endpoint is unusual; the report flags it.) |
 | Transport error | (raise) | Probe aborts with `AkuvoxConnectionError`. |
 
@@ -301,8 +314,8 @@ log against a denylist regex (FR-003, SC-001).
    `{"retcode": -1, "message": "No hanlders for this request"}` for <!-- codespell:ignore hanlders -->
    `/api/relay/status` results in `RELAY_STATUS` recorded as
    `UNSUPPORTED`, identical behaviour to the corrected spelling.
-2. **`unsupported action` on contacts**: a mocked
-   `{"retcode": -1, "message": "unsupported action"}` from
+2. **unsupported-action response on contacts**: a mocked
+   `{"retcode": -1, "message": "unsupported action"}` (and a separate typo-variant fixture with `"unsupport action"`) from <!-- codespell:ignore unsupport -->
    `/api/contact/get` MUST result in `CONTACT_LIST` recorded as
    `UNSUPPORTED` (the negative retcode means the read operation failed)
    and the raw body MUST be recorded under
@@ -405,7 +418,7 @@ of a probe run for debugging, they can wrap the call:
 - Probing write endpoints: never done. Write capabilities only reach
   a non-`UNKNOWN` status via a curated matrix entry (hardware-bench
   observation of write attempts). Read-endpoint signals — including
-  the `"unsupported action"` envelope — never propagate to write
+  the unsupported-action envelope — never propagate to write
   capabilities; the probe records such signals only in
   `DeviceCapabilities.notes` under a per-endpoint key (e.g.
   `notes["contact_get_body"]`).

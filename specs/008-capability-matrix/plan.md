@@ -24,7 +24,7 @@ independently shippable phases mapped 1:1 to spec User Stories 1–4:
    Add `await device.probe_capabilities()` — a strictly read-only inspection
    that issues only `GET` / list calls and classifies the four well-known
    failure shapes (`"No handlers for this request"`, the typo
-   `"No hanlders for this request"`, `"Api unsupported"`, `"unsupported action"`, HTTP 500) into <!-- codespell:ignore hanlders -->
+   `"No hanlders for this request"`, `"Api unsupported"`, `"unsupported action"`, `"unsupport action"`, HTTP 500) into <!-- codespell:ignore hanlders,unsupport -->
    documented categories. The probe **never infers write capability** from
    read endpoints: **all write capabilities** (every `*_ADD` / `*_MODIFY`
    / `*_DELETE` capability across users/contacts/schedules/groups, plus
@@ -103,8 +103,9 @@ component `tykeal/homeassistant-local-akuvox` plus `examples/mvp_test.py`.
   `research.md` Decision 1). `probe_timeout` is bounded per-call (default 5 s,
   configurable). Probe issues at most one read per capability class — no
   exponential fan-out — and short-circuits only when **step 1** returns
-  HTTP 401/403 (raises `AkuvoxAuthenticationError` after exactly 1 call)
-  or when step 1's body fails to parse to `DeviceInfo` (raises
+  HTTP 401 (raises `AkuvoxAuthenticationError` after exactly 1 call),
+  HTTP 403 (raises `AkuvoxRequestError` after exactly 1 call for
+  insufficient permissions), or when step 1's body fails to parse to `DeviceInfo` (raises
   `AkuvoxParseError`). Later-step 401/403 records the affected
   capability as `UNKNOWN` with a `notes` entry and the probe continues
   to all 9 calls — see `contracts/probe-api.md` §"Probe step sequence"

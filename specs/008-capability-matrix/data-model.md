@@ -63,7 +63,6 @@ grep-friendly and stable in serialized notes/provenance.
 | `CONTACT_ADD`             | `"contact.add"`            | `device.add_contact()` |
 | `CONTACT_MODIFY`          | `"contact.modify"`         | `device.modify_contact()` |
 | `CONTACT_DELETE`          | `"contact.delete"`         | `device.delete_contact()` |
-| `CONTACT_SCHEMA_APARTMENT`| `"contact.schema.apartment"` | (flag; consulted by `Contact.from_api_response` in Phase 3) |
 | `RELAY_TRIGGER_API`       | `"relay.trigger.api"`      | `device.trigger_relay()` via `/api/relay/trig` |
 | `RELAY_TRIGGER_FCGI`      | `"relay.trigger.fcgi"`     | `device.trigger_relay()` via `/fcgi/do?action=OpenDoor` |
 | `RELAY_STATUS`            | `"relay.status"`           | `device.get_relay_status()` |
@@ -283,7 +282,6 @@ opts in via `device.attempt_unknown_capability=True`.
 | `CONTACT_ADD`             | S | **U** (door-phone `add_contact` write-attempt confirmed `unsupported action` on bench — issue #121) | S | ? |
 | `CONTACT_MODIFY`          | S | **?** (no hardware-bench write evidence cited; door-phone-shape `modify_contact` has not been independently tested on X915S — see issue #121 which covered ADD only. Defaults to UNKNOWN per FR-003 "no evidence → UNKNOWN"; gate's `attempt_unknown_capability=True` opt-in is the escape hatch.) | S | ? |
 | `CONTACT_DELETE`          | S | **?** (no hardware-bench write evidence cited; door-phone-shape `delete_contact` has not been independently tested on X915S — same situation as MODIFY. Defaults to UNKNOWN per FR-003.) | S | ? |
-| `CONTACT_SCHEMA_APARTMENT`| ? | S | ? | ? |
 | `RELAY_TRIGGER_API`       | S | S | S | **U** (no-handler confirmed) |
 | `RELAY_TRIGGER_FCGI`      | ? | ? | ? | **S** (community-reporter evidence) |
 | `RELAY_STATUS`            | S | S | S | **U** (no-handler confirmed) |
@@ -315,20 +313,14 @@ Notes on the IT83 column:
   or `UNSUPPORTED` additively, with no code changes outside the
   matrix.
 
-Notes on the `CONTACT_SCHEMA_APARTMENT` row:
+Notes on contact schema shape:
 
-- This capability is a *flag* (the apartment-book schema is in use)
-  not an *operation*. `SUPPORTED` for X915S means "this device uses
-  the apartment-book schema for contacts"; `UNKNOWN` for the others
-  means "we have no positive evidence the apartment-book schema
-  applies to this device" — Phase 3's contact parser falls back to
-  the door-phone shape when the flag's status is anything other than
-  `SUPPORTED`. This is one of the exceptions where `UNKNOWN` does
-  *not* trigger fail-fast: the contact parser does not call
-  `require()` on this flag; it consults `schema_shapes` directly. See
-  the Phase 3 refactor notes for why this distinction is safe (the
-  door-phone parse path is the historical default and is byte-compatible
-  with all currently-supported devices).
+- Contact schema shape is not a `Capability` entry. The single source of
+  truth is `DeviceCapabilities.schema_shapes["contact"]` with values from
+  `SchemaShape`. `SchemaShape.APARTMENT_BOOK` for X915S means "this device
+  uses the apartment-book schema for contacts"; absence of a schema-shape
+  entry means the parser uses the historical door-phone shape. This avoids
+  a redundant capability flag that could drift from `schema_shapes`.
 
 ## Public re-exports (`pylocal_akuvox/__init__.py`)
 
