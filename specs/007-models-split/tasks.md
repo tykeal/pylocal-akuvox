@@ -40,15 +40,15 @@ each story.
 **Purpose**: Capture pre-refactor measurements so the post-refactor checks
 in US2, US4, and Polish can prove non-regression (SC-001, SC-005, SC-004).
 
-- [ ] T001 Confirm working tree is clean and on branch `007-models-split`:
+- [x] T001 Confirm working tree is clean and on branch `007-models-split`:
   run `git status` and `git rev-parse --abbrev-ref HEAD` from the repo
   root; abort if either reports unexpected state.
-- [ ] T002 [P] Capture pre-split file-size baseline by running
+- [x] T002 [P] Capture pre-split file-size baseline by running
   `wc -l src/pylocal_akuvox/models.py` and recording the result (expected:
   447 — issue #126 originally reported 448; the one-line delta is
   immaterial, both exceed the 400 gate). This is the SC-001 / FR-005
   reference for the post-split file-size check in T016.
-- [ ] T003 [P] Capture pre-split model-layer coverage baseline by
+- [x] T003 [P] Capture pre-split model-layer coverage baseline by
   running:
   ```bash
   uv run pytest tests/unit/test_models.py -q
@@ -77,7 +77,7 @@ authoring and implementation.
 **⚠️ CRITICAL**: No user story work can begin until this phase confirms the
 baseline.
 
-- [ ] T004 Verify the consumer-import inventory in
+- [x] T004 Verify the consumer-import inventory in
   `specs/007-models-split/contracts/import-contract.md` §2 still matches
   the repo state: run `git grep -nE "from pylocal_akuvox\.models( |$)|from
   pylocal_akuvox\.models import" -- src/ tests/ examples/ docs/` and
@@ -134,7 +134,7 @@ continues to expose the same ten names it always has.
 > on `pylocal_akuvox.models.users` (etc.) because the submodules do not
 > yet exist.**
 
-- [ ] T005 [US1] Create `tests/unit/test_models_reexport.py` with the
+- [x] T005 [US1] Create `tests/unit/test_models_reexport.py` with the
   three test functions specified verbatim in
   `specs/007-models-split/contracts/import-contract.md` §3
   (`test_models_all_contains_exactly_the_ten_public_names`,
@@ -162,7 +162,7 @@ continues to expose the same ten names it always has.
 > commit recipe (subject ≤50 chars, capitalized Conventional Commit
 > type, `-s` sign-off, `Co-Authored-By:` trailers, no `--no-verify`).
 
-- [ ] T006 [P] [US1] Create `src/pylocal_akuvox/models/device.py` and
+- [x] T006 [P] [US1] Create `src/pylocal_akuvox/models/device.py` and
   move the `DeviceInfo`, `DeviceStatus`, and `Relay` `@dataclass` blocks
   verbatim from `src/pylocal_akuvox/models.py` lines 14-119 (per
   `data-model.md` §"Class Home Map" rows 1-3). Include the SPDX header
@@ -175,7 +175,7 @@ continues to expose the same ten names it always has.
   defaults, method signatures, and `from_api_response` parsing behavior
   unchanged (FR-007). Target file size: ~115 lines (≤ 400, per
   `data-model.md` budget table).
-- [ ] T007 [P] [US1] Create `src/pylocal_akuvox/models/users.py` and
+- [x] T007 [P] [US1] Create `src/pylocal_akuvox/models/users.py` and
   move the `User` `@dataclass` block verbatim from
   `src/pylocal_akuvox/models.py` lines 120-191 (per `data-model.md` row
   4). Include the SPDX header pair, `"""User-domain data model."""`
@@ -184,7 +184,7 @@ continues to expose the same ten names it always has.
   Preserve the `ScheduleRelay` / `Schedule-Relay` / `Schedule` fallback
   chain in `User.from_api_response` exactly as written (FR-007). Target
   file size: ~81 lines (≤ 250 per SC-006).
-- [ ] T008 [P] [US1] Create `src/pylocal_akuvox/models/schedules.py` and
+- [x] T008 [P] [US1] Create `src/pylocal_akuvox/models/schedules.py` and
   move the `AccessSchedule` `@dataclass` block verbatim from
   `src/pylocal_akuvox/models.py` lines 192-275 (per `data-model.md` row
   5). Include the SPDX header pair,
@@ -192,7 +192,7 @@ continues to expose the same ten names it always has.
   and the four imports listed for `models/schedules.py` in
   `data-model.md` §"Per-File Composition" table. Target file size:
   ~93 lines.
-- [ ] T009 [P] [US1] Create `src/pylocal_akuvox/models/logs.py` and move
+- [x] T009 [P] [US1] Create `src/pylocal_akuvox/models/logs.py` and move
   the `DoorLogEntry` and `CallLogEntry` `@dataclass` blocks verbatim
   from `src/pylocal_akuvox/models.py` lines 276-341 (per `data-model.md`
   rows 6-7). Include the SPDX header pair,
@@ -200,7 +200,7 @@ continues to expose the same ten names it always has.
   docstring, and the four imports listed for `models/logs.py` in
   `data-model.md` §"Per-File Composition" table. Target file size:
   ~75 lines.
-- [ ] T010 [P] [US1] Create `src/pylocal_akuvox/models/config.py` and
+- [x] T010 [P] [US1] Create `src/pylocal_akuvox/models/config.py` and
   move the `DeviceConfig` `@dataclass` block verbatim from
   `src/pylocal_akuvox/models.py` lines 342-387 (per `data-model.md` row
   8). Include the SPDX header pair,
@@ -214,14 +214,14 @@ continues to expose the same ten names it always has.
   only domain submodule that omits the `AkuvoxParseError` import; see
   the per-file import table in `data-model.md` §"Per-File Composition".
   Target file size: ~55 lines.
-- [ ] T011 [P] [US1] Create `src/pylocal_akuvox/models/groups.py` and
+- [x] T011 [P] [US1] Create `src/pylocal_akuvox/models/groups.py` and
   move the `Group` `@dataclass` block verbatim from
   `src/pylocal_akuvox/models.py` lines 388-414 (per `data-model.md` row
   9). Include the SPDX header pair,
   `"""Organizational-group data model."""` module docstring, and the
   four imports listed for `models/groups.py` in `data-model.md`
   §"Per-File Composition" table. Target file size: ~36 lines.
-- [ ] T012 [P] [US1] Create `src/pylocal_akuvox/models/contacts.py` and
+- [x] T012 [P] [US1] Create `src/pylocal_akuvox/models/contacts.py` and
   move the `Contact` `@dataclass` block verbatim from
   `src/pylocal_akuvox/models.py` lines 415-447 (per `data-model.md` row
   10). Include the SPDX header pair,
@@ -230,7 +230,7 @@ continues to expose the same ten names it always has.
   §"Per-File Composition" table. Target file size: ~42 lines (≤ 250 per
   SC-006). (T006-T012 are all [P] — different files, no dependencies on
   each other.)
-- [ ] T013 [US1] Create `src/pylocal_akuvox/models/__init__.py` as the
+- [x] T013 [US1] Create `src/pylocal_akuvox/models/__init__.py` as the
   re-export shim, using the *exact* content specified in
   `specs/007-models-split/data-model.md` §"Re-Export Shim
   (`models/__init__.py`)": SPDX header pair, the package-level docstring
@@ -239,13 +239,13 @@ continues to expose the same ten names it always has.
   seven `from pylocal_akuvox.models.<sub> import <Name>` lines, and the
   alphabetically-sorted `__all__: list[str] = [...]` of the ten public
   names (FR-001, FR-003, FR-004, FR-015). Depends on T006-T012.
-- [ ] T014 [US1] Delete the old monolith `src/pylocal_akuvox/models.py`
+- [x] T014 [US1] Delete the old monolith `src/pylocal_akuvox/models.py`
   with `git rm src/pylocal_akuvox/models.py`. Python cannot resolve both
   the file and the package at the same import path; the package replaces
   the file. Depends on T013 (the shim must exist before the file is
   removed so that `from pylocal_akuvox.models import …` continues to
   resolve mid-test-run). T013 and T014 land in the same commit.
-- [ ] T015 [US1] Verify TDD test is now GREEN: run
+- [x] T015 [US1] Verify TDD test is now GREEN: run
   `uv run pytest tests/unit/test_models_reexport.py -v` and confirm all
   three assertions pass. Additionally run
   `uv run pytest tests/unit/test_models.py -q` to confirm the existing
@@ -274,12 +274,12 @@ previously flagged `models.py` produces no warnings on the new files.
 
 ### Implementation for User Story 2
 
-- [ ] T016 [US2] Verify file-size compliance by running
+- [x] T016 [US2] Verify file-size compliance by running
   `wc -l src/pylocal_akuvox/models/*.py` and confirming every file is
   ≤ 400 lines (FR-005, SC-001). Cross-check against the budget table in
   `data-model.md` §"File-Size Budget (post-split)"; flag any file that
   exceeded its projected size by > 20%.
-- [ ] T017 [US2] Confirm the aislop `complexity/file-too-large` warning
+- [x] T017 [US2] Confirm the aislop `complexity/file-too-large` warning
   is resolved. **Tooling note**: aislop is an external code-review tool
   (it surfaced the original 400-line warning on `models.py` via issue
   #126); it is **not** wired into this project's local lint config
@@ -317,18 +317,18 @@ future cross-cutting module will live.
 
 ### Implementation for User Story 3
 
-- [ ] T018 [US3] Verify `src/pylocal_akuvox/models/users.py` contains
+- [x] T018 [US3] Verify `src/pylocal_akuvox/models/users.py` contains
   exactly one `@dataclass` block (`User`) with no other domain classes,
   and that `wc -l src/pylocal_akuvox/models/users.py` is ≤ 250 lines
   (SC-006, FR-008). Confirms #123's planned `from_api_response` rewrite
   is a single-file change.
-- [ ] T019 [US3] Verify `src/pylocal_akuvox/models/contacts.py` contains
+- [x] T019 [US3] Verify `src/pylocal_akuvox/models/contacts.py` contains
   exactly one `@dataclass` block (`Contact`) with no other domain
   classes, and that `wc -l src/pylocal_akuvox/models/contacts.py` is
   ≤ 250 lines (SC-006, FR-008). Confirms #121's apartment-book field
   additions (`APTName`, `APTNum`, `Building`, `Landline`) land as a
   single-file change with comfortable headroom.
-- [ ] T020 [US3] Verify the package-level docstring in
+- [x] T020 [US3] Verify the package-level docstring in
   `src/pylocal_akuvox/models/__init__.py` documents that cross-cutting
   types introduced by #123 belong as a sibling module
   (`src/pylocal_akuvox/capabilities.py`) outside the `models/` package,
@@ -365,11 +365,11 @@ aggregate Cover % ≥ baseline.
 
 ### Implementation for User Story 4
 
-- [ ] T021 [US4] Run `uv run pytest` from the repo root and confirm: full
+- [x] T021 [US4] Run `uv run pytest` from the repo root and confirm: full
   test suite passes with zero failures, zero unexpected skips, and
   collected-test count = pre-split count + 3 (the three new tests in
   `tests/unit/test_models_reexport.py` from T005). Satisfies FR-012.
-- [ ] T022 [US4] Run:
+- [x] T022 [US4] Run:
   ```bash
   uv run pytest -q
   uv run coverage report --include='src/pylocal_akuvox/models/*'
@@ -396,11 +396,11 @@ is complete and validated.
 **Purpose**: Run the full quality gate, end-to-end quickstart verification,
 and confirm the atomic-commit / compliance principle is satisfied.
 
-- [ ] T023 [P] Run all eleven steps of
+- [x] T023 [P] Run all eleven steps of
   `specs/007-models-split/quickstart.md` end-to-end against the working
   tree and confirm every step produces the expected output. This is the
   reviewer-facing dry-run of SC-001 through SC-007.
-- [ ] T024 [P] Run the full quality gate (FR-013, SC-004) from the repo
+- [x] T024 [P] Run the full quality gate (FR-013, SC-004) from the repo
   root: `uv run ruff check .`, `uv run ruff format --check .`,
   `uv run mypy`, `uv run interrogate`, `uv run reuse lint`. Each command
   must exit 0 with no new warnings or errors compared to `main`. In
@@ -415,7 +415,7 @@ and confirm the atomic-commit / compliance principle is satisfied.
   failures) to errors, so a green run proves the `automodule
   pylocal_akuvox.models` directive in `docs/api/models.rst` still
   resolves the ten model classes through the new shim.
-- [ ] T025 Confirm zero downstream import edits are required (SC-003) by
+- [x] T025 Confirm zero downstream import edits are required (SC-003) by
   scanning consumer code only — explicitly excluding the new shim
   package itself (whose new `from pylocal_akuvox.models.<sub> import …`
   lines are *expected* churn, not downstream breakage), the spec
@@ -439,7 +439,7 @@ and confirm the atomic-commit / compliance principle is satisfied.
   rather than bypassing it). Any non-shim, non-test consumer edit that
   *does* surface must be reverted — the spec forbids requiring
   downstream edits for correctness.
-- [ ] T026 Stage and commit the refactor per Principle V (Atomic Commits
+- [x] T026 Stage and commit the refactor per Principle V (Atomic Commits
   & Compliance) and the project conventions in `AGENTS.md` §"Commit
   conventions". The TDD test module (T005) and the package split
   (T006-T014) MUST land in **one atomic commit** — committing the test
