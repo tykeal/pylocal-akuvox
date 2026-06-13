@@ -7,11 +7,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from pylocal_akuvox import capability_probe
 from pylocal_akuvox._http import AkuvoxHttpClient
 from pylocal_akuvox.models import DeviceInfo, DeviceStatus
 
 if TYPE_CHECKING:
     from pylocal_akuvox.auth import AuthConfig
+    from pylocal_akuvox.capabilities import DeviceCapabilities
     from pylocal_akuvox.models import (
         AccessSchedule,
         CallLogEntry,
@@ -55,6 +57,48 @@ class AkuvoxDevice:
             verify_ssl=verify_ssl,
             request_delay=request_delay,
         )
+        self._capabilities: DeviceCapabilities | None = None
+
+    @property
+    def capabilities(self) -> DeviceCapabilities | None:
+        """Return the effective capability profile for this connection.
+
+        ``None`` until a profile is established. Phase 1 establishes
+        the profile only via :meth:`probe_capabilities`. Phase 2 will
+        also populate it from the curated capability matrix during
+        ``__aenter__``.
+        """
+        return self._capabilities
+
+    async def probe_capabilities(
+        self, *, timeout: float | None = None
+    ) -> DeviceCapabilities:
+        """Run a non-destructive capability probe against the connected device.
+
+        Args:
+            timeout: Per-request probe timeout in seconds. ``None``
+                resolves to the documented default of ``5.0`` per
+                ``contracts/probe-api.md`` §"Public surface".
+
+        Returns:
+            A new :class:`DeviceCapabilities` populated from observed
+            responses. Replaces this connection's effective profile.
+
+        Raises:
+            AkuvoxAuthenticationError: HTTP 401 on step 1.
+            AkuvoxRequestError: HTTP 403 on step 1.
+            AkuvoxConnectionError: Transport-level failure or HTTP
+                5xx / non-401/403 4xx on step 1.
+            AkuvoxParseError: Step 1 returned an unparsable
+                ``/api/system/info`` payload.
+
+        """
+        resolved_timeout = 5.0 if timeout is None else timeout
+        result = await capability_probe.probe_capabilities(
+            self._http, timeout=resolved_timeout
+        )
+        self._capabilities = result
+        return result
 
     async def __aenter__(self) -> AkuvoxDevice:
         """Open the underlying HTTP session."""

@@ -754,6 +754,8 @@ def _instrument_device(device: AkuvoxDevice, diagnostics: DiagnosticReport) -> N
         path: str,
         data: dict[str, Any] | None = None,
         params: dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
     ) -> dict[str, Any]:
         """Capture request metadata before delegating to the HTTP client."""
         endpoint = path if path.startswith("/") else f"/{path}"
@@ -764,7 +766,9 @@ def _instrument_device(device: AkuvoxDevice, diagnostics: DiagnosticReport) -> N
             params=params,
         )
         try:
-            return await original_request(method, path, data=data, params=params)
+            return await original_request(
+                method, path, data=data, params=params, timeout=timeout
+            )
         except Exception as exc:
             diagnostics.record_exception(exc)
             raise
