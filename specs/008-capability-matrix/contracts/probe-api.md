@@ -304,7 +304,7 @@ log against a denylist regex (FR-003, SC-001).
 2. **`unsupported action` on contacts**: a mocked
    `{"retcode": -1, "message": "unsupported action"}` from
    `/api/contact/get` MUST result in `CONTACT_LIST` recorded as
-   `SUPPORTED` (the endpoint exists; the read action was honoured)
+   `UNSUPPORTED` (the negative retcode means the read operation failed)
    and the raw body MUST be recorded under
    `DeviceCapabilities.notes["contact_get_body"] = "<raw body>"`
    verbatim. **`CONTACT_ADD` (and any other write capability) MUST
