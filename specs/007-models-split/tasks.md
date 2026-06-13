@@ -52,7 +52,7 @@ in US2, US4, and Polish can prove non-regression (SC-001, SC-005, SC-004).
   running:
   ```bash
   uv run pytest tests/unit/test_models.py -q
-  uv run coverage report --include='src/pylocal_akuvox/models*'
+  uv run coverage report --include='src/pylocal_akuvox/models/*'
   ```
   and recording the single aggregate **Cover %** value reported for
   `src/pylocal_akuvox/models.py` (today the only file matching the
@@ -349,7 +349,7 @@ locality for upcoming #123 / #121 work.
 
 **Goal**: The full test suite continues to pass after the split with no
 removed or skipped scenarios, and the **aggregate Cover %** for the
-model layer (matched by `coverage report --include='src/pylocal_akuvox/models*'`)
+model layer (matched by `coverage report --include='src/pylocal_akuvox/models/*'`)
 is ≥ the pre-split baseline captured in T003 (SC-005). Per-class
 coverage breakdowns are not required and not produced by `coverage.py`
 at the granularity originally implied; the moved classes are
@@ -360,7 +360,7 @@ the green post-refactor run.
 
 **Independent Test**: `uv run pytest` exits 0 with the same number of
 collected tests as pre-split (modulo the three new tests added by T005);
-`uv run coverage report --include='src/pylocal_akuvox/models*'` shows an
+`uv run coverage report --include='src/pylocal_akuvox/models/*'` shows an
 aggregate Cover % ≥ baseline.
 
 ### Implementation for User Story 4
@@ -372,10 +372,10 @@ aggregate Cover % ≥ baseline.
 - [ ] T022 [US4] Run:
   ```bash
   uv run pytest -q
-  uv run coverage report --include='src/pylocal_akuvox/models*'
+  uv run coverage report --include='src/pylocal_akuvox/models/*'
   ```
   and compare the single aggregate **Cover %** reported for the
-  `src/pylocal_akuvox/models*` glob (now matching the eight files inside
+  `src/pylocal_akuvox/models/*` glob (now matching the eight files inside
   the `models/` package: `__init__.py` plus the seven domain submodules)
   against the baseline aggregate captured in T003 (which was 100% on
   `models.py` alone). The post-split aggregate MUST be ≥ baseline

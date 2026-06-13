@@ -372,7 +372,7 @@ specification-level constraint.
   under `src/pylocal_akuvox/models/` taken together — submodules + shim
   `__init__.py`) is ≥ the pre-split coverage of `src/pylocal_akuvox/models.py`
   captured in T003. Measured via `coverage report
-  --include='src/pylocal_akuvox/models*'` (matches both the pre-split
+  --include='src/pylocal_akuvox/models/*'` (matches both the pre-split
   file `models.py` and the post-split package `models/`). A small
   *increase* due to the new re-export contract test is acceptable. This
   criterion is a **single number** comparison, not a per-class table —

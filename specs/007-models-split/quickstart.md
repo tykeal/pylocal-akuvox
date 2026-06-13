@@ -180,11 +180,11 @@ Expected: each command exits 0 with no new warnings or errors compared to
 
 ```bash
 uv run pytest -q
-uv run coverage report --include='src/pylocal_akuvox/models*'
+uv run coverage report --include='src/pylocal_akuvox/models/*'
 ```
 
 Compare the single aggregate **Cover %** reported by
-`coverage report --include='src/pylocal_akuvox/models*'` against the
+`coverage report --include='src/pylocal_akuvox/models/*'` against the
 pre-split baseline (the same command on `main` reports
 `src/pylocal_akuvox/models.py 240 0 32 0 100%` — i.e. 100%). The
 post-split aggregate (now spanning the eight files inside the new
