@@ -34,7 +34,7 @@ print(DeviceCapabilities.__dataclass_fields__.keys())
 
 **Expected**: a list of capability strings (`relay.trigger.api`,
 `relay.trigger.fcgi`, `user.list`, etc.); the three status values
-`['supported', 'unsupporteded', 'unknown']`; and a `dict_keys` view
+`['supported', 'unsupported', 'unknown']`; and a `dict_keys` view
 including at least `device_class`, `firmware_version`, `capabilities`,
 `field_aliases`, `schema_shapes`, `notes`, `provenance`.
 
@@ -89,10 +89,10 @@ holds a `DeviceCapabilities` whose `provenance` is non-`None` and
 matches the corresponding `CAPABILITY_MATRIX` entry — *without any
 list endpoints being probed* (FR-008).
 
-### Step 5 — Calling an unsupporteded operation raises before any HTTP request
+### Step 5 — Calling an unsupported operation raises before any HTTP request
 
 ```bash
-uv run pytest tests/unit/test_device.py -k unsupporteded_raises_before_request -v
+uv run pytest tests/unit/test_device.py -k unsupported_raises_before_request -v
 ```
 
 **Expected**: against a mocked X915S, calling `await
@@ -128,13 +128,13 @@ This is SC-006 verification.
 ### Step 7 — Existing `_http.py` legacy raise still works
 
 ```bash
-uv run pytest tests/unit/test_http.py::test_unsupporteded_api_raises_unsupporteded_error -v
+uv run pytest tests/unit/test_http.py::test_unsupported_api_raises_unsupported_error -v
 uv run pytest tests/unit/test_exceptions.py -v
 ```
 
 **Expected**: both pre-existing tests still pass after the additive
 `AkuvoxUnsupportedError` evolution. This is the
-backward-compatibility verification for `contracts/unsupporteded-error.md`.
+backward-compatibility verification for `contracts/unsupported-error.md`.
 
 ---
 
@@ -199,7 +199,7 @@ uv run pytest tests/unit/test_docs_matrix_consistency.py -v
 
 This is SC-009 verification.
 
-### Step 11 — `examples/mvp_test.py` skips unsupporteded steps
+### Step 11 — `examples/mvp_test.py` skips unsupported steps
 
 Run the example against a mocked IT83 (the snapshot harness lives in
 `tests/integration/test_mvp_smoke.py`):

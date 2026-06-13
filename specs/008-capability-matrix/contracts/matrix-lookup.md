@@ -140,7 +140,7 @@ the message text is the discriminator.
 > **Note**: an alternate option is to use `reason="device_unrecognized"`
 > for the no-matrix-match case and reserve `reason="capability_unknown"`
 > for the matrix-recognised-but-UNKNOWN case. Either is acceptable per
-> the contract in `contracts/unsupporteded-error.md`; the implementer
+> the contract in `contracts/unsupported-error.md`; the implementer
 > chooses based on whichever gives the cleanest test fixtures.
 
 ## Provenance contract

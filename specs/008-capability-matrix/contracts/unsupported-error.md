@@ -8,8 +8,8 @@ SPDX-License-Identifier: Apache-2.0
 
 **Phase**: 2 (PR 2) — additive evolution of the existing class
 **Owning module**: `src/pylocal_akuvox/exceptions.py`
-**Owning tests**: `tests/unit/test_unsupporteded_error.py` and the
-unchanged `tests/unit/test_http.py::test_unsupporteded_api_raises_unsupporteded_error`
+**Owning tests**: `tests/unit/test_unsupported_error.py` and the
+unchanged `tests/unit/test_http.py::test_unsupported_api_raises_unsupported_error`
 (line ~223) and `tests/unit/test_exceptions.py:57`.
 
 ## Pre-Phase-2 form (current code, kept working)
@@ -26,9 +26,9 @@ Single existing call site:
 Existing tests:
 
 - `tests/unit/test_exceptions.py:57` — asserts isinstance + message.
-- `tests/unit/test_http.py::test_unsupporteded_api_raises_unsupporteded_error`
+- `tests/unit/test_http.py::test_unsupported_api_raises_unsupported_error`
   (line ~223) — asserts the `_http.py` raise on
-  envelope `"Api unsupporteded"`.
+  envelope `"Api unsupported"`.
 
 Both MUST continue to pass without modification (FR-016 spirit applied
 to the exception surface; UX consistency principle III).
@@ -37,7 +37,7 @@ to the exception surface; UX consistency principle III).
 
 ```python
 class AkuvoxUnsupportedError(AkuvoxError):
-    """Operation unsupporteded by the connected device.
+    """Operation unsupported by the connected device.
 
     Carries optional structured fields when raised from the
     capability-aware surfacing layer; falls back to a message-only form
@@ -74,12 +74,12 @@ class AkuvoxUnsupportedError(AkuvoxError):
               (distinguishes "device cannot do this" from "library does
               not yet implement this for this device class" per spec
               edge case "Adapter dispatch with no matching adapter").
-            - "envelope_unsupporteded": the device returned the
-              well-known ``Api unsupporteded`` envelope at runtime, even
+            - "envelope_unsupported": the device returned the
+              well-known ``Api unsupported`` envelope at runtime, even
               though the matrix said the capability was supported, OR
               the integrator opted in via
               ``attempt_unknown_capability`` and the runtime attempt
-              landed on the well-known unsupporteded envelope. Used by
+              landed on the well-known unsupported envelope. Used by
               the legacy ``_http.py`` raise; useful as a probe-vs-
               matrix staleness signal and as the post-hoc
               classification of opt-in attempts on UNKNOWN
@@ -125,10 +125,10 @@ Reason values are a closed set, validated by the test suite:
 
 ```python
 {"capability_missing", "capability_unknown", "device_unrecognized",
- "adapter_missing", "envelope_unsupporteded", None}
+ "adapter_missing", "envelope_unsupported", None}
 ```
 
-A test in `test_unsupporteded_error.py` enumerates this set and ensures
+A test in `test_unsupported_error.py` enumerates this set and ensures
 no production raise uses an off-list string. Adding a new reason
 requires updating the docstring AND this test.
 
@@ -140,16 +140,16 @@ requires updating the docstring AND this test.
 | `device.py` per-method gate (`require()`), capability status is `UNKNOWN` and `attempt_unknown_capability` is `False` | `"capability_unknown"` | the unknown `Capability` | from effective profile | `"Capability {capability.value} has unknown status on {device_class}; add a matrix entry or set device.attempt_unknown_capability=True to opt in"` |
 | `device.py` per-method gate against an unrecognised-device profile (no matrix match, no probe) | `"device_unrecognized"` | the requested `Capability` | observed device class | `"Device {device_class} not in capability matrix; call device.probe_capabilities() to enumerate, or set device.attempt_unknown_capability=True to opt in"` |
 | `device.py` adapter dispatch with no adapter for the device's variant | `"adapter_missing"` | the variant `Capability` (e.g. `RELAY_TRIGGER_FCGI`) | from effective profile | `"No adapter registered for {capability.value} on {device_class}"` |
-| `_http.py:201` (legacy envelope) | `"envelope_unsupporteded"` (Phase 2 may pass this kwarg explicitly when raising) | `None` (HTTP layer has no capability context) | `None` | the device's `message` string verbatim |
+| `_http.py:201` (legacy envelope) | `"envelope_unsupported"` (Phase 2 may pass this kwarg explicitly when raising) | `None` (HTTP layer has no capability context) | `None` | the device's `message` string verbatim |
 
 The implementer may choose to fold the `device_unrecognized` row into
 the `capability_unknown` row (returning `reason="capability_unknown"`
 in both cases, with the message text discriminating). Either
 implementation satisfies the contract; the closed-set test in
-`test_unsupporteded_error.py` accepts both reasons.
+`test_unsupported_error.py` accepts both reasons.
 
 The legacy `_http.py:201` raise MAY be enriched in Phase 2 to pass
-`reason="envelope_unsupporteded"`, but is not required to. The default
+`reason="envelope_unsupported"`, but is not required to. The default
 `None` is acceptable; the existing test only asserts the exception
 class, not the reason field.
 
@@ -174,7 +174,7 @@ class.
 
 ## Test coverage required (Phase 2)
 
-`tests/unit/test_unsupporteded_error.py` adds:
+`tests/unit/test_unsupported_error.py` adds:
 
 1. `test_default_constructor_message_only` — `AkuvoxUnsupportedError("x")`
    yields `.capability is None`, `.device_class is None`,
@@ -190,5 +190,5 @@ class.
 5. `test_isinstance_akuvox_error` — class hierarchy preserved.
 
 Not added (intentionally): a test that asserts the legacy `_http.py`
-raise *does* pass `reason="envelope_unsupporteded"`. The contract leaves
+raise *does* pass `reason="envelope_unsupported"`. The contract leaves
 that optional.

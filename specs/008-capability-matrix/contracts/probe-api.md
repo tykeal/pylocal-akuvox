@@ -195,7 +195,7 @@ intra-package and intentional.
 **Write capabilities** (all `*_ADD` / `*_MODIFY` / `*_DELETE` capabilities — i.e. `USER_ADD`, `USER_MODIFY`, `USER_DELETE`, `CONTACT_ADD`, `CONTACT_MODIFY`, `CONTACT_DELETE`, `SCHEDULE_ADD`, `SCHEDULE_MODIFY`, `SCHEDULE_DELETE`, `GROUP_ADD`, `GROUP_MODIFY`, `GROUP_DELETE`, `DEVICE_CONFIG_SET`, plus the relay-trigger variants `RELAY_TRIGGER_API` / `RELAY_TRIGGER_FCGI`) are **never inferred
 by the probe under any circumstance**: a probe that has not actually
 exercised the write path cannot safely conclude the path is either
-supported or unsupporteded. **The probe does NOT record write
+supported or unsupported. **The probe does NOT record write
 capabilities in `DeviceCapabilities.capabilities` at all** — they are
 **absent** from the mapping. The canonical observation is then
 `status_of(write_capability) == CapabilityStatus.UNKNOWN` (per the
@@ -244,7 +244,7 @@ notes record only.
 |----------|-----------------|--------------------------------------------------|
 | HTTP 2xx + envelope `retcode: 0` | `SUPPORTED`              | `SUPPORTED`. |
 | HTTP 2xx + envelope contains `"No handlers for this request"` | `UNSUPPORTED_NO_HANDLER` | `UNSUPPORTED`. Note recorded under `notes["<endpoint_slug>_body"]` (e.g. `notes["relay_status_body"]`). |
-| HTTP 2xx + envelope contains `"No handlers for this request"` (typo) | `UNSUPPORTED_NO_HANDLER` | Same as the corrected spelling. |
+| HTTP 2xx + envelope contains `"No hanlders for this request"` (device typo) | `UNSUPPORTED_NO_HANDLER` | Same as the corrected spelling. <!-- codespell:ignore hanlders --> |
 | HTTP 2xx + envelope contains `"unsupported action"` | `UNSUPPORTED_ACTION` | `SUPPORTED` for the read capability (the endpoint exists; the read action was honoured). Note recorded under `notes["<endpoint_slug>_body"]` with the raw body. **The write counterpart remains `UNKNOWN`** — the probe does NOT propagate read-endpoint signals to write capabilities; only a curated matrix entry can promote a write to a non-`UNKNOWN` status (see §"Probe step sequence" Write-capabilities paragraph). |
 | HTTP 5xx | `INDETERMINATE` | `UNKNOWN`. Note records the raw status + body under `notes["<endpoint_slug>_body"]` so a maintainer can decide. (Spec edge case "HTTP 500"; X915S `2915.30.10.113`.) |
 | HTTP 4xx (other than 401/403) | `INDETERMINATE` | `UNKNOWN`. Note recorded under `notes["<endpoint_slug>_body"]`. |

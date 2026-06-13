@@ -126,7 +126,7 @@ component `tykeal/homeassistant-local-akuvox` plus `examples/mvp_test.py`.
 - **Backward compatible at every phase boundary** (constitution §VI, §III).
   Phase 2's `AkuvoxUnsupportedError` evolution preserves the single-arg
   message constructor used by `_http.py:201` and the existing test in
-  `tests/unit/test_http.py::test_unsupporteded_api_raises_unsupporteded_error` (line ~223). Phase 3 preserves all externally observable
+  `tests/unit/test_http.py::test_unsupported_api_raises_unsupported_error` (line ~223). Phase 3 preserves all externally observable
   payload and parse shapes for X916, X915S, and E18C (FR-016, SC-008).
 - **Conservative on unknown devices** (FR-013). The library does not
   silently auto-probe on first call; integrators must opt in via
@@ -159,7 +159,7 @@ component `tykeal/homeassistant-local-akuvox` plus `examples/mvp_test.py`.
   `models/users.py` (alias-list-driven read parsing, Phase 3),
   `models/contacts.py` (apartment-book schema selector, Phase 3),
   `contacts.py` (mirroring; new optional `schema_shape=` kwarg, Phase 3), `relay.py` (kept for backward-compat re-exports; the relay-trigger adapter implementations move into `capability_adapters.py` and dispatch lives on `AkuvoxDevice.trigger_relay`, Phase 2),
-  `_http.py` (Phase 1: (i) extend `get`/`post`/`_request` with optional per-call `timeout=` kwarg used by the probe — backward compatible default to session timeout, (ii) add a new private sibling helper `_request_raw(method, path, *, params=None, data=None, timeout=None) -> tuple[int, str]` that bypasses `_handle_response`'s HTTP/envelope translation so the probe can drive `_classify_response` on raw `(status, body)` tuples — see `contracts/probe-api.md` §"Raw HTTP helper"; existing public surface unchanged; otherwise no behavior change — existing `Api unsupporteded`-message branch still produces a structured `AkuvoxUnsupportedError` after Phase 2),
+  `_http.py` (Phase 1: (i) extend `get`/`post`/`_request` with optional per-call `timeout=` kwarg used by the probe — backward compatible default to session timeout, (ii) add a new private sibling helper `_request_raw(method, path, *, params=None, data=None, timeout=None) -> tuple[int, str]` that bypasses `_handle_response`'s HTTP/envelope translation so the probe can drive `_classify_response` on raw `(status, body)` tuples — see `contracts/probe-api.md` §"Raw HTTP helper"; existing public surface unchanged; otherwise no behavior change — existing `Api unsupported`-message branch still produces a structured `AkuvoxUnsupportedError` after Phase 2),
   `__init__.py` (re-exports), `examples/mvp_test.py` (Phase 4),
   `docs/api/capabilities.rst` (Phase 4).
 - Single repository, single branch per phase PR (`008-capability-matrix-phase-{1..4}`
@@ -175,10 +175,10 @@ after Phase 1 design — see "Post-Design Re-Check" below.*
 |-----------|--------|-------|
 | **I. Code Quality (NON-NEGOTIABLE)** | PASS | New modules use the project's standard SPDX header pair. Every new public class, function, and method gets a docstring covering purpose, parameters, return values, and raised exceptions (interrogate already enforces this). Type annotations are mandatory on every new public signature (mypy strict). The capability gate in `AkuvoxDevice` methods is a one-line `self._effective_caps.require(Capability.X)` call — does not push any method past C901's complexity-of-10 limit. Adapter dispatch uses a flat registry (one dict lookup) rather than nested conditionals; pattern matching is delegated to a `DeviceClassPattern.matches()` method whose body is a straight-line two-glob comparison. ruff, mypy, interrogate stay green. |
 | **II. Test-Driven Development (NON-NEGOTIABLE)** | PASS | Each phase follows red-green-refactor at the unit level. Phase 1: failing tests for `Capability` enum membership, `DeviceCapabilities` defaults, response-shape classification (one test per failure-shape edge case), and probe idempotence land first. Phase 2: failing tests for matrix lookup (one per supported device class), pre-flight `AkuvoxUnsupportedError` raise (request-log assertion that no HTTP call was made), adapter dispatch (request-log assertion of selected URL per device). Phase 3: each #99/#101 and #118/#120 regression test stays green; new tests assert the field-alias list is consulted from the capability record. Phase 4: doc-vs-matrix consistency test asserts both directions. Higher-level integration tests against the real-device evidence corpus (mocked) land in Phase 4. **Phase-level test planning per constitution §II is incremental** — Phase 4's integration tests are not pre-written in Phase 1. |
-| **III. User Experience Consistency** | PASS | `AkuvoxUnsupportedError` evolves additively: existing single-arg `AkuvoxUnsupportedError(message)` construction continues to work (the existing call site at `_http.py:201` and existing test `tests/unit/test_http.py::test_unsupporteded_api_raises_unsupporteded_error` at line ~223 are untouched). New structured fields (`capability`, `device_class`, `reason`) default to `None`; no kwargs become required. Error messages are actionable: when the device is unrecognized, the message names the detected device class string and directs the caller to `probe_capabilities()` (FR-013). Public function signatures gain no new required arguments; `device.connect()` semantics are unchanged from the caller's perspective — what changes is what the device's *effective profile* becomes. The new public surface is `await device.probe_capabilities()` and `device.capabilities` (a read-only property returning the effective `DeviceCapabilities`). |
+| **III. User Experience Consistency** | PASS | `AkuvoxUnsupportedError` evolves additively: existing single-arg `AkuvoxUnsupportedError(message)` construction continues to work (the existing call site at `_http.py:201` and existing test `tests/unit/test_http.py::test_unsupported_api_raises_unsupported_error` at line ~223 are untouched). New structured fields (`capability`, `device_class`, `reason`) default to `None`; no kwargs become required. Error messages are actionable: when the device is unrecognized, the message names the detected device class string and directs the caller to `probe_capabilities()` (FR-013). Public function signatures gain no new required arguments; `device.connect()` semantics are unchanged from the caller's perspective — what changes is what the device's *effective profile* becomes. The new public surface is `await device.probe_capabilities()` and `device.capabilities` (a read-only property returning the effective `DeviceCapabilities`). |
 | **IV. Performance Requirements** | PASS | Probe is bounded by `probe_timeout` per-call and short-circuits on auth failure (FR-004). Matrix lookup is N=4 today, pre-compiled. Per-call gating is an O(1) `dict.get()` against the per-capability status mapping (three-valued model; see `research.md` Decision 2). No blocking I/O on the event loop — the probe is fully async, the matrix is in-memory. Adapter dispatch is one dict lookup. **Performance benchmarks are not warranted at this scope** (constitution §IV requires benchmarks "for performance-sensitive paths"; capability gating is not on a hot path — it precedes a network round-trip and is constant-time relative to that round-trip). |
 | **V. Atomic Commits & Compliance (NON-NEGOTIABLE)** | PASS | Each phase lands as its own implementation PR with multiple commits, each one logical change (e.g. "Feat(capabilities): Add Capability enum and DeviceCapabilities", "Feat(capabilities): Add probe_capabilities() with response classifier", "Feat(capabilities): Add curated matrix for four supported devices", "Feat(capabilities): Add AkuvoxUnsupportedError structured fields", "Refactor(users): Drive schedule-relay aliasing from capability record"). All new files carry SPDX headers verbatim. Pre-commit hooks (ruff, mypy, interrogate, REUSE, pytest) run on every commit; `--no-verify` is prohibited. Conventional Commits with capitalized types per `AGENTS.md`. |
-| **VI. Phased Development** | PASS | Four phases mirror the four user stories one-to-one. Each phase is independently shippable and ends at a CI-green checkpoint: Phase 1 introduces opt-in surface (no behavior change); Phase 2 introduces fail-fast surfacing (visible behavior change, but regressions limited to the cases the matrix declares unsupporteded); Phase 3 is observably a no-op (every existing test stays green); Phase 4 is doc + example only. Phase boundaries are documented here in `plan.md`; per-phase `tasks.md` files will be generated by `/speckit.tasks` against the merged plan. |
+| **VI. Phased Development** | PASS | Four phases mirror the four user stories one-to-one. Each phase is independently shippable and ends at a CI-green checkpoint: Phase 1 introduces opt-in surface (no behavior change); Phase 2 introduces fail-fast surfacing (visible behavior change, but regressions limited to the cases the matrix declares unsupported); Phase 3 is observably a no-op (every existing test stays green); Phase 4 is doc + example only. Phase boundaries are documented here in `plan.md`; per-phase `tasks.md` files will be generated by `/speckit.tasks` against the merged plan. |
 
 **Result**: All gates pass. **Complexity Tracking** section below is empty —
 no justified violations.
@@ -197,7 +197,7 @@ specs/008-capability-matrix/
 ├── contracts/
 │   ├── probe-api.md     # Public probe API contract
 │   ├── matrix-lookup.md # Matrix lookup + DeviceClassPattern semantics
-│   ├── unsupporteded-error.md  # AkuvoxUnsupportedError structured form
+│   ├── unsupported-error.md  # AkuvoxUnsupportedError structured form
 │   └── adapter-dispatch.md   # Adapter registry contract for relay variants
 └── checklists/          # Pre-existing review checklists
 ```
@@ -279,7 +279,7 @@ tests/unit/
 ├── test_matrix.py           # NEW (Phase 2) — one test per supported device class confirming matrix entry shape and provenance
 ├── test_pattern.py          # NEW (Phase 2) — DeviceClassPattern matching truth table (extends Phase 1's T013 with the four production patterns)
 ├── test_dispatch.py         # NEW (Phase 2) — relay adapter dispatch picks correct URL per device
-├── test_unsupporteded_error.py # NEW (Phase 2) — backward-compat single-arg construction + structured-fields construction
+├── test_unsupported_error.py # NEW (Phase 2) — backward-compat single-arg construction + structured-fields construction
 ├── test_users.py            # Phase 3 — new cases asserting the alias list is read from capability record (existing #99/#101 cases stay green)
 ├── test_models.py           # Phase 3 — new cases asserting User.from_api_response consults capability record's field-aliases (existing #118/#120 cases stay green)
 ├── test_contacts.py         # Phase 3 — apartment-book schema parses without ID when capability flag is set
@@ -329,7 +329,7 @@ After authoring `data-model.md`, `contracts/`, and `quickstart.md`:
 |-----------|--------|---------------|
 | **I. Code Quality** | PASS | Designed types stay narrow: every public method on `DeviceCapabilities` is a one-liner (`dict.get()` for `status_of`, an `if`-chain raise for `require()`, alias-tuple lookup elsewhere). No method exceeds C901's complexity-of-10. |
 | **II. TDD** | PASS | Contracts are concrete enough to write failing tests against in Phase 1's red phase before any production code lands. The contract docs name the test files that own each behavior. |
-| **III. UX** | PASS | `AkuvoxUnsupportedError` contract preserves single-arg construction and adds optional structured fields — confirmed in `contracts/unsupporteded-error.md`. No documented public name is removed at any phase. The Phase 3 refactor's externally observable surface is byte-identical for currently-supported devices (FR-016). |
+| **III. UX** | PASS | `AkuvoxUnsupportedError` contract preserves single-arg construction and adds optional structured fields — confirmed in `contracts/unsupported-error.md`. No documented public name is removed at any phase. The Phase 3 refactor's externally observable surface is byte-identical for currently-supported devices (FR-016). |
 | **IV. Performance** | PASS | Contracts confirm the per-call gate is an O(1) `dict.get()` against `Mapping[Capability, CapabilityStatus]`; no design choice introduces hidden quadratic behavior. |
 | **V. Atomic Commits** | PASS | Each contract maps to a small commit set. The data-model identifies each new file's owner and SPDX headers will be added at file creation time. |
 | **VI. Phased Development** | PASS | The four contracts partition cleanly across the four phases — no contract requires Phase 2 + Phase 3 to land atomically. |
@@ -367,7 +367,7 @@ PR lands). The spec/plan PR (this branch) lands first.
 - Adds: `src/pylocal_akuvox/capability_matrix.py`,
   `src/pylocal_akuvox/capability_adapters.py`,
   `tests/unit/test_matrix.py`, `tests/unit/test_dispatch.py`,
-  `tests/unit/test_unsupporteded_error.py`.
+  `tests/unit/test_unsupported_error.py`.
 - Modifies: `src/pylocal_akuvox/exceptions.py` (additive evolution of
   `AkuvoxUnsupportedError`), `src/pylocal_akuvox/device.py` (matrix lookup
   on connect; **per-method capability gate added to every public
@@ -445,7 +445,7 @@ round:
 
 1. **FR-002 / Key Entities wording — RESOLVED.**  Spec FR-002 now reads
    "a per-capability status profile (each known `Capability` mapped to
-   `supported`, `unsupporteded`, or `unknown`)". The Key Entities entry
+   `supported`, `unsupported`, or `unknown`)". The Key Entities entry
    for `DeviceCapabilities` carries the same wording and explicitly
    notes the `supported_set` convenience view for callers that do not
    need the three-valued distinction. The `Capability` and a new
@@ -469,7 +469,7 @@ round:
    RESOLVED.**  Added as a fourth bullet in the Out of Scope section
    stating that the implementation MAY collapse the two reasons since
    both surface identical caller-facing UX. This locks in the
-   contracts/unsupporteded-error.md flexibility without forcing a
+   contracts/unsupported-error.md flexibility without forcing a
    particular implementation choice.
 
 All three resolutions are traceable: each spec section either names

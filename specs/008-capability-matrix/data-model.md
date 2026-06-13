@@ -36,7 +36,7 @@ Phase 3 changes one *parser* in `models/users.py` and one *parser* in
 | 9 | `RelayTriggerAdapter` | `Callable` type alias | `pylocal_akuvox/capability_adapters.py` | 2 | (callable) | `Callable[[AkuvoxHttpClient, RelayTriggerArgs], Awaitable[None]]`. |
 | 10 | `RelayTriggerArgs` | `@dataclass(frozen=True, kw_only=True)` | `pylocal_akuvox/capability_adapters.py` | 2 | immutable | `num: int`, `mode: int`, `level: int`, `delay: int` — already today's `trigger_relay` parameters, just packaged. |
 | 11 | `RELAY_TRIGGER_ADAPTERS` | module-level constant `dict[tuple[Capability, str], RelayTriggerAdapter]` | `pylocal_akuvox/capability_adapters.py` | 2 | immutable (after import) | Two entries today: `(RELAY_TRIGGER_API, "api")` → `_api_relay_trigger`, `(RELAY_TRIGGER_FCGI, "fcgi")` → `_fcgi_relay_trigger`. |
-| 12 | `AkuvoxUnsupportedError` | exception | `pylocal_akuvox/exceptions.py` (existing file) | 2 (evolved) | (exception) | Existing class evolved additively per `contracts/unsupporteded-error.md`. New `reason="capability_unknown"` value covers the three-valued UNKNOWN-status raise path. |
+| 12 | `AkuvoxUnsupportedError` | exception | `pylocal_akuvox/exceptions.py` (existing file) | 2 (evolved) | (exception) | Existing class evolved additively per `contracts/unsupported-error.md`. New `reason="capability_unknown"` value covers the three-valued UNKNOWN-status raise path. |
 
 ## `Capability` enum members
 
@@ -96,7 +96,7 @@ class CapabilityStatus(enum.Enum):
     """Three-valued capability status."""
 
     SUPPORTED = "supported"      # confirmed positive evidence
-    UNSUPPORTED = "unsupporteded"  # confirmed negative evidence (e.g. unsupported action)
+    UNSUPPORTED = "unsupported"  # confirmed negative evidence (e.g. unsupported action)
     UNKNOWN = "unknown"          # no positive evidence either way
 
 
@@ -151,7 +151,7 @@ class DeviceCapabilities:
 
         With ``allow_unknown=True``, UNKNOWN status falls through (does
         not raise); the runtime HTTP attempt then either succeeds or
-        surfaces ``AkuvoxUnsupportedError(reason="envelope_unsupporteded")``
+        surfaces ``AkuvoxUnsupportedError(reason="envelope_unsupported")``
         from ``_http.py:201``. UNSUPPORTED always raises regardless of
         the ``allow_unknown`` flag.
         """
@@ -305,7 +305,7 @@ Notes on the IT83 column:
 - Every other IT83 capability is `UNKNOWN`. The community reporter
   did not exercise user/contact/schedule/group writes on the IT83. The
   spec's evidence summary describes those writes as "likely also
-  unsupporteded", but "likely" is not "confirmed"; the matrix records
+  unsupported", but "likely" is not "confirmed"; the matrix records
   only what we have positive evidence for. Calling these against an
   IT83 raises `AkuvoxUnsupportedError(reason="capability_unknown")`
   with a message instructing the integrator to either add a matrix

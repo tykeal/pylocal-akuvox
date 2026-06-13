@@ -167,7 +167,7 @@ holding:
 canonical capability identifier so the public surface is grep-friendly
 (e.g. `Capability.RELAY_TRIGGER_API.value == "relay.trigger.api"`).
 `CapabilityStatus` likewise carries lowercase string values
-(`"supported"`, `"unsupporteded"`, `"unknown"`) safe to serialise into
+(`"supported"`, `"unsupported"`, `"unknown"`) safe to serialise into
 notes / provenance (notes values are plain `str`).
 
 A per-`AkuvoxDevice` boolean attribute `attempt_unknown_capability`
@@ -177,7 +177,7 @@ rather than fail fast. When `True`, `require(capability)` is called
 with `allow_unknown=True` for that capability; the device's runtime
 response then either succeeds or raises whichever error the legacy
 HTTP layer surfaces (typically `AkuvoxUnsupportedError(reason=
-"envelope_unsupporteded")` from `_http.py:201` on `Api unsupporteded`).
+"envelope_unsupported")` from `_http.py:201` on `Api unsupported`).
 **The default is fail-fast** — explicit opt-in keeps the spec's
 "clear, fail-fast errors instead of cryptic device responses" UX
 intact unless the integrator deliberately disables it.
@@ -222,7 +222,7 @@ intact unless the integrator deliberately disables it.
    on the read-to-write-inference safety argument above. The
    three-valued generalisation costs one enum and one accessor; the
    correctness win is large.
-2. **Two sets: `supported: frozenset[Capability]` and `unsupporteded:
+2. **Two sets: `supported: frozenset[Capability]` and `unsupported:
    frozenset[Capability]` (UNKNOWN = absent from both).** Rejected:
    redundant with the mapping; consistency rules ("not in both
    simultaneously") have to be enforced by validators that the
@@ -505,7 +505,7 @@ After Phase 2 it becomes:
 
 ```python
 class AkuvoxUnsupportedError(AkuvoxError):
-    """Operation unsupporteded by the connected device.
+    """Operation unsupported by the connected device.
 
     Args:
         message: Human-readable reason for the failure.
@@ -518,7 +518,7 @@ class AkuvoxUnsupportedError(AkuvoxError):
         reason: Structured reason code, one of:
             "capability_missing"  | "capability_unknown" |
             "device_unrecognized" | "adapter_missing"    |
-            "envelope_unsupporteded" (legacy).
+            "envelope_unsupported" (legacy).
 
     """
 
@@ -562,9 +562,9 @@ The reason taxonomy is fixed in code (not a free string) because Phase
   the integrator has not opted in via `attempt_unknown_capability`.
   The message names the device class and directs the caller to either
   add a matrix entry or opt in.
-- Keeping the legacy `envelope_unsupporteded` reason on the `_http.py`
+- Keeping the legacy `envelope_unsupported` reason on the `_http.py`
   raise gives Phase 4 a discriminator to classify "the device returned
-  the well-known unsupporteded envelope at runtime, even though the
+  the well-known unsupported envelope at runtime, even though the
   matrix said the capability was supported" — useful as a probe-vs-matrix
   staleness signal.
 
@@ -621,9 +621,9 @@ entry".
 - The skip paths catch the post-Phase-2 fail-fast
   `AkuvoxUnsupportedError` (both `capability_missing` and
   `capability_unknown` reasons) *and* any rare matrix-vs-actual
-  mismatch where the device emits `Api unsupporteded` at runtime even
+  mismatch where the device emits `Api unsupported` at runtime even
   though the matrix marked the capability as present
-  (`envelope_unsupporteded`).
+  (`envelope_unsupported`).
 
 **Alternatives considered**:
 
