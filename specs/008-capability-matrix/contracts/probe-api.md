@@ -207,9 +207,8 @@ UNKNOWN means absent-from-matrix" branch and the probe-`UNKNOWN`
 branch behaviourally identical, and it gives `status_of` a single
 source-of-truth for "no positive evidence either way". **A read
 endpoint returning `"unsupported action"` does NOT propagate to its
-write counterpart(s)** — the read capability may be recorded as
-`UNSUPPORTED` (or, depending on body shape, `SUPPORTED`) per the
-classification table below, and the `unsupported action` body is
+write counterpart(s)** — the read capability is recorded as
+`UNSUPPORTED` per the classification table below, and the `unsupported action` body is
 preserved verbatim in `DeviceCapabilities.notes` under a per-endpoint
 key (e.g. `notes["contact_get_body"]`) for maintainer review, but every
 write capability in the same domain (`*_ADD`, `*_MODIFY`, `*_DELETE`)
@@ -246,7 +245,7 @@ notes record only.
 | HTTP 2xx + envelope contains `"No handlers for this request"` | `UNSUPPORTED_NO_HANDLER` | `UNSUPPORTED`. Note recorded under `notes["<endpoint_slug>_body"]` (e.g. `notes["relay_status_body"]`). |
 | HTTP 2xx + envelope contains `"No hanlders for this request"` (device typo) | `UNSUPPORTED_NO_HANDLER` | Same as the corrected spelling. <!-- codespell:ignore hanlders --> |
 | HTTP 2xx + envelope contains `"Api unsupported"` | `UNSUPPORTED_API` | `UNSUPPORTED`. Mirrors the existing `_http.py` `_UNSUPPORTED_MSG` marker. |
-| HTTP 2xx + envelope contains `"unsupported action"` | `UNSUPPORTED_ACTION` | `SUPPORTED` for the read capability (the endpoint exists; the read action was honoured). Note recorded under `notes["<endpoint_slug>_body"]` with the raw body. **The write counterpart remains `UNKNOWN`** — the probe does NOT propagate read-endpoint signals to write capabilities; only a curated matrix entry can promote a write to a non-`UNKNOWN` status (see §"Probe step sequence" Write-capabilities paragraph). |
+| HTTP 2xx + envelope contains `"unsupported action"` | `UNSUPPORTED_ACTION` | `UNSUPPORTED` for the probed read capability. Note recorded under `notes["<endpoint_slug>_body"]` with the raw body. **The write counterpart remains `UNKNOWN`** — the probe does NOT propagate read-endpoint signals to write capabilities; only a curated matrix entry can promote a write to a non-`UNKNOWN` status (see §"Probe step sequence" Write-capabilities paragraph). |
 | HTTP 5xx | `INDETERMINATE` | `UNKNOWN`. Note records the raw status + body under `notes["<endpoint_slug>_body"]` so a maintainer can decide. (Spec edge case "HTTP 500"; X915S `2915.30.10.113`.) |
 | HTTP 4xx (other than 401/403) | `INDETERMINATE` | `UNKNOWN`. Note recorded under `notes["<endpoint_slug>_body"]`. |
 | HTTP 401 / 403 on step 1 | (raise) | Probe aborts with `AkuvoxAuthenticationError`. |
