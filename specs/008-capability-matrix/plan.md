@@ -24,7 +24,7 @@ independently shippable phases mapped 1:1 to spec User Stories 1–4:
    Add `await device.probe_capabilities()` — a strictly read-only inspection
    that issues only `GET` / list calls and classifies the four well-known
    failure shapes (`"No handlers for this request"`, the typo
-   `"No handlers for this request"`, `"unsupported action"`, HTTP 500) into
+   `"No hanlders for this request"`, `"unsupported action"`, HTTP 500) into <!-- codespell:ignore hanlders -->
    documented categories. The probe **never infers write capability** from
    read endpoints: **all write capabilities** (every `*_ADD` / `*_MODIFY`
    / `*_DELETE` capability across users/contacts/schedules/groups, plus
@@ -75,7 +75,7 @@ plan + spec rubber-duck artifacts) lands first.
 
 **Language/Version**: Python ≥3.13.2 (per `pyproject.toml`); CI also exercises
 3.14 forward.
-**Primary Dependencies**: `aiohttp>=3.13` (runtime, sole runtime dep);
+**Primary Dependencies**: `aiohttp>=3.14.0` (runtime, sole runtime dep);
 `pytest`, `pytest-asyncio`, `aioresponses` (test); `ruff`, `mypy`,
 `interrogate`, `sphinx` (tooling). **No new runtime dependencies are added
 by this feature.**

@@ -12,9 +12,9 @@ SPDX-License-Identifier: Apache-2.0
 
 ## Content Quality
 
-- [x] No implementation details (languages, frameworks, APIs)
+- [ ] No implementation details (languages, frameworks, APIs)
 - [x] Focused on user value and business needs
-- [x] Written for non-technical stakeholders
+- [ ] Written for non-technical stakeholders
 - [x] All mandatory sections completed
 
 ## Requirement Completeness
@@ -22,7 +22,7 @@ SPDX-License-Identifier: Apache-2.0
 - [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
-- [x] Success criteria are technology-agnostic (no implementation details)
+- [ ] Success criteria are technology-agnostic (no implementation details)
 - [x] All acceptance scenarios are defined
 - [x] Edge cases are identified
 - [x] Scope is clearly bounded
@@ -33,7 +33,7 @@ SPDX-License-Identifier: Apache-2.0
 - [x] All functional requirements have clear acceptance criteria
 - [x] User scenarios cover primary flows
 - [x] Feature meets measurable outcomes defined in Success Criteria
-- [x] No implementation details leak into specification
+- [ ] No implementation details leak into specification
 
 ## Coverage of Issue #123 Acceptance Criteria
 
@@ -52,7 +52,7 @@ The 10 acceptance-criteria items in issue #123 each map to one or more functiona
 
 ## Edge Case Coverage
 
-- [x] `"No handlers for this request"` typo is recognized → FR-004
+- [x] `"No hanlders for this request"` typo is recognized <!-- codespell:ignore hanlders --> → FR-004
 - [x] `"unsupported action"` is distinguished from "endpoint missing" → FR-004, edge cases section
 - [x] HTTP 500 is recorded but not classified as supported/unsupported → FR-004
 - [x] HTTP 401/403 aborts probe with auth error rather than partial report → FR-004

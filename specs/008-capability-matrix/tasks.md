@@ -106,7 +106,7 @@ Tests in this section MUST fail before any implementation work in T017–T024.
 - [ ] T015 [US1] In `tests/unit/test_capability_probe.py`, write contract tests for `probe-api.md` §"Response classification" (FR-004, SC-003): one parametrised test per row of the response-classification table, asserting:
   - HTTP 2xx + `retcode: 0` → status `SUPPORTED`.
   - HTTP 2xx + body containing `"No handlers for this request"` → status `UNSUPPORTED`.
-  - HTTP 2xx + body containing the typo `"No handlers for this request"` → status `UNSUPPORTED` (case-insensitive on `body.message`; spec edge case "typo").
+  - HTTP 2xx + body containing the typo `"No hanlders for this request"` → status `UNSUPPORTED` (case-insensitive on `body.message`; spec edge case "typo"). <!-- codespell:ignore hanlders -->
   - HTTP 2xx + body containing `"unsupported action"` on `/api/contact/get` → `CONTACT_LIST = SUPPORTED`; raw body recorded under `DeviceCapabilities.notes["contact_get_body"]`; **`CONTACT_ADD`, `CONTACT_MODIFY`, and `CONTACT_DELETE` MUST all be ABSENT from `profile.capabilities`** (probe MUST NOT add write counterparts to the mapping per FR-003 and probe-api.md §"Probe step sequence" Write-capabilities paragraph — the canonical representation is "absent → `status_of()` returns UNKNOWN by default"). Add explicit dual-assertions per write capability: `assert Capability.CONTACT_ADD not in profile.capabilities AND profile.status_of(Capability.CONTACT_ADD) is CapabilityStatus.UNKNOWN`; same for `CONTACT_MODIFY` and `CONTACT_DELETE`. Repeat the same dual-assertion pattern for one user-domain case: against `"unsupported action"` on `/api/user/get`, assert `USER_ADD`/`USER_MODIFY`/`USER_DELETE` are all absent AND each `status_of()` returns `UNKNOWN`.
   - HTTP 500 → status `UNKNOWN`, raw body recorded under `notes["<endpoint_slug>_body"]` (spec edge case "HTTP 500"; X915S `2915.30.10.113`).
   - HTTP 401 on step 1 → probe raises `AkuvoxAuthenticationError`, NO partial `DeviceCapabilities` returned.
@@ -234,7 +234,7 @@ Tests in this section MUST fail before any implementation work in T017–T024.
     - Matrix-UNKNOWN row: pin to **IT83 `USER_LIST`** (data-model.md row `USER_LIST | S | S | S | ?` — IT83 column is `?` = UNKNOWN).
   - **Column dimension** = probe classification of the same endpoint, sourced from `contracts/probe-api.md` §"Classification table":
     - Probe-SUPPORTED column: mock the endpoint to return `retcode:0` + a typed-keyed payload.
-    - Probe-UNSUPPORTED column: mock the endpoint to return `"No handlers for this request"` (or the typo variant `"No handlers for this request"` — both classify identically per spec edge case). For RELAY_STATUS specifically this is the IT83-observed signal per `data-model.md:235`.
+    - Probe-UNSUPPORTED column: mock the endpoint to return `"No handlers for this request"` (or the typo variant `"No hanlders for this request"` — both classify identically per spec edge case). For RELAY_STATUS specifically this is the IT83-observed signal per `data-model.md:235`. <!-- codespell:ignore hanlders -->
     - Probe-UNKNOWN column: mock the endpoint to raise HTTP 500 (transient server error per `contracts/probe-api.md` §"Classification table" row "HTTP 5xx").
   - **Nine assertions** (one per cell — every cell uses a real device-class + real-or-real-shape response fixture; no synthetic CONTACT_LIST=UNSUPPORTED abstractions):
 

@@ -258,7 +258,7 @@ execute, or because the capability has no associated probe step at all
 from the returned `DeviceCapabilities.capabilities` mapping;
 `status_of(capability)` returns `UNKNOWN` for them by default.
 
-The `"No handlers"` typo and the corrected spelling are matched
+The `"No hanlders"` typo and the corrected spelling are matched <!-- codespell:ignore hanlders -->
 case-insensitively against `body.get("message", "")`.
 
 ## Idempotence
@@ -298,7 +298,7 @@ log against a denylist regex (FR-003, SC-001).
 ## Edge cases (covered by contract tests)
 
 1. **No-handler typo**: a mocked response with
-   `{"retcode": -1, "message": "No handlers for this request"}` for
+   `{"retcode": -1, "message": "No hanlders for this request"}` for <!-- codespell:ignore hanlders -->
    `/api/relay/status` results in `RELAY_STATUS` recorded as
    `UNSUPPORTED`, identical behaviour to the corrected spelling.
 2. **`unsupported action` on contacts**: a mocked

@@ -9,7 +9,7 @@ Auto-generated from all feature plans. Last updated: 2026-06-13
 
 ## Active Technologies
 - Python ≥3.13.2, fully type-annotated (mypy strict)
-- aiohttp ≥3.13 (async HTTP client with built-in auth)
+- aiohttp ≥3.14.0 (async HTTP client with built-in auth)
 - pytest, pytest-asyncio, aioresponses (test tooling)
 - sphinx, furo, sphinx-autodoc-typehints, sphinx-copybutton (docs, optional extra) (008-capability-matrix)
 
