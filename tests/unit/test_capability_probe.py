@@ -643,6 +643,22 @@ async def test_probe_step_1_payload_data_not_dict_treated_as_empty() -> None:
                 await device.probe_capabilities()
 
 
+def test_step_1_payload_rejects_bool_retcode() -> None:
+    """Step-1 envelope with bool ``retcode`` (``True`` / ``False``) is rejected.
+
+    ``bool`` is a subclass of ``int`` in Python, so a naïve
+    ``isinstance(retcode, int)`` lets ``{"retcode": true}`` through.
+    The probe explicitly rejects it for consistency with
+    :func:`_summarise_system_status` step-2 handling.
+    """
+    from pylocal_akuvox.capability_probe import _step_1_payload
+
+    with pytest.raises(AkuvoxParseError):
+        _step_1_payload('{"retcode": true, "data": {}}')
+    with pytest.raises(AkuvoxParseError):
+        _step_1_payload('{"retcode": false, "data": {}}')
+
+
 async def test_probe_step_3_aliases_recorded_in_observed_order() -> None:
     """Multiple alias keys in user list recorded in the order observed."""
     device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)

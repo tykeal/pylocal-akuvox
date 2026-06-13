@@ -195,14 +195,16 @@ class AkuvoxHttpClient:
     ) -> tuple[int, str]:
         """Issue a request and return ``(status, raw_body_text)`` unchanged.
 
-        Bypasses :meth:`_handle_response` translation: returns the raw
+        Bypasses :meth:`_handle_response` entirely: returns the raw
         HTTP status and the unparsed body text for every non-transport
-        outcome, including HTTP 4xx / 5xx and any JSON envelope whose
-        ``retcode`` is negative or whose ``message`` carries an
-        ``Api unsupported`` / ``unsupported action`` marker (see the
-        constants in this module for the exact strings).
-        Authentication classification (status 401 / 403) is the
-        caller's responsibility.
+        outcome, with no envelope inspection. The caller (the
+        capability probe) is responsible for parsing the body and
+        classifying envelopes whose ``retcode`` is negative or whose
+        ``message`` carries an ``Api unsupported`` / ``unsupported
+        action`` marker — exactly the signals the public
+        :meth:`get` / :meth:`post` translate away in
+        :meth:`_handle_response`. Authentication classification
+        (status 401 / 403) is also the caller's responsibility.
 
         Acquires the same ``self._lock`` and honours the same
         :meth:`_post_request_delay` as :meth:`get` / :meth:`post`, so

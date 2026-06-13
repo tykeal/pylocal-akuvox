@@ -212,9 +212,14 @@ def _step_1_payload(body: str) -> dict[str, Any]:
 
     Mirrors :meth:`pylocal_akuvox._http.AkuvoxHttpClient._parse_envelope`
     semantics so the probe accepts exactly what regular API calls
-    accept. Returns the inner ``data`` dict. Raises
-    :class:`AkuvoxParseError` (with ``__cause__`` chained for the JSON
-    sub-case) on every failure mode.
+    accept, with one defensive tightening: ``retcode`` of ``True`` /
+    ``False`` is rejected (``bool`` is a subclass of ``int`` in
+    Python, so a naïve ``isinstance(retcode, int)`` would let
+    ``{"retcode": true}`` through). This matches the consistent
+    treatment in :func:`_summarise_system_status` for step 2.
+    Returns the inner ``data`` dict. Raises :class:`AkuvoxParseError`
+    (with ``__cause__`` chained for the JSON sub-case) on every
+    failure mode.
     """
     try:
         payload = json.loads(body)
@@ -225,6 +230,7 @@ def _step_1_payload(body: str) -> dict[str, Any]:
         not isinstance(payload, dict)
         or "retcode" not in payload
         or not isinstance(payload["retcode"], int)
+        or isinstance(payload["retcode"], bool)
     ):
         msg = f"step-1 envelope missing fields: {payload!r}"
         raise AkuvoxParseError(msg)
