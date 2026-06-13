@@ -143,12 +143,12 @@ per-step notes:
 |---|--------|-----|-------------------|-------|
 | 1 | GET | `/api/system/info`             | `KEY_DISCOVERY` | Mandatory; classifies device class + firmware. Issued via `_request_raw("GET", "/api/system/info", timeout=probe_timeout)`. The probe inspects the returned tuple: if `status == 401`, raises `AkuvoxAuthenticationError`. Other step-1 failures follow the table above, including the forbidden-response `AkuvoxRequestError` row. |
 | 2 | GET | `/api/system/status`           | (none — health probe) | Device-health probe only. Result recorded as a free-form note under `DeviceCapabilities.notes["system_status"]` (raw body or short summary like `"ok"` / `"http_500"`). Does NOT classify any capability — `/api/system/status` is universal device-health, NOT relay status. (`RELAY_STATUS` is classified solely by step 9 below.) Per spec FR-011 + `data-model.md` §"Explicit out-of-scope", `AkuvoxDevice.get_status()` is not capability-gated, so step 2's role is connectivity sanity-check + a free-form note for maintainers. |
-| 3 | GET | `/api/user/get?page=1`         | `USER_LIST`    | Records observed `ScheduleRelay`/`Schedule-Relay`/`Schedule` field aliases (read direction); records observed presence of `Building`/`Room`/`EffectiveType` for note. |
-| 4 | GET | `/api/contact/get?page=1`      | `CONTACT_LIST` | Records observed schema shape (`APTName`/`APTNum`/`Building`/`Landline` → `APARTMENT_BOOK`; otherwise `DOOR_PHONE`). |
+| 3 | GET | `/api/user/get?page=1`         | `USER_LIST`    | Records observed `ScheduleRelay`/`Schedule-Relay`/`Schedule` field aliases (read direction); records observed presence of `Building`/`Room`/`EffectiveType` for note. The list-container key may appear as `Item` (PascalCase, as historically documented) or `item` (lowercase, as actually returned by Akuvox firmware in practice — matching `users.py` / `contacts.py` / `logs.py`); the probe accepts both. |
+| 4 | GET | `/api/contact/get?page=1`      | `CONTACT_LIST` | Records observed schema shape: `APTName` or `APTNum` on the first item → `APARTMENT_BOOK` (these keys are distinctive to the apartment-book schema); any other shape → `DOOR_PHONE`. (`Building` / `Landline` alone are NOT diagnostic — door-phone schemas may carry them too, so they do not classify on their own.) Same `Item` / `item` tolerance as step 3. |
 | 5 | GET | `/api/schedule/get`            | `SCHEDULE_LIST`| |
 | 6 | GET | `/api/group/get`               | `GROUP_LIST`   | |
-| 7 | GET | `/api/log/door/get?page=1`     | `LOG_DOOR`     | |
-| 8 | GET | `/api/log/call/get?page=1`     | `LOG_CALL`     | |
+| 7 | GET | `/api/doorlog/get?page=1`      | `LOG_DOOR`     | Path matches the actual library call path (`logs.py` `get_door_logs`). |
+| 8 | GET | `/api/calllog/get?page=1`      | `LOG_CALL`     | Path matches the actual library call path (`logs.py` `get_call_logs`). |
 | 9 | GET | `/api/relay/status`            | `RELAY_STATUS` (sole classifier) | An IT83-style "No handlers" here is the FCGI-only signal. Step 9 is the ONLY probe call that classifies `RELAY_STATUS`; step 2's `/api/system/status` is a distinct device-health endpoint and does not set this capability. |
 
 ### Raw HTTP helper (`_request_raw`)

@@ -70,12 +70,22 @@ _ACTION_UNSUPPORTED_MARKERS = (
 # Step (slug, http_path, capability marker or None for step 1 / step 2)
 # Step 1 is handled out-of-band (it must succeed for the probe to
 # continue); step 2 is a health probe with no capability marker.
+#
+# IMPORTANT: the log endpoint paths match what
+# :mod:`pylocal_akuvox.logs` actually calls
+# (``/api/doorlog/get`` / ``/api/calllog/get``), so the
+# ``LOG_DOOR`` / ``LOG_CALL`` capability classification reflects the
+# endpoints the public ``AkuvoxDevice.get_door_logs`` /
+# ``get_call_logs`` methods invoke. Earlier drafts of
+# ``contracts/probe-api.md`` listed ``/api/log/door/get`` /
+# ``/api/log/call/get`` — those paths do not exist in the library and
+# would have produced misleading capability signals.
 _PROBE_STEP_3_PATH = "/api/user/get?page=1"
 _PROBE_STEP_4_PATH = "/api/contact/get?page=1"
 _PROBE_STEP_5_PATH = "/api/schedule/get"
 _PROBE_STEP_6_PATH = "/api/group/get"
-_PROBE_STEP_7_PATH = "/api/log/door/get?page=1"
-_PROBE_STEP_8_PATH = "/api/log/call/get?page=1"
+_PROBE_STEP_7_PATH = "/api/doorlog/get?page=1"
+_PROBE_STEP_8_PATH = "/api/calllog/get?page=1"
 _PROBE_STEP_9_PATH = "/api/relay/status"
 
 # (slug, path, capability) for steps 3-9. The slug is used as the
@@ -86,8 +96,8 @@ _LATER_STEPS: tuple[tuple[str, str, Capability], ...] = (
     ("contact_get", _PROBE_STEP_4_PATH, Capability.CONTACT_LIST),
     ("schedule_get", _PROBE_STEP_5_PATH, Capability.SCHEDULE_LIST),
     ("group_get", _PROBE_STEP_6_PATH, Capability.GROUP_LIST),
-    ("log_door_get", _PROBE_STEP_7_PATH, Capability.LOG_DOOR),
-    ("log_call_get", _PROBE_STEP_8_PATH, Capability.LOG_CALL),
+    ("doorlog_get", _PROBE_STEP_7_PATH, Capability.LOG_DOOR),
+    ("calllog_get", _PROBE_STEP_8_PATH, Capability.LOG_CALL),
     ("relay_status", _PROBE_STEP_9_PATH, Capability.RELAY_STATUS),
 )
 
@@ -123,11 +133,14 @@ def _summarise_system_status(status: int, body: str) -> str:
 
     The token vocabulary is:
 
-    * ``"ok"`` — HTTP 2xx with a parseable JSON envelope and
+    * ``"ok"`` — HTTP 2xx with a parseable JSON envelope and integer
       ``retcode == 0``.
-    * ``"retcode_<n>"`` — HTTP 2xx with a parseable JSON envelope but a
-      non-zero ``retcode``.
-    * ``"unparsable"`` — HTTP 2xx whose body is not a JSON object.
+    * ``"retcode_<n>"`` — HTTP 2xx with a parseable JSON envelope
+      whose ``retcode`` is an int but non-zero.
+    * ``"unparsable"`` — HTTP 2xx whose body is not a JSON object or
+      whose ``retcode`` is missing / not an integer (so the helper
+      never emits awkward tokens like ``retcode_None`` or
+      ``retcode_{...}``).
     * ``f"http_{status}"`` — any non-2xx response.
     """
     if not (200 <= status < 300):
@@ -139,6 +152,8 @@ def _summarise_system_status(status: int, body: str) -> str:
     if not isinstance(payload, dict):
         return "unparsable"
     retcode = payload.get("retcode")
+    if not isinstance(retcode, int) or isinstance(retcode, bool):
+        return "unparsable"
     if retcode == 0:
         return "ok"
     return f"retcode_{retcode}"
@@ -219,26 +234,46 @@ def _step_1_payload(body: str) -> dict[str, Any]:
     return data
 
 
-def _record_user_aliases(field_aliases: dict[str, FieldAliases], body: str) -> None:
-    """Update ``field_aliases["schedule_relay"]`` from a user-list body.
+def _extract_items(body: str) -> list[Any] | None:
+    """Return the list of records under ``data.{Item|item}`` or ``None``.
 
-    Inspects the user records in ``data.Item`` (the standard list
-    container shape) for any of the three observed schedule-field
-    aliases (``ScheduleRelay`` / ``Schedule-Relay`` / ``Schedule``)
-    and records them in observed order. Tolerates malformed or
-    minimal bodies — never raises.
+    Real Akuvox responses have used both PascalCase ``"Item"`` (older
+    firmware references in the spec contract) and lowercase ``"item"``
+    (the form actually used by the rest of this library — see
+    :mod:`pylocal_akuvox.users` / :mod:`pylocal_akuvox.contacts` /
+    :mod:`pylocal_akuvox.logs`). The probe-side helpers accept either
+    so they record observed schema details regardless of the device's
+    case convention. Returns ``None`` for non-JSON bodies, non-dict
+    payloads, or payloads where neither key holds a list.
     """
     try:
         payload = json.loads(body)
     except json.JSONDecodeError:
-        return
+        return None
     if not isinstance(payload, dict):
-        return
+        return None
     data = payload.get("data", {})
     if not isinstance(data, dict):
-        return
-    items = data.get("Item", [])
-    if not isinstance(items, list):
+        return None
+    for key in ("Item", "item"):
+        items = data.get(key)
+        if isinstance(items, list):
+            return items
+    return None
+
+
+def _record_user_aliases(field_aliases: dict[str, FieldAliases], body: str) -> None:
+    """Update ``field_aliases["schedule_relay"]`` from a user-list body.
+
+    Inspects the user records in ``data.{Item|item}`` (the standard
+    list container shape — both case conventions accepted, see
+    :func:`_extract_items`) for any of the three observed
+    schedule-field aliases (``ScheduleRelay`` / ``Schedule-Relay`` /
+    ``Schedule``) and records them in observed order. Tolerates
+    malformed or minimal bodies — never raises.
+    """
+    items = _extract_items(body)
+    if items is None:
         return
 
     candidates = ("ScheduleRelay", "Schedule-Relay", "Schedule")
@@ -265,20 +300,13 @@ def _record_user_schema_keys(notes: dict[str, str], body: str) -> None:
     schema variants across firmware. Records the comma-joined sorted
     list of observed keys under
     ``notes["user_schema_observed_keys"]`` (sorted to keep SC-002
-    byte-equal idempotence). Tolerates malformed or minimal bodies —
-    never raises and writes nothing if no candidate key is observed.
+    byte-equal idempotence). Accepts both ``data.Item`` and
+    ``data.item`` per :func:`_extract_items`. Tolerates malformed or
+    minimal bodies — never raises and writes nothing if no candidate
+    key is observed.
     """
-    try:
-        payload = json.loads(body)
-    except json.JSONDecodeError:
-        return
-    if not isinstance(payload, dict):
-        return
-    data = payload.get("data", {})
-    if not isinstance(data, dict):
-        return
-    items = data.get("Item", [])
-    if not isinstance(items, list):
+    items = _extract_items(body)
+    if items is None:
         return
 
     candidates = ("Building", "Room", "EffectiveType")
@@ -296,28 +324,23 @@ def _record_user_schema_keys(notes: dict[str, str], body: str) -> None:
 def _record_contact_shape(schema_shapes: dict[str, SchemaShape], body: str) -> None:
     """Update ``schema_shapes["contact"]`` from a contact-list body.
 
-    Detects the apartment-book shape (``APTName`` / ``APTNum`` /
-    ``Building`` / ``Landline`` keys present) vs the door-phone shape
-    (``Name`` / ``Phone`` / ``ID``). Never raises on malformed input.
+    Detects the apartment-book shape (the *distinctive* keys
+    ``APTName`` / ``APTNum`` are unique to the apartment-book schema,
+    so either of those alone is sufficient evidence; ``Building`` and
+    ``Landline`` are too generic to be diagnostic on their own) vs
+    the door-phone shape (every other shape — typically ``Name`` /
+    ``Phone`` / ``ID``). Accepts both ``data.Item`` and ``data.item``
+    per :func:`_extract_items`. Never raises on malformed input.
     """
-    try:
-        payload = json.loads(body)
-    except json.JSONDecodeError:
-        return
-    if not isinstance(payload, dict):
-        return
-    data = payload.get("data", {})
-    if not isinstance(data, dict):
-        return
-    items = data.get("Item", [])
-    if not isinstance(items, list) or not items:
+    items = _extract_items(body)
+    if not items:
         return
     first = items[0]
     if not isinstance(first, dict):
         return
 
-    apt_keys = {"APTName", "APTNum", "Building", "Landline"}
-    if any(k in first for k in apt_keys):
+    distinctive_apt_keys = {"APTName", "APTNum"}
+    if any(k in first for k in distinctive_apt_keys):
         schema_shapes["contact"] = SchemaShape.APARTMENT_BOOK
     else:
         schema_shapes["contact"] = SchemaShape.DOOR_PHONE

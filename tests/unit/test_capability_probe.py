@@ -76,8 +76,8 @@ def _register_x916_probe_with_step3(
     m.get(f"{BASE_URL}/api/contact/get?page=1", payload=_ok())
     m.get(f"{BASE_URL}/api/schedule/get", payload=_ok())
     m.get(f"{BASE_URL}/api/group/get", payload=_ok())
-    m.get(f"{BASE_URL}/api/log/door/get?page=1", payload=_ok())
-    m.get(f"{BASE_URL}/api/log/call/get?page=1", payload=_ok())
+    m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=_ok())
+    m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=_ok())
     m.get(f"{BASE_URL}/api/relay/status", payload=_ok())
 
 
@@ -91,8 +91,8 @@ def _register_x916_probe_with_step4(
     m.get(f"{BASE_URL}/api/contact/get?page=1", payload=step4_payload)
     m.get(f"{BASE_URL}/api/schedule/get", payload=_ok())
     m.get(f"{BASE_URL}/api/group/get", payload=_ok())
-    m.get(f"{BASE_URL}/api/log/door/get?page=1", payload=_ok())
-    m.get(f"{BASE_URL}/api/log/call/get?page=1", payload=_ok())
+    m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=_ok())
+    m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=_ok())
     m.get(f"{BASE_URL}/api/relay/status", payload=_ok())
 
 
@@ -105,8 +105,8 @@ _PROBE_URLS = (
     "/api/contact/get?page=1",
     "/api/schedule/get",
     "/api/group/get",
-    "/api/log/door/get?page=1",
-    "/api/log/call/get?page=1",
+    "/api/doorlog/get?page=1",
+    "/api/calllog/get?page=1",
     "/api/relay/status",
 )
 
@@ -119,8 +119,8 @@ def _register_full_x916_probe(m: aioresponses) -> None:
     m.get(f"{BASE_URL}/api/contact/get?page=1", payload=_ok())
     m.get(f"{BASE_URL}/api/schedule/get", payload=_ok())
     m.get(f"{BASE_URL}/api/group/get", payload=_ok())
-    m.get(f"{BASE_URL}/api/log/door/get?page=1", payload=_ok())
-    m.get(f"{BASE_URL}/api/log/call/get?page=1", payload=_ok())
+    m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=_ok())
+    m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=_ok())
     m.get(f"{BASE_URL}/api/relay/status", payload=_ok())
 
 
@@ -134,16 +134,6 @@ def _request_paths(m: aioresponses) -> list[str]:
             path_with_q = url.path_qs
             paths.append(path_with_q)
     return paths
-
-
-def _ordered_request_paths(m: aioresponses) -> list[str]:
-    """Return request paths in chronological order via aioresponses _responses queue.
-
-    aioresponses doesn't preserve a global timeline across (method, url)
-    keys, but for a single-threaded async probe the per-key call order
-    is enough; we sort by call timestamp where available.
-    """
-    return _request_paths(m)
 
 
 # ---------------------------------------------------------------------------
@@ -214,8 +204,8 @@ async def test_probe_is_non_destructive() -> None:
         m.get(f"{BASE_URL}/api/contact/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/schedule/get", payload=_ok())
         m.get(f"{BASE_URL}/api/group/get", payload=_ok())
-        m.get(f"{BASE_URL}/api/log/door/get?page=1", payload=_ok())
-        m.get(f"{BASE_URL}/api/log/call/get?page=1", payload=_ok())
+        m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=_ok())
+        m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/relay/status", payload=_ok())
         async with device:
             profile = await device.probe_capabilities()
@@ -233,8 +223,8 @@ async def test_probe_is_non_destructive() -> None:
         m.get(f"{BASE_URL}/api/contact/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/schedule/get", payload=_ok())
         m.get(f"{BASE_URL}/api/group/get", payload=_ok())
-        m.get(f"{BASE_URL}/api/log/door/get?page=1", payload=_ok())
-        m.get(f"{BASE_URL}/api/log/call/get?page=1", payload=_ok())
+        m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=_ok())
+        m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/relay/status", payload=_ok())
         async with device:
             profile = await device.probe_capabilities()
@@ -414,8 +404,8 @@ async def test_probe_records_http_500_on_user_get_as_unknown_with_note() -> None
         m.get(f"{BASE_URL}/api/contact/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/schedule/get", payload=_ok())
         m.get(f"{BASE_URL}/api/group/get", payload=_ok())
-        m.get(f"{BASE_URL}/api/log/door/get?page=1", payload=_ok())
-        m.get(f"{BASE_URL}/api/log/call/get?page=1", payload=_ok())
+        m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=_ok())
+        m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/relay/status", payload=_ok())
         async with device:
             profile = await device.probe_capabilities()
@@ -434,8 +424,8 @@ async def test_probe_records_http_4xx_other_on_later_step_as_unknown() -> None:
         m.get(f"{BASE_URL}/api/contact/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/schedule/get", payload=_ok())
         m.get(f"{BASE_URL}/api/group/get", payload=_ok())
-        m.get(f"{BASE_URL}/api/log/door/get?page=1", payload=_ok())
-        m.get(f"{BASE_URL}/api/log/call/get?page=1", payload=_ok())
+        m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=_ok())
+        m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/relay/status", status=404, body="not-found")
         async with device:
             profile = await device.probe_capabilities()
@@ -527,8 +517,8 @@ async def test_probe_is_idempotent() -> None:
         m.get(f"{BASE_URL}/api/contact/get?page=1", payload=_ok(), repeat=True)
         m.get(f"{BASE_URL}/api/schedule/get", payload=_ok(), repeat=True)
         m.get(f"{BASE_URL}/api/group/get", payload=_ok(), repeat=True)
-        m.get(f"{BASE_URL}/api/log/door/get?page=1", payload=_ok(), repeat=True)
-        m.get(f"{BASE_URL}/api/log/call/get?page=1", payload=_ok(), repeat=True)
+        m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=_ok(), repeat=True)
+        m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=_ok(), repeat=True)
         m.get(f"{BASE_URL}/api/relay/status", payload=_ok(), repeat=True)
         async with device:
             a = await device.probe_capabilities()
@@ -828,6 +818,135 @@ def test_record_contact_shape_tolerates_non_dict_first_item() -> None:
 
 
 # ---------------------------------------------------------------------------
+# _extract_items helper: tolerates both PascalCase ``Item`` (as historically
+# used in the spec) and lowercase ``item`` (as actually returned by Akuvox
+# firmware in practice — see users.py / contacts.py / logs.py for parallel
+# tolerance in the rest of the library).
+# ---------------------------------------------------------------------------
+
+
+def test_extract_items_returns_pascal_case_item_list() -> None:
+    """Standard PascalCase ``Item`` container yields the underlying list."""
+    from pylocal_akuvox.capability_probe import _extract_items
+
+    body = json.dumps({"data": {"Item": [{"Name": "a"}, {"Name": "b"}]}})
+    items = _extract_items(body)
+    assert items == [{"Name": "a"}, {"Name": "b"}]
+
+
+def test_extract_items_returns_lowercase_item_list() -> None:
+    """Lowercase ``item`` container is recognised (real-firmware shape)."""
+    from pylocal_akuvox.capability_probe import _extract_items
+
+    body = json.dumps({"data": {"item": [{"Name": "a"}]}})
+    items = _extract_items(body)
+    assert items == [{"Name": "a"}]
+
+
+def test_extract_items_prefers_pascal_case_when_both_present() -> None:
+    """If both ``Item`` and ``item`` are present, ``Item`` wins (deterministic)."""
+    from pylocal_akuvox.capability_probe import _extract_items
+
+    body = json.dumps({"data": {"Item": [{"k": "pascal"}], "item": [{"k": "lower"}]}})
+    items = _extract_items(body)
+    assert items == [{"k": "pascal"}]
+
+
+def test_extract_items_returns_none_for_non_json_body() -> None:
+    """Non-JSON body returns ``None`` (sentinel for "skip recording")."""
+    from pylocal_akuvox.capability_probe import _extract_items
+
+    assert _extract_items("<html>not-json</html>") is None
+
+
+def test_extract_items_returns_none_for_non_dict_payload() -> None:
+    """JSON list at the top level returns ``None``."""
+    from pylocal_akuvox.capability_probe import _extract_items
+
+    assert _extract_items("[1, 2, 3]") is None
+
+
+def test_extract_items_returns_none_for_non_dict_data_field() -> None:
+    """``data`` present but not a dict returns ``None``."""
+    from pylocal_akuvox.capability_probe import _extract_items
+
+    assert _extract_items('{"data": "not-a-dict"}') is None
+
+
+def test_extract_items_returns_none_when_no_item_key() -> None:
+    """``data`` present and a dict but no ``Item``/``item`` key returns ``None``."""
+    from pylocal_akuvox.capability_probe import _extract_items
+
+    assert _extract_items('{"data": {"other": []}}') is None
+
+
+def test_extract_items_returns_none_when_item_value_is_not_list() -> None:
+    """``data.Item`` present but not a list returns ``None`` (defensive)."""
+    from pylocal_akuvox.capability_probe import _extract_items
+
+    assert _extract_items('{"data": {"Item": "not-a-list"}}') is None
+    assert _extract_items('{"data": {"item": {"a": 1}}}') is None
+
+
+def test_record_user_aliases_accepts_lowercase_item_key() -> None:
+    """End-to-end: ``data.item`` (lowercase) populates field_aliases."""
+    from pylocal_akuvox.capability_probe import _record_user_aliases
+
+    aliases: dict[str, FieldAliases] = {}
+    body = json.dumps({"data": {"item": [{"ScheduleRelay": "1"}]}})
+    _record_user_aliases(aliases, body)
+    assert "schedule_relay" in aliases
+    assert aliases["schedule_relay"].read == ("ScheduleRelay",)
+
+
+def test_record_user_schema_keys_accepts_lowercase_item_key() -> None:
+    """End-to-end: ``data.item`` (lowercase) populates schema-observed-keys."""
+    from pylocal_akuvox.capability_probe import _record_user_schema_keys
+
+    notes: dict[str, str] = {}
+    body = json.dumps({"data": {"item": [{"Building": "1", "Room": "101"}]}})
+    _record_user_schema_keys(notes, body)
+    assert notes["user_schema_observed_keys"] == "Building,Room"
+
+
+def test_record_contact_shape_accepts_lowercase_item_key() -> None:
+    """End-to-end: ``data.item`` (lowercase) populates schema_shapes."""
+    from pylocal_akuvox.capability_probe import _record_contact_shape
+
+    shapes: dict[str, SchemaShape] = {}
+    body = json.dumps({"data": {"item": [{"APTName": "Apt 1"}]}})
+    _record_contact_shape(shapes, body)
+    assert shapes["contact"] is SchemaShape.APARTMENT_BOOK
+
+
+def test_record_contact_shape_classifies_door_phone_when_only_building() -> None:
+    """Distinctive-key tightening: ``Building`` alone is NOT apartment-book.
+
+    Building / Landline are too generic — door-phone schemas may carry
+    them too. Only APTName / APTNum should classify as APARTMENT_BOOK
+    (see :func:`_record_contact_shape` docstring).
+    """
+    from pylocal_akuvox.capability_probe import _record_contact_shape
+
+    shapes: dict[str, SchemaShape] = {}
+    body = json.dumps(
+        {"data": {"Item": [{"Building": "B1", "Name": "lobby", "ID": "1"}]}}
+    )
+    _record_contact_shape(shapes, body)
+    assert shapes["contact"] is SchemaShape.DOOR_PHONE
+
+
+def test_record_contact_shape_classifies_apt_book_when_aptnum_present() -> None:
+    """``APTNum`` (without APTName) is sufficient evidence of apartment-book."""
+    from pylocal_akuvox.capability_probe import _record_contact_shape
+
+    shapes: dict[str, SchemaShape] = {}
+    body = json.dumps({"data": {"Item": [{"APTNum": "101"}]}})
+    _record_contact_shape(shapes, body)
+    assert shapes["contact"] is SchemaShape.APARTMENT_BOOK
+
+
+# ---------------------------------------------------------------------------
 # Step-2 system_status normalisation: the raw payload contains time-varying
 # fields (SystemTime, UpTime). The probe must collapse the response to a
 # stable token so SC-002 idempotence holds against real hardware.
@@ -870,6 +989,24 @@ def test_summarise_system_status_returns_unparsable_for_non_dict_payload() -> No
     assert _summarise_system_status(200, "[1, 2, 3]") == "unparsable"
 
 
+def test_summarise_system_status_returns_unparsable_for_missing_retcode() -> None:
+    """200 + JSON dict without ``retcode`` → ``"unparsable"``.
+
+    Avoids emitting awkward tokens like ``"retcode_None"`` when the
+    device returns a parseable envelope that simply lacks a retcode
+    field. Also covers the related case where ``retcode`` is present
+    but a non-int (e.g. string) — same idempotent ``"unparsable"`` token.
+    """
+    from pylocal_akuvox.capability_probe import _summarise_system_status
+
+    # retcode missing entirely
+    assert _summarise_system_status(200, '{"data": {"status": "up"}}') == "unparsable"
+    # retcode as string
+    assert _summarise_system_status(200, '{"retcode": "0"}') == "unparsable"
+    # retcode as bool — bool is a subclass of int but is not a valid retcode
+    assert _summarise_system_status(200, '{"retcode": true}') == "unparsable"
+
+
 def test_summarise_system_status_returns_http_token_for_non_2xx() -> None:
     """Non-2xx status → ``f"http_{status}"`` regardless of body content."""
     from pylocal_akuvox.capability_probe import _summarise_system_status
@@ -903,8 +1040,8 @@ async def test_probe_is_idempotent_across_time_varying_system_status() -> None:
         m.get(f"{BASE_URL}/api/contact/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/schedule/get", payload=_ok())
         m.get(f"{BASE_URL}/api/group/get", payload=_ok())
-        m.get(f"{BASE_URL}/api/log/door/get?page=1", payload=_ok())
-        m.get(f"{BASE_URL}/api/log/call/get?page=1", payload=_ok())
+        m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=_ok())
+        m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/relay/status", payload=_ok())
         async with device_a:
             profile_a = await device_a.probe_capabilities()
@@ -925,8 +1062,8 @@ async def test_probe_is_idempotent_across_time_varying_system_status() -> None:
         m.get(f"{BASE_URL}/api/contact/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/schedule/get", payload=_ok())
         m.get(f"{BASE_URL}/api/group/get", payload=_ok())
-        m.get(f"{BASE_URL}/api/log/door/get?page=1", payload=_ok())
-        m.get(f"{BASE_URL}/api/log/call/get?page=1", payload=_ok())
+        m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=_ok())
+        m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/relay/status", payload=_ok())
         async with device_b:
             profile_b = await device_b.probe_capabilities()
