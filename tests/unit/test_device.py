@@ -501,3 +501,72 @@ async def test_set_device_config_with_auth() -> None:
 
     url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/config/set"))
     assert url_key in m.requests
+
+
+# ---------------------------------------------------------------------------
+# T022: AkuvoxDevice.probe_capabilities() wrapper
+# ---------------------------------------------------------------------------
+
+
+async def test_probe_capabilities_default_resolves_to_5_seconds() -> None:
+    """device.probe_capabilities() with no kwarg passes timeout=5.0 to helper."""
+    from unittest.mock import AsyncMock, patch
+
+    from pylocal_akuvox.capabilities import (
+        Capability,
+        CapabilityStatus,
+        DeviceCapabilities,
+    )
+
+    sentinel = DeviceCapabilities(
+        device_class="X916",
+        firmware_version="916.30.10.114",
+        capabilities={Capability.USER_LIST: CapabilityStatus.SUPPORTED},
+        field_aliases={},
+        schema_shapes={},
+        notes={},
+    )
+
+    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    with patch(
+        "pylocal_akuvox.device._probe_capabilities",
+        new=AsyncMock(return_value=sentinel),
+    ) as mock_probe:
+        result = await device.probe_capabilities()
+
+    assert result is sentinel
+    # Wrapper resolves None → 5.0 default per probe-api.md §"Public surface".
+    assert mock_probe.call_args.kwargs["timeout"] == 5.0
+    # Result becomes the device's effective profile.
+    assert device.capabilities is sentinel
+
+
+async def test_probe_capabilities_with_custom_timeout() -> None:
+    """device.probe_capabilities(timeout=2.5) threads through to the helper."""
+    from unittest.mock import AsyncMock, patch
+
+    from pylocal_akuvox.capabilities import DeviceCapabilities
+
+    sentinel = DeviceCapabilities(
+        device_class="X916",
+        firmware_version="916.30.10.114",
+        capabilities={},
+        field_aliases={},
+        schema_shapes={},
+        notes={},
+    )
+
+    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    with patch(
+        "pylocal_akuvox.device._probe_capabilities",
+        new=AsyncMock(return_value=sentinel),
+    ) as mock_probe:
+        await device.probe_capabilities(timeout=2.5)
+
+    assert mock_probe.call_args.kwargs["timeout"] == 2.5
+
+
+async def test_capabilities_property_is_none_until_probed() -> None:
+    """device.capabilities is None before any probe runs."""
+    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    assert device.capabilities is None

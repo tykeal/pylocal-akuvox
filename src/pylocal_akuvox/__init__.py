@@ -6,6 +6,13 @@
 import importlib.metadata
 
 from pylocal_akuvox.auth import AuthConfig, AuthMethod
+from pylocal_akuvox.capabilities import (
+    Capability,
+    CapabilityStatus,
+    DeviceCapabilities,
+    FieldAliases,
+    SchemaShape,
+)
 from pylocal_akuvox.device import AkuvoxDevice
 from pylocal_akuvox.exceptions import (
     AkuvoxAuthenticationError,
@@ -51,12 +58,17 @@ __all__: list[str] = [
     "AuthConfig",
     "AuthMethod",
     "CallLogEntry",
+    "Capability",
+    "CapabilityStatus",
     "Contact",
+    "DeviceCapabilities",
     "DeviceConfig",
     "DeviceInfo",
     "DeviceStatus",
     "DoorLogEntry",
+    "FieldAliases",
     "Group",
     "Relay",
+    "SchemaShape",
     "User",
 ]

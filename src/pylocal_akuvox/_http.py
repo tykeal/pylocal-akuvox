@@ -103,20 +103,46 @@ class AkuvoxHttpClient:
         self._session = None
 
     async def get(
-        self, path: str, params: dict[str, Any] | None = None
+        self,
+        path: str,
+        params: dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
     ) -> dict[str, Any]:
-        """Send a GET request and return parsed envelope data."""
+        """Send a GET request and return parsed envelope data.
+
+        Args:
+            path: Request path (joined with the base URL).
+            params: Optional query-string parameters.
+            timeout: Optional per-call total timeout in seconds. When
+                ``None`` (the default) the session-level timeout
+                configured at construction time applies.
+
+        """
         async with self._lock:
-            result = await self._request("GET", path, params=params)
+            result = await self._request("GET", path, params=params, timeout=timeout)
             await self._post_request_delay()
             return result
 
     async def post(
-        self, path: str, data: dict[str, Any] | None = None
+        self,
+        path: str,
+        data: dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
     ) -> dict[str, Any]:
-        """Send a POST request with JSON payload."""
+        """Send a POST request with JSON payload.
+
+        Args:
+            path: Request path (joined with the base URL).
+            data: Optional JSON body.
+            timeout: Optional per-call total timeout in seconds. When
+                ``None`` (the default) the session-level timeout
+                configured at construction time applies.
+
+        """
         async with self._lock:
-            result = await self._request("POST", path, data=data)
+            result = await self._request("POST", path, data=data, timeout=timeout)
             await self._post_request_delay()
             return result
 
@@ -131,6 +157,8 @@ class AkuvoxHttpClient:
         path: str,
         data: dict[str, Any] | None = None,
         params: dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
     ) -> dict[str, Any]:
         """Execute an HTTP request and parse the response envelope."""
         if self._session is None or self._session.closed:
@@ -146,6 +174,8 @@ class AkuvoxHttpClient:
             kwargs["json"] = data
         if params is not None:
             kwargs["params"] = params
+        if timeout is not None:
+            kwargs["timeout"] = aiohttp.ClientTimeout(total=timeout)
 
         try:
             async with self._session.request(method, url, **kwargs) as resp:
@@ -153,6 +183,66 @@ class AkuvoxHttpClient:
         except (aiohttp.ClientError, TimeoutError) as err:
             msg = f"Connection to {self._base_url} failed: {err}"
             raise AkuvoxConnectionError(msg) from err
+
+    async def _request_raw(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        data: dict[str, Any] | None = None,
+        timeout: float | None = None,
+    ) -> tuple[int, str]:
+        """Issue a request and return ``(status, raw_body_text)`` unchanged.
+
+        Bypasses :meth:`_handle_response` entirely: returns the raw
+        HTTP status and the unparsed body text for every non-transport
+        outcome, with no envelope inspection. The caller (the
+        capability probe) is responsible for parsing the body and
+        classifying envelopes whose ``retcode`` is negative or whose
+        ``message`` carries an ``Api unsupported`` / ``unsupported
+        action`` marker — exactly the signals the public
+        :meth:`get` / :meth:`post` translate away in
+        :meth:`_handle_response`. Authentication classification
+        (status 401 / 403) is also the caller's responsibility.
+
+        Acquires the same ``self._lock`` and honours the same
+        :meth:`_post_request_delay` as :meth:`get` / :meth:`post`, so
+        probe traffic cannot interleave with regular calls and the
+        device-side request-throttling guarantee is preserved
+        end-to-end.
+
+        Raises :class:`AkuvoxConnectionError` only for transport-level
+        failures (connection refused, DNS failure, asyncio
+        ``TimeoutError``) — same wrapper as the existing public
+        methods. The capability probe is the sole intended consumer.
+        """
+        if self._session is None or self._session.closed:
+            msg = "Session not open; use async context manager"
+            raise AkuvoxConnectionError(msg)
+
+        if not path.startswith("/"):
+            path = f"/{path}"
+
+        url = f"{self._base_url}{path}"
+        kwargs: dict[str, Any] = {}
+        if data is not None:
+            kwargs["json"] = data
+        if params is not None:
+            kwargs["params"] = params
+        if timeout is not None:
+            kwargs["timeout"] = aiohttp.ClientTimeout(total=timeout)
+
+        async with self._lock:
+            try:
+                async with self._session.request(method, url, **kwargs) as resp:
+                    body = await resp.text()
+                    result = (resp.status, body)
+            except (aiohttp.ClientError, TimeoutError) as err:
+                msg = f"Connection to {self._base_url} failed: {err}"
+                raise AkuvoxConnectionError(msg) from err
+            await self._post_request_delay()
+            return result
 
     @staticmethod
     def _parse_envelope(body: object) -> tuple[int, str, dict[str, Any]]:

@@ -255,11 +255,13 @@ async def test_concurrent_requests_serialize(
         path: str,
         data: dict[str, Any] | None = None,
         params: dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
     ) -> dict[str, Any]:
         """Record entry/exit to verify non-overlap."""
         idx = len([e for e in events if e.startswith("enter")])
         events.append(f"enter-{idx}")
-        result = await original_request(method, path, data, params)
+        result = await original_request(method, path, data, params, timeout=timeout)
         events.append(f"exit-{idx}")
         return result
 
@@ -621,10 +623,12 @@ async def test_single_request_no_pre_request_delay() -> None:
         path: str,
         data: dict[str, Any] | None = None,
         params: dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
     ) -> dict[str, Any]:
         """Record request execution order around the wrapped call."""
         events.append("request-start")
-        result = await original_request(method, path, data, params)
+        result = await original_request(method, path, data, params, timeout=timeout)
         events.append("request-end")
         return result
 
@@ -732,3 +736,315 @@ async def test_delay_after_error_then_success() -> None:
                 await client.get("/api/system/error")
             await client.get("/api/system/info")
     mock_sleep.assert_awaited_once_with(0.25)
+
+
+# ---------------------------------------------------------------------------
+# T008a: timeout= plumbing on get/post/_request and the new _request_raw
+# helper. Contracts: probe-api.md §"Public surface" + §"Raw HTTP helper".
+# ---------------------------------------------------------------------------
+
+
+async def test_get_default_no_timeout_kwarg_passed() -> None:
+    """get(path) without timeout passes no per-call timeout to session.request."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.0)
+    async with client:
+        assert client._session is not None
+        with patch.object(
+            client._session, "request", wraps=client._session.request
+        ) as spy:
+            with aioresponses() as m:
+                m.get(f"{BASE_URL}/api/system/info", payload=SUCCESS_RESPONSE)
+                await client.get("/api/system/info")
+            # First call only (the GET we just made).
+            kwargs = spy.call_args.kwargs
+            assert "timeout" not in kwargs
+
+
+async def test_get_with_timeout_passes_aiohttp_client_timeout() -> None:
+    """get(path, timeout=2.0) → session.request kwarg timeout=ClientTimeout(2.0)."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.0)
+    async with client:
+        assert client._session is not None
+        with patch.object(
+            client._session, "request", wraps=client._session.request
+        ) as spy:
+            with aioresponses() as m:
+                m.get(f"{BASE_URL}/api/system/info", payload=SUCCESS_RESPONSE)
+                await client.get("/api/system/info", timeout=2.0)
+            kwargs = spy.call_args.kwargs
+            assert "timeout" in kwargs
+            timeout_obj = kwargs["timeout"]
+            assert isinstance(timeout_obj, aiohttp.ClientTimeout)
+            assert timeout_obj.total == 2.0
+
+
+async def test_post_with_timeout_keeps_json_body_and_passes_timeout() -> None:
+    """post(path, data=..., timeout=...) sends json= AND timeout= kwargs."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.0)
+    async with client:
+        assert client._session is not None
+        with patch.object(
+            client._session, "request", wraps=client._session.request
+        ) as spy:
+            with aioresponses() as m:
+                m.post(f"{BASE_URL}/api/relay/trig", payload=SUCCESS_RESPONSE)
+                await client.post("/api/relay/trig", data={"RelayID": 1}, timeout=1.5)
+            kwargs = spy.call_args.kwargs
+            assert kwargs.get("json") == {"RelayID": 1}
+            assert "timeout" in kwargs
+            assert isinstance(kwargs["timeout"], aiohttp.ClientTimeout)
+            assert kwargs["timeout"].total == 1.5
+
+
+async def test_get_timeout_override_surfaces_as_connection_error() -> None:
+    """End-to-end: a TimeoutError from override becomes AkuvoxConnectionError."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.0)
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", exception=TimeoutError())
+        async with client:
+            with pytest.raises(AkuvoxConnectionError) as excinfo:
+                await client.get("/api/system/info", timeout=0.05)
+    # Cause is the TimeoutError (or asyncio.TimeoutError; both share base).
+    cause = excinfo.value.__cause__
+    assert isinstance(cause, TimeoutError)
+
+
+async def test_request_raw_returns_tuple_for_http_500_without_raising() -> None:
+    """_request_raw returns (500, body) tuple instead of raising."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.0)
+    body = '{"retcode": -1, "message": "boom"}'
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/some/path", status=500, body=body)
+        async with client:
+            status, raw = await client._request_raw("GET", "/some/path")
+    assert status == 500
+    assert raw == body
+
+
+async def test_get_500_does_raise_for_contrast(client: AkuvoxHttpClient) -> None:
+    """The public get() against the same shape DOES raise — contrast probe."""
+    body = '{"retcode": -1, "message": "boom"}'
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/some/path", status=500, body=body)
+        async with client:
+            with pytest.raises(AkuvoxDeviceError):
+                await client.get("/some/path")
+
+
+async def test_request_raw_returns_tuple_for_negative_retcode_envelope() -> None:
+    """A 200 + negative-retcode 'Api unsupported' body returns the tuple."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.0)
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/system/info",
+            payload={"retcode": -1, "message": "Api unsupported"},
+        )
+        async with client:
+            status, raw = await client._request_raw("GET", "/api/system/info")
+    assert status == 200
+    # Body content carries through unchanged.
+    assert "Api unsupported" in raw
+    assert "retcode" in raw
+
+
+async def test_get_envelope_unsupported_does_raise_for_contrast(
+    client: AkuvoxHttpClient,
+) -> None:
+    """The public get() translates the same envelope into AkuvoxUnsupportedError."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/system/info",
+            payload={"retcode": -1, "message": "Api unsupported"},
+        )
+        async with client:
+            with pytest.raises(AkuvoxUnsupportedError):
+                await client.get("/api/system/info")
+
+
+async def test_request_raw_returns_tuple_for_http_401_without_raising() -> None:
+    """HTTP 401 returns (401, body) tuple — caller decides auth handling."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.0)
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", status=401, body="Unauthorized")
+        async with client:
+            status, raw = await client._request_raw("GET", "/api/system/info")
+    assert status == 401
+    assert raw == "Unauthorized"
+
+
+async def test_request_raw_transport_error_raises_connection_error() -> None:
+    """Transport-level failure still raises AkuvoxConnectionError."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.0)
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/system/info",
+            exception=aiohttp.ClientError("refused"),
+        )
+        async with client:
+            with pytest.raises(AkuvoxConnectionError) as excinfo:
+                await client._request_raw("GET", "/api/system/info")
+    assert isinstance(excinfo.value.__cause__, aiohttp.ClientError)
+
+
+async def test_request_raw_timeout_kwarg_plumbs_to_session_request() -> None:
+    """_request_raw('GET', path, timeout=2.0) passes ClientTimeout(2.0)."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.0)
+    async with client:
+        assert client._session is not None
+        with patch.object(
+            client._session, "request", wraps=client._session.request
+        ) as spy:
+            with aioresponses() as m:
+                m.get(f"{BASE_URL}/some/path", payload={"retcode": 0})
+                await client._request_raw("GET", "/some/path", timeout=2.0)
+            kwargs = spy.call_args.kwargs
+            assert "timeout" in kwargs
+            assert isinstance(kwargs["timeout"], aiohttp.ClientTimeout)
+            assert kwargs["timeout"].total == 2.0
+
+
+async def test_request_raw_session_not_open_raises_connection_error() -> None:
+    """_request_raw without an open session raises AkuvoxConnectionError."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.0)
+    with pytest.raises(AkuvoxConnectionError):
+        await client._request_raw("GET", "/api/system/info")
+
+
+async def test_request_raw_normalizes_relative_path() -> None:
+    """_request_raw normalizes a path that doesn't start with '/'."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.0)
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", payload={"retcode": 0})
+        async with client:
+            status, _ = await client._request_raw("GET", "api/system/info")
+    assert status == 200
+
+
+async def test_request_raw_passes_params_and_data() -> None:
+    """_request_raw threads params= and data= kwargs through."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.0)
+    async with client:
+        assert client._session is not None
+        with patch.object(
+            client._session, "request", wraps=client._session.request
+        ) as spy:
+            with aioresponses() as m:
+                m.post(f"{BASE_URL}/x?q=1", payload={"retcode": 0})
+                await client._request_raw(
+                    "POST", "/x", data={"k": "v"}, params={"q": "1"}
+                )
+            kwargs = spy.call_args.kwargs
+            assert kwargs.get("json") == {"k": "v"}
+            assert kwargs.get("params") == {"q": "1"}
+
+
+async def test_get_timeout_default_uses_session_timeout(
+    client: AkuvoxHttpClient,
+) -> None:
+    """Without timeout=, the session-level total timeout still bounds the call."""
+    # Verifies the round-trip succeeds without explicit timeout — the
+    # session-level timeout from __init__ is the active deadline. This
+    # documents that omitting timeout= is fully backward compatible.
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", payload=SUCCESS_RESPONSE)
+        async with client:
+            result = await client.get("/api/system/info")
+    assert result == SUCCESS_RESPONSE["data"]
+
+
+# ---------------------------------------------------------------------------
+# _request_raw lock serialisation: _request_raw must acquire the same
+# self._lock as get/post so probe traffic cannot interleave with regular
+# calls. (Round-1 Copilot-review finding on PR #134.)
+# ---------------------------------------------------------------------------
+
+
+async def test_request_raw_serialises_with_get(client: AkuvoxHttpClient) -> None:
+    """_request_raw acquires ``self._lock`` so it never overlaps a get()."""
+    events: list[str] = []
+    raw_payload = {
+        "retcode": 0,
+        "action": "getSystemInfo",
+        "message": "Success",
+        "data": {},
+    }
+
+    original_request = client._request
+    original_request_raw = client._request_raw
+
+    async def instrumented_request(
+        method: str,
+        path: str,
+        data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
+    ) -> dict[str, Any]:
+        """Record entry/exit around the public-path _request call."""
+        events.append("enter-get")
+        result = await original_request(method, path, data, params, timeout=timeout)
+        events.append("exit-get")
+        return result
+
+    async def instrumented_request_raw(
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        data: dict[str, Any] | None = None,
+        timeout: float | None = None,
+    ) -> tuple[int, str]:
+        """Record entry/exit around the raw-path _request_raw call."""
+        events.append("enter-raw")
+        result = await original_request_raw(
+            method, path, params=params, data=data, timeout=timeout
+        )
+        events.append("exit-raw")
+        return result
+
+    client._request = instrumented_request  # type: ignore[method-assign]
+    client._request_raw = instrumented_request_raw  # type: ignore[method-assign]
+
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", payload=raw_payload, repeat=True)
+
+        async with client:
+            await asyncio.gather(
+                client.get("/api/system/info"),
+                client._request_raw("GET", "/api/system/info"),
+                client.get("/api/system/info"),
+            )
+
+    # Pair-wise non-overlap: every enter is followed by its matching exit
+    # before the next enter starts. This proves the lock serialises raw
+    # and regular traffic together.
+    assert len(events) == 6
+    for i in range(0, 6, 2):
+        kind_enter = events[i].split("-", 1)[1]
+        kind_exit = events[i + 1].split("-", 1)[1]
+        assert events[i].startswith("enter")
+        assert events[i + 1].startswith("exit")
+        assert kind_enter == kind_exit
+
+
+async def test_request_raw_invokes_post_request_delay(
+    client: AkuvoxHttpClient,
+) -> None:
+    """_request_raw honours ``_post_request_delay`` like get/post."""
+    delay_calls: list[None] = []
+
+    original_delay = client._post_request_delay
+
+    async def instrumented_delay() -> None:
+        """Count post-request-delay invocations from _request_raw."""
+        delay_calls.append(None)
+        await original_delay()
+
+    client._post_request_delay = instrumented_delay  # type: ignore[method-assign]
+
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", status=200, body="ok")
+        async with client:
+            await client._request_raw("GET", "/api/system/info")
+
+    assert len(delay_calls) == 1
