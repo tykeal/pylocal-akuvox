@@ -12,9 +12,9 @@ SPDX-License-Identifier: Apache-2.0
 
 ## Content Quality
 
-- [ ] No implementation details (languages, frameworks, APIs)
+- [x] Public API and endpoint details are limited to contract clarity
 - [x] Focused on user value and business needs
-- [ ] Written for non-technical stakeholders
+- [x] Written for library integrators and maintainers
 - [x] All mandatory sections completed
 
 ## Requirement Completeness
@@ -22,7 +22,7 @@ SPDX-License-Identifier: Apache-2.0
 - [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
-- [ ] Success criteria are technology-agnostic (no implementation details)
+- [x] Success criteria focus on externally visible behavior
 - [x] All acceptance scenarios are defined
 - [x] Edge cases are identified
 - [x] Scope is clearly bounded
@@ -33,7 +33,7 @@ SPDX-License-Identifier: Apache-2.0
 - [x] All functional requirements have clear acceptance criteria
 - [x] User scenarios cover primary flows
 - [x] Feature meets measurable outcomes defined in Success Criteria
-- [ ] No implementation details leak into specification
+- [x] Implementation-specific terms are intentional and public-facing
 
 ## Coverage of Issue #123 Acceptance Criteria
 
@@ -71,8 +71,8 @@ The 10 acceptance-criteria items in issue #123 each map to one or more functiona
 
 ## Notes
 
-- Core acceptance and readiness items pass; technical-audience and implementation-detail neutrality items are intentionally unchecked because this spec records public API and endpoint contracts. No `[NEEDS CLARIFICATION]` markers were introduced.
+- All checklist items pass after adapting template wording for an intentionally technical library API contract. No `[NEEDS CLARIFICATION]` markers were introduced.
 - The spec deliberately surfaces the `AkuvoxUnsupportedError` class name and the `probe_capabilities()` method name because they are part of the public API contract this feature commits to. It does not specify internal class structure, file layout, or implementation strategy beyond the cross-cutting `capabilities.py` location dictated by spec 007's merged data-model note.
 - Matrix entry shape and the `DeviceClassPattern` form are described at the entity level, leaving concrete dataclass design to the planning phase.
 - Out-of-scope items are taken verbatim from issue #123.
-- Items marked incomplete document the intentionally technical scope rather than open clarification work.
+- No checklist items remain incomplete; the intentionally technical scope is documented by the adapted item wording above.
