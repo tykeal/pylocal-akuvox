@@ -256,6 +256,43 @@ def _record_user_aliases(field_aliases: dict[str, FieldAliases], body: str) -> N
         )
 
 
+def _record_user_schema_keys(notes: dict[str, str], body: str) -> None:
+    """Record observed schema-variant keys from a user-list body.
+
+    Per ``contracts/probe-api.md`` §"Probe step sequence" row 3, the
+    probe records the *presence* of ``Building`` / ``Room`` /
+    ``EffectiveType`` keys on user items so a maintainer can debug
+    schema variants across firmware. Records the comma-joined sorted
+    list of observed keys under
+    ``notes["user_schema_observed_keys"]`` (sorted to keep SC-002
+    byte-equal idempotence). Tolerates malformed or minimal bodies —
+    never raises and writes nothing if no candidate key is observed.
+    """
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        return
+    if not isinstance(payload, dict):
+        return
+    data = payload.get("data", {})
+    if not isinstance(data, dict):
+        return
+    items = data.get("Item", [])
+    if not isinstance(items, list):
+        return
+
+    candidates = ("Building", "Room", "EffectiveType")
+    observed: set[str] = set()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        for key in candidates:
+            if key in item:
+                observed.add(key)
+    if observed:
+        notes["user_schema_observed_keys"] = ",".join(sorted(observed))
+
+
 def _record_contact_shape(schema_shapes: dict[str, SchemaShape], body: str) -> None:
     """Update ``schema_shapes["contact"]`` from a contact-list body.
 
@@ -389,6 +426,7 @@ async def probe_capabilities(
         # Step-specific side effects beyond the capability marker:
         if path == _PROBE_STEP_3_PATH and outcome is _ProbeOutcome.SUPPORTED:
             _record_user_aliases(field_aliases, step_body)
+            _record_user_schema_keys(notes, step_body)
         if path == _PROBE_STEP_4_PATH and outcome is _ProbeOutcome.SUPPORTED:
             _record_contact_shape(schema_shapes, step_body)
 

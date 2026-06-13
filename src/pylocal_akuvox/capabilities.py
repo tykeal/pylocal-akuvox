@@ -100,9 +100,12 @@ class SchemaShape(enum.Enum):
 class FieldAliases:
     """Observed field-name aliases for one logical field.
 
-    Both directions are tuples (immutable, hashable) so a
-    :class:`DeviceCapabilities` instance composed of these objects is
-    fully hashable and bytes-equal-comparable across probe runs.
+    Both directions are tuples (immutable) so ``FieldAliases`` instances
+    are themselves hashable and bytes-equal-comparable across probe
+    runs. (The enclosing :class:`DeviceCapabilities` is *not* hashable
+    because it wraps its mappings in :class:`types.MappingProxyType`
+    for deep immutability — equality is the relevant invariant for the
+    SC-002 idempotence contract.)
     """
 
     read: tuple[str, ...]

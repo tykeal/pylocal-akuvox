@@ -950,3 +950,101 @@ async def test_get_timeout_default_uses_session_timeout(
         async with client:
             result = await client.get("/api/system/info")
     assert result == SUCCESS_RESPONSE["data"]
+
+
+# ---------------------------------------------------------------------------
+# _request_raw lock serialisation: _request_raw must acquire the same
+# self._lock as get/post so probe traffic cannot interleave with regular
+# calls. (Round-1 Copilot-review finding on PR #134.)
+# ---------------------------------------------------------------------------
+
+
+async def test_request_raw_serialises_with_get(client: AkuvoxHttpClient) -> None:
+    """_request_raw acquires ``self._lock`` so it never overlaps a get()."""
+    events: list[str] = []
+    raw_payload = {
+        "retcode": 0,
+        "action": "getSystemInfo",
+        "message": "Success",
+        "data": {},
+    }
+
+    original_request = client._request
+    original_request_raw = client._request_raw
+
+    async def instrumented_request(
+        method: str,
+        path: str,
+        data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
+    ) -> dict[str, Any]:
+        """Record entry/exit around the public-path _request call."""
+        events.append("enter-get")
+        result = await original_request(method, path, data, params, timeout=timeout)
+        events.append("exit-get")
+        return result
+
+    async def instrumented_request_raw(
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        data: dict[str, Any] | None = None,
+        timeout: float | None = None,
+    ) -> tuple[int, str]:
+        """Record entry/exit around the raw-path _request_raw call."""
+        events.append("enter-raw")
+        result = await original_request_raw(
+            method, path, params=params, data=data, timeout=timeout
+        )
+        events.append("exit-raw")
+        return result
+
+    client._request = instrumented_request  # type: ignore[method-assign]
+    client._request_raw = instrumented_request_raw  # type: ignore[method-assign]
+
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", payload=raw_payload, repeat=True)
+
+        async with client:
+            await asyncio.gather(
+                client.get("/api/system/info"),
+                client._request_raw("GET", "/api/system/info"),
+                client.get("/api/system/info"),
+            )
+
+    # Pair-wise non-overlap: every enter is followed by its matching exit
+    # before the next enter starts. This proves the lock serialises raw
+    # and regular traffic together.
+    assert len(events) == 6
+    for i in range(0, 6, 2):
+        kind_enter = events[i].split("-", 1)[1]
+        kind_exit = events[i + 1].split("-", 1)[1]
+        assert events[i].startswith("enter")
+        assert events[i + 1].startswith("exit")
+        assert kind_enter == kind_exit
+
+
+async def test_request_raw_invokes_post_request_delay(
+    client: AkuvoxHttpClient,
+) -> None:
+    """_request_raw honours ``_post_request_delay`` like get/post."""
+    delay_calls: list[None] = []
+
+    original_delay = client._post_request_delay
+
+    async def instrumented_delay() -> None:
+        """Count post-request-delay invocations from _request_raw."""
+        delay_calls.append(None)
+        await original_delay()
+
+    client._post_request_delay = instrumented_delay  # type: ignore[method-assign]
+
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", status=200, body="ok")
+        async with client:
+            await client._request_raw("GET", "/api/system/info")
+
+    assert len(delay_calls) == 1

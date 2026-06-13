@@ -204,6 +204,12 @@ class AkuvoxHttpClient:
         Authentication classification (status 401 / 403) is the
         caller's responsibility.
 
+        Acquires the same ``self._lock`` and honours the same
+        :meth:`_post_request_delay` as :meth:`get` / :meth:`post`, so
+        probe traffic cannot interleave with regular calls and the
+        device-side request-throttling guarantee is preserved
+        end-to-end.
+
         Raises :class:`AkuvoxConnectionError` only for transport-level
         failures (connection refused, DNS failure, asyncio
         ``TimeoutError``) — same wrapper as the existing public
@@ -225,13 +231,16 @@ class AkuvoxHttpClient:
         if timeout is not None:
             kwargs["timeout"] = aiohttp.ClientTimeout(total=timeout)
 
-        try:
-            async with self._session.request(method, url, **kwargs) as resp:
-                body = await resp.text()
-                return resp.status, body
-        except (aiohttp.ClientError, TimeoutError) as err:
-            msg = f"Connection to {self._base_url} failed: {err}"
-            raise AkuvoxConnectionError(msg) from err
+        async with self._lock:
+            try:
+                async with self._session.request(method, url, **kwargs) as resp:
+                    body = await resp.text()
+                    result = (resp.status, body)
+            except (aiohttp.ClientError, TimeoutError) as err:
+                msg = f"Connection to {self._base_url} failed: {err}"
+                raise AkuvoxConnectionError(msg) from err
+            await self._post_request_delay()
+            return result
 
     @staticmethod
     def _parse_envelope(body: object) -> tuple[int, str, dict[str, Any]]:

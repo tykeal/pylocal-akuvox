@@ -935,3 +935,87 @@ async def test_probe_is_idempotent_across_time_varying_system_status() -> None:
     assert profile_a == profile_b
     # And the normalised token is the stable summary, not the raw body.
     assert profile_a.notes["system_status"] == "ok"
+
+
+# ---------------------------------------------------------------------------
+# Step-3 user-list schema-key recording (probe-api.md §"Probe step sequence"
+# row 3): probe records observed presence of Building / Room / EffectiveType
+# under notes["user_schema_observed_keys"] for maintainer debugging.
+# ---------------------------------------------------------------------------
+
+
+def test_record_user_schema_keys_records_observed_keys_sorted() -> None:
+    """Items carrying Building/Room/EffectiveType → sorted comma-joined note."""
+    from pylocal_akuvox.capability_probe import _record_user_schema_keys
+
+    notes: dict[str, str] = {}
+    body = json.dumps(
+        {
+            "data": {
+                "Item": [
+                    {"ID": "1", "Building": "A", "Room": "101"},
+                    {"ID": "2", "EffectiveType": "always"},
+                ]
+            }
+        }
+    )
+    _record_user_schema_keys(notes, body)
+    # Sorted to keep SC-002 byte-equal idempotence regardless of dict order.
+    assert notes["user_schema_observed_keys"] == "Building,EffectiveType,Room"
+
+
+def test_record_user_schema_keys_writes_nothing_when_no_candidate_present() -> None:
+    """User items with none of the candidate keys → notes untouched."""
+    from pylocal_akuvox.capability_probe import _record_user_schema_keys
+
+    notes: dict[str, str] = {}
+    body = json.dumps({"data": {"Item": [{"ID": "1", "Name": "alice"}]}})
+    _record_user_schema_keys(notes, body)
+    assert notes == {}
+
+
+def test_record_user_schema_keys_tolerates_non_json_body() -> None:
+    """Non-JSON body silently leaves the notes dict unchanged."""
+    from pylocal_akuvox.capability_probe import _record_user_schema_keys
+
+    notes: dict[str, str] = {}
+    _record_user_schema_keys(notes, "<html>")
+    assert notes == {}
+
+
+def test_record_user_schema_keys_tolerates_non_dict_payload() -> None:
+    """JSON list payload silently leaves the notes dict unchanged."""
+    from pylocal_akuvox.capability_probe import _record_user_schema_keys
+
+    notes: dict[str, str] = {}
+    _record_user_schema_keys(notes, "[]")
+    assert notes == {}
+
+
+def test_record_user_schema_keys_tolerates_non_dict_data_field() -> None:
+    """data field that is not a dict is silently ignored."""
+    from pylocal_akuvox.capability_probe import _record_user_schema_keys
+
+    notes: dict[str, str] = {}
+    _record_user_schema_keys(notes, '{"data": "not-a-dict"}')
+    assert notes == {}
+
+
+def test_record_user_schema_keys_tolerates_non_list_item_field() -> None:
+    """Item field that is not a list is silently ignored."""
+    from pylocal_akuvox.capability_probe import _record_user_schema_keys
+
+    notes: dict[str, str] = {}
+    _record_user_schema_keys(notes, '{"data": {"Item": "not-a-list"}}')
+    assert notes == {}
+
+
+def test_record_user_schema_keys_skips_non_dict_items() -> None:
+    """Non-dict entries inside Item list are skipped without raising."""
+    from pylocal_akuvox.capability_probe import _record_user_schema_keys
+
+    notes: dict[str, str] = {}
+    body = json.dumps({"data": {"Item": [None, 42, {"Building": "A"}]}})
+    _record_user_schema_keys(notes, body)
+    # Only the dict item contributed.
+    assert notes["user_schema_observed_keys"] == "Building"
