@@ -53,6 +53,7 @@ The 10 acceptance-criteria items in issue #123 each map to one or more functiona
 ## Edge Case Coverage
 
 - [x] `"No hanlders for this request"` typo is recognized <!-- codespell:ignore hanlders --> → FR-004
+- [x] `"Api unsupported"` is recognized as an existing unsupported marker → FR-004
 - [x] `"unsupported action"` is distinguished from "endpoint missing" → FR-004, edge cases section
 - [x] HTTP 500 is recorded but not classified as supported/unsupported → FR-004
 - [x] HTTP 401/403 aborts probe with auth error rather than partial report → FR-004

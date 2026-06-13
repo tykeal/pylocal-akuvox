@@ -24,7 +24,7 @@ independently shippable phases mapped 1:1 to spec User Stories 1–4:
    Add `await device.probe_capabilities()` — a strictly read-only inspection
    that issues only `GET` / list calls and classifies the four well-known
    failure shapes (`"No handlers for this request"`, the typo
-   `"No hanlders for this request"`, `"unsupported action"`, HTTP 500) into <!-- codespell:ignore hanlders -->
+   `"No hanlders for this request"`, `"Api unsupported"`, `"unsupported action"`, HTTP 500) into <!-- codespell:ignore hanlders -->
    documented categories. The probe **never infers write capability** from
    read endpoints: **all write capabilities** (every `*_ADD` / `*_MODIFY`
    / `*_DELETE` capability across users/contacts/schedules/groups, plus

@@ -150,9 +150,9 @@ translation, so it can drive `_classify_response(status, body) ->
 _ProbeOutcome`. The public `AkuvoxHttpClient.get()` / `.post()` route
 through `_handle_response` (`_http.py:177-204`), which translates HTTP
 4xx/5xx into `AkuvoxRequestError`/`AkuvoxAuthenticationError`/
-`AkuvoxDeviceError`, translates `"unsupported action"` envelopes into
-`AkuvoxUnsupportedError`, and translates `retcode < 0` into
-`AkuvoxDeviceError` — hiding exactly the signals the probe needs to
+`AkuvoxDeviceError`, translates `"Api unsupported"` envelopes into
+`AkuvoxUnsupportedError`, and translates other `retcode < 0` envelopes
+(including `"unsupported action"`) into `AkuvoxDeviceError` — hiding exactly the signals the probe needs to
 classify.
 
 Phase 1 therefore adds a low-level sibling helper:
@@ -245,6 +245,7 @@ notes record only.
 | HTTP 2xx + envelope `retcode: 0` | `SUPPORTED`              | `SUPPORTED`. |
 | HTTP 2xx + envelope contains `"No handlers for this request"` | `UNSUPPORTED_NO_HANDLER` | `UNSUPPORTED`. Note recorded under `notes["<endpoint_slug>_body"]` (e.g. `notes["relay_status_body"]`). |
 | HTTP 2xx + envelope contains `"No hanlders for this request"` (device typo) | `UNSUPPORTED_NO_HANDLER` | Same as the corrected spelling. <!-- codespell:ignore hanlders --> |
+| HTTP 2xx + envelope contains `"Api unsupported"` | `UNSUPPORTED_API` | `UNSUPPORTED`. Mirrors the existing `_http.py` `_UNSUPPORTED_MSG` marker. |
 | HTTP 2xx + envelope contains `"unsupported action"` | `UNSUPPORTED_ACTION` | `SUPPORTED` for the read capability (the endpoint exists; the read action was honoured). Note recorded under `notes["<endpoint_slug>_body"]` with the raw body. **The write counterpart remains `UNKNOWN`** — the probe does NOT propagate read-endpoint signals to write capabilities; only a curated matrix entry can promote a write to a non-`UNKNOWN` status (see §"Probe step sequence" Write-capabilities paragraph). |
 | HTTP 5xx | `INDETERMINATE` | `UNKNOWN`. Note records the raw status + body under `notes["<endpoint_slug>_body"]` so a maintainer can decide. (Spec edge case "HTTP 500"; X915S `2915.30.10.113`.) |
 | HTTP 4xx (other than 401/403) | `INDETERMINATE` | `UNKNOWN`. Note recorded under `notes["<endpoint_slug>_body"]`. |
