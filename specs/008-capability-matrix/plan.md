@@ -194,6 +194,7 @@ specs/008-capability-matrix/
 ├── research.md          # Phase 0 output — design decisions for 11 topics
 ├── data-model.md        # Phase 1 output — type/home map for new entities
 ├── quickstart.md        # Phase 1 output — phase-by-phase verification recipe
+├── tasks.md             # Phase task breakdown for PR 0 and implementation PRs
 ├── contracts/
 │   ├── probe-api.md     # Public probe API contract
 │   ├── matrix-lookup.md # Matrix lookup + DeviceClassPattern semantics
@@ -202,8 +203,8 @@ specs/008-capability-matrix/
 └── checklists/          # Pre-existing review checklists
 ```
 
-`tasks.md` is intentionally **not** generated here; it is produced later
-per phase by `/speckit.tasks`.
+`tasks.md` is included in this spec PR as the phase task breakdown
+produced after planning by `/speckit.tasks`.
 
 ### Source Code (repository root)
 

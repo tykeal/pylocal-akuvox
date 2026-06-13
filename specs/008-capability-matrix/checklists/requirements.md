@@ -70,8 +70,8 @@ The 10 acceptance-criteria items in issue #123 each map to one or more functiona
 
 ## Notes
 
-- All checklist items pass on initial draft; no `[NEEDS CLARIFICATION]` markers were introduced.
+- Core acceptance and readiness items pass; technical-audience and implementation-detail neutrality items are intentionally unchecked because this spec records public API and endpoint contracts. No `[NEEDS CLARIFICATION]` markers were introduced.
 - The spec deliberately surfaces the `AkuvoxUnsupportedError` class name and the `probe_capabilities()` method name because they are part of the public API contract this feature commits to. It does not specify internal class structure, file layout, or implementation strategy beyond the cross-cutting `capabilities.py` location dictated by spec 007's merged data-model note.
 - Matrix entry shape and the `DeviceClassPattern` form are described at the entity level, leaving concrete dataclass design to the planning phase.
 - Out-of-scope items are taken verbatim from issue #123.
-- Items marked incomplete (none in this iteration) would require spec updates before `/speckit.clarify` or `/speckit.plan`.
+- Items marked incomplete document the intentionally technical scope rather than open clarification work.
