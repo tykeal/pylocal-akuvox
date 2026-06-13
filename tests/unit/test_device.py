@@ -529,7 +529,7 @@ async def test_probe_capabilities_default_resolves_to_5_seconds() -> None:
 
     device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
     with patch(
-        "pylocal_akuvox.device.capability_probe.probe_capabilities",
+        "pylocal_akuvox.device._probe_capabilities",
         new=AsyncMock(return_value=sentinel),
     ) as mock_probe:
         result = await device.probe_capabilities()
@@ -558,7 +558,7 @@ async def test_probe_capabilities_with_custom_timeout() -> None:
 
     device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
     with patch(
-        "pylocal_akuvox.device.capability_probe.probe_capabilities",
+        "pylocal_akuvox.device._probe_capabilities",
         new=AsyncMock(return_value=sentinel),
     ) as mock_probe:
         await device.probe_capabilities(timeout=2.5)

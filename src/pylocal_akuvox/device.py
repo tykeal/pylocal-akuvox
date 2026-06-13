@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from pylocal_akuvox import capability_probe
 from pylocal_akuvox._http import AkuvoxHttpClient
+from pylocal_akuvox.capability_probe import probe_capabilities as _probe_capabilities
 from pylocal_akuvox.models import DeviceInfo, DeviceStatus
 
 if TYPE_CHECKING:
@@ -94,9 +94,7 @@ class AkuvoxDevice:
 
         """
         resolved_timeout = 5.0 if timeout is None else timeout
-        result = await capability_probe.probe_capabilities(
-            self._http, timeout=resolved_timeout
-        )
+        result = await _probe_capabilities(self._http, timeout=resolved_timeout)
         self._capabilities = result
         return result
 

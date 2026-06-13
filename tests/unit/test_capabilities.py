@@ -335,6 +335,17 @@ def test_pattern_rejects_glob_with_star_in_segment() -> None:
         DeviceClassPattern(model_prefix="X", firmware_band="9*6.30.10.*")
 
 
+def test_pattern_rejects_glob_missing_dot_before_wildcard() -> None:
+    """Bad band like '916.30.10*' (no '.' between segment and '*') raises ValueError.
+
+    Without explicit validation, ``split('.')[:-1]`` would silently drop
+    the trailing ``"10*"`` and treat the band as the glob ``"916.30.*"``,
+    causing incorrect matches.
+    """
+    with pytest.raises(ValueError, match="trailing wildcard must be"):
+        DeviceClassPattern(model_prefix="X", firmware_band="916.30.10*")
+
+
 def test_pattern_rejects_empty_band() -> None:
     """Empty firmware_band raises ValueError."""
     with pytest.raises(ValueError, match="firmware_band"):

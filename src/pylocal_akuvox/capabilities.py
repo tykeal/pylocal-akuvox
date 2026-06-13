@@ -278,6 +278,18 @@ class DeviceClassPattern:
 
         if band.endswith("*"):
             raw_segments = band.split(".")
+            if raw_segments[-1] != "*":
+                # Catches malformed forms like "916.30.10*" (no '.'
+                # between the trailing numeric segment and the
+                # wildcard). Without this check `split('.')[:-1]`
+                # would silently drop the "10*" segment and treat
+                # the band as the glob "916.30.*".
+                msg = (
+                    f"firmware_band {band!r}: trailing wildcard must be "
+                    f"its own segment (e.g. '916.30.10.*', not "
+                    f"'916.30.10*')"
+                )
+                raise ValueError(msg)
             non_wild = raw_segments[:-1]
             if any(seg == "*" for seg in non_wild) or "*" in "".join(non_wild):
                 msg = (
