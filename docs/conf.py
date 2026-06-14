@@ -4,6 +4,15 @@
 """Sphinx configuration for pylocal-akuvox documentation."""
 
 import importlib.metadata
+import sys
+from pathlib import Path
+
+# Add the in-tree ``docs/_ext`` directory to ``sys.path`` so the
+# ``capability_matrix`` extension module can be imported by name
+# below. ``docs/_ext`` is intentionally not a Python package (it
+# has no ``__init__.py``); it is just a search-path entry for the
+# single-file sphinx extension that lives inside it.
+sys.path.insert(0, str(Path(__file__).parent / "_ext"))
 
 project = "pylocal-akuvox"
 author = "Andrew Grimberg"
@@ -19,10 +28,12 @@ version = ".".join(release.split(".")[:2])
 
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",
     "sphinx_autodoc_typehints",
     "sphinx_copybutton",
+    "capability_matrix",
 ]
 
 templates_path = []

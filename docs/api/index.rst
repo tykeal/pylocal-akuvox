@@ -14,4 +14,5 @@ API Reference
    contacts
    config
    auth
+   capabilities
    exceptions
