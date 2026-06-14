@@ -323,12 +323,15 @@ async def test_fcgi_adapter_raises_device_error_on_http_500() -> None:
 
 
 async def test_fcgi_adapter_raises_auth_error_on_http_401() -> None:
-    """FCGI returning HTTP 401/403 surfaces ``AkuvoxAuthenticationError``.
+    """FCGI returning HTTP 401 surfaces ``AkuvoxAuthenticationError``.
 
-    Mirrors the canonical ``_handle_response`` mapping so that downstream
-    integrators (e.g. Home Assistant's ``ConfigEntryAuthFailed`` flow) can
-    catch a single auth-error type regardless of which transport variant
-    the dispatcher chose.
+    Mirrors the canonical ``_handle_response`` mapping so that
+    downstream integrators (e.g. Home Assistant's
+    ``ConfigEntryAuthFailed`` flow) can catch a single auth-error
+    type regardless of which transport variant the dispatcher
+    chose. 403 is intentionally *not* mapped here — it goes to
+    :class:`AkuvoxRequestError` (see the sibling test), matching
+    the JSON adapter's classification.
     """
     from pylocal_akuvox.exceptions import AkuvoxAuthenticationError
 
@@ -342,4 +345,29 @@ async def test_fcgi_adapter_raises_auth_error_on_http_401() -> None:
         )
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxAuthenticationError):
+                await device.trigger_relay(num=1)
+
+
+async def test_fcgi_adapter_raises_request_error_on_http_403() -> None:
+    """FCGI returning HTTP 403 surfaces ``AkuvoxRequestError``.
+
+    Mirrors :meth:`AkuvoxHttpClient._handle_response` which maps
+    every 4xx other than 401 to :class:`AkuvoxRequestError`.
+    Routing 403 to ``AkuvoxAuthenticationError`` would diverge
+    from the rest of the public surface and force integrators to
+    catch the wrong exception type depending on which adapter
+    fired.
+    """
+    from pylocal_akuvox.exceptions import AkuvoxRequestError
+
+    with aioresponses() as m:
+        register_default_info(m, payload=_IT83_INFO)
+        m.get(
+            f"{BASE_URL}/fcgi/do?action=OpenDoor&relay=1",
+            status=403,
+            body="Forbidden",
+            content_type="text/plain",
+        )
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxRequestError):
                 await device.trigger_relay(num=1)

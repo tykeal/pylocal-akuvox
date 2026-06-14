@@ -23,6 +23,7 @@ from pylocal_akuvox.capabilities import Capability
 from pylocal_akuvox.exceptions import (
     AkuvoxAuthenticationError,
     AkuvoxDeviceError,
+    AkuvoxRequestError,
     AkuvoxValidationError,
 )
 
@@ -92,14 +93,15 @@ async def _fcgi_relay_trigger(http: AkuvoxHttpClient, args: RelayTriggerArgs) ->
     :meth:`get`) because the IT83 FCGI handler returns a text/plain or
     text/html success body, not a ``{"retcode": ...}`` envelope. The
     envelope parser would raise :class:`AkuvoxParseError` on a
-    successful door-open. HTTP status mapping (mirrors
-    :meth:`AkuvoxHttpClient._handle_response` so downstream integrators
-    can catch a single auth-error type regardless of which adapter
-    fired):
+    successful door-open. HTTP status mapping mirrors
+    :meth:`AkuvoxHttpClient._handle_response` so downstream
+    integrators can catch a single error type regardless of which
+    adapter fired:
 
     * 2xx → success (return)
-    * 401 / 403 → :class:`AkuvoxAuthenticationError`
-    * any other non-2xx → :class:`AkuvoxDeviceError`
+    * 401 → :class:`AkuvoxAuthenticationError`
+    * any other 4xx (including 403) → :class:`AkuvoxRequestError`
+    * 5xx or any other non-2xx → :class:`AkuvoxDeviceError`
     """
     if args.mode != 0 or args.level != 0 or args.delay != 0:
         msg = (
@@ -110,12 +112,16 @@ async def _fcgi_relay_trigger(http: AkuvoxHttpClient, args: RelayTriggerArgs) ->
     status, body = await http._request_raw(  # noqa: SLF001
         "GET", f"/fcgi/do?action=OpenDoor&relay={args.num}"
     )
-    if status in (401, 403):
+    if 200 <= status < 300:
+        return
+    if status == 401:
         msg = f"Authentication required for FCGI relay trigger (HTTP {status})"
         raise AkuvoxAuthenticationError(msg)
-    if not (200 <= status < 300):
-        msg = f"FCGI relay trigger failed: HTTP {status}; body={body[:200]!r}"
-        raise AkuvoxDeviceError(msg)
+    if 400 <= status < 500:
+        msg = f"FCGI relay trigger rejected: HTTP {status}; body={body[:200]!r}"
+        raise AkuvoxRequestError(msg)
+    msg = f"FCGI relay trigger failed: HTTP {status}; body={body[:200]!r}"
+    raise AkuvoxDeviceError(msg)
 
 
 # Adapter registry — keyed by ``(Capability, variant_tag)``.
