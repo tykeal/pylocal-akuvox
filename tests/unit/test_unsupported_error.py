@@ -102,7 +102,7 @@ def test_reason_taxonomy_closed() -> None:
 
     found: set[str] = set()
     for path in src.rglob("*.py"):
-        tree = ast.parse(path.read_text(), filename=str(path))
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             if (
                 isinstance(node, ast.Call)
