@@ -381,3 +381,49 @@ async def test_facade_delete_group_delegates() -> None:
         )
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.delete_group(id="1")
+
+
+# ============================================================================
+# Phase 3 baseline pin (T066b): list_groups read-path audit
+# ============================================================================
+
+
+async def test_list_groups_baseline_parse_unchanged_x916() -> None:
+    """T066b: ``list_groups`` baseline parse is unchanged for X916.
+
+    No per-device-class read aliasing is known for group today; this
+    test pins the no-op baseline so any future capability extension
+    (e.g. a ``field_aliases["group"]`` entry) lands with a visible
+    plumbing change. Asserts that the default X916 caller sees
+    byte-identical parsed group shapes after Phase 3's
+    capability-aware refactor.
+    """
+    import aiohttp
+    from aioresponses import aioresponses
+
+    from pylocal_akuvox.device import AkuvoxDevice
+    from tests.unit._helpers import register_default_info
+
+    base_url = "http://192.168.1.100"
+    payload = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {
+            "num": 1,
+            "item": [{"ID": "1", "Name": "Default"}],
+        },
+    }
+
+    with aioresponses() as m:
+        register_default_info(m)
+        m.get(f"{base_url}/api/group/get", payload=payload)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            groups = await device.list_groups()
+
+        url_key = ("GET", aiohttp.client.URL(f"{base_url}/api/group/get"))
+        assert len(m.requests[url_key]) == 1
+
+    assert len(groups) == 1
+    assert groups[0].name == "Default"
+    assert groups[0].id == "1"

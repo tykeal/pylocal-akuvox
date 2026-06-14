@@ -3,6 +3,10 @@
 
 """Tests for user operations: PIN validation and CRUD."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import aiohttp
 import pytest
 from aioresponses import aioresponses
@@ -13,6 +17,9 @@ from pylocal_akuvox.exceptions import (
 )
 from pylocal_akuvox.users import validate_pin, validate_schedule_relay
 from tests.unit._helpers import register_default_info
+
+if TYPE_CHECKING:
+    from pylocal_akuvox.capabilities import Capability, CapabilityStatus
 
 BASE_URL = "http://192.168.1.100"
 
@@ -806,3 +813,414 @@ async def test_list_users_non_dict_items_skipped() -> None:
 
     assert len(users) == 1
     assert users[0].name == "Alice"
+
+
+# ============================================================================
+# Phase 3 tests: field-aliases plumbing (T058, T059, T064a, T066b)
+# ============================================================================
+#
+# These tests cover the capability-aware refactor of ``users.add_user`` /
+# ``users.modify_user`` / ``users.list_users`` (service-module layer) and
+# the ``AkuvoxDevice`` wrappers that extract field aliases from
+# ``self._capabilities`` and pass them as the keyword-only ``field_aliases=``
+# / ``capabilities=`` kwargs. See tasks T058 (parser unit test), T059
+# (write-path service + wrapper tests), and T064a (read-path end-to-end
+# plumbing).
+
+
+# -- T058: User.from_api_response capabilities= kwarg --
+
+
+def test_user_from_api_response_consults_capability_field_aliases() -> None:
+    """T058: synthetic capability custom read alias is honoured.
+
+    When the caller supplies a :class:`DeviceCapabilities` whose
+    ``field_aliases["schedule_relay"].read`` is ``("CustomFieldName",)``,
+    the parser picks up the value at ``"CustomFieldName"`` and ignores
+    every name in the default chain (``"ScheduleRelay"``,
+    ``"Schedule-Relay"``, ``"Schedule"``). This proves the parser
+    consults the supplied record, not a hardcoded fallback.
+    """
+    from pylocal_akuvox.capabilities import (
+        DeviceCapabilities,
+        FieldAliases,
+    )
+    from pylocal_akuvox.models import User
+
+    caps = DeviceCapabilities(
+        device_class="Synth",
+        firmware_version="0.0.0",
+        capabilities={},
+        field_aliases={
+            "schedule_relay": FieldAliases(read=("CustomFieldName",), write=()),
+        },
+        schema_shapes={},
+    )
+    # Payload also carries the default chain — synthetic alias must win.
+    data = {
+        "Name": "Alice",
+        "UserID": "1",
+        "CustomFieldName": "custom-value",
+        "ScheduleRelay": "default-ignored",
+        "Schedule-Relay": "default-ignored",
+        "Schedule": "default-ignored",
+    }
+    user = User.from_api_response(data, capabilities=caps)
+    assert user.schedule_relay == "custom-value"
+
+
+def test_user_from_api_response_capabilities_none_uses_default_chain() -> None:
+    """T058: ``capabilities=None`` keeps the legacy default chain.
+
+    The default fallback list is ``DEFAULT_USER_FIELD_ALIASES.read`` ==
+    ``("ScheduleRelay", "Schedule-Relay", "Schedule")``. Direct callers
+    that omit ``capabilities`` (or pass ``None``) see byte-identical
+    behaviour to the pre-refactor parser (FR-016).
+    """
+    from pylocal_akuvox.models import User
+
+    data = {"Name": "Alice", "UserID": "1", "Schedule": "x"}
+    # Both forms parse identically.
+    a = User.from_api_response(data)
+    b = User.from_api_response(data, capabilities=None)
+    assert a.schedule_relay == "x"
+    assert b.schedule_relay == "x"
+
+
+def test_user_from_api_response_capabilities_without_alias_key_falls_back() -> None:
+    """T058: capability record without ``"schedule_relay"`` falls back to default.
+
+    A ``DeviceCapabilities`` whose ``field_aliases`` mapping has no
+    ``"schedule_relay"`` entry resolves via the parser's
+    :data:`DEFAULT_USER_FIELD_ALIASES` fallback — same chain as the
+    no-capabilities path. Covers the fallback branch of T063.
+    """
+    from pylocal_akuvox.capabilities import DeviceCapabilities
+    from pylocal_akuvox.models import User
+
+    caps = DeviceCapabilities(
+        device_class="Synth",
+        firmware_version="0.0.0",
+        capabilities={},
+        field_aliases={},  # no schedule_relay key
+        schema_shapes={},
+    )
+    data = {"Name": "Bob", "UserID": "2", "Schedule-Relay": "y"}
+    user = User.from_api_response(data, capabilities=caps)
+    assert user.schedule_relay == "y"
+
+
+def test_user_from_api_response_alias_order_is_honoured() -> None:
+    """T058: parser walks ``read`` aliases in declared order, not default.
+
+    With aliases reversed from the default chain
+    (``("Schedule", "ScheduleRelay", "Schedule-Relay")``) and a payload
+    carrying both ``"ScheduleRelay"`` and ``"Schedule"`` keys, the
+    parser must return the ``"Schedule"`` value because it appears
+    first in the declared read list — proving the parser consults the
+    supplied order, not the hardcoded default which checks
+    ``"ScheduleRelay"`` first.
+    """
+    from pylocal_akuvox.capabilities import (
+        DeviceCapabilities,
+        FieldAliases,
+    )
+    from pylocal_akuvox.models import User
+
+    caps = DeviceCapabilities(
+        device_class="Synth",
+        firmware_version="0.0.0",
+        capabilities={},
+        field_aliases={
+            "schedule_relay": FieldAliases(
+                read=("Schedule", "ScheduleRelay", "Schedule-Relay"), write=()
+            ),
+        },
+        schema_shapes={},
+    )
+    data = {
+        "Name": "Alice",
+        "UserID": "1",
+        "ScheduleRelay": "default-first",
+        "Schedule": "synthetic-first",
+    }
+    user = User.from_api_response(data, capabilities=caps)
+    assert user.schedule_relay == "synthetic-first"
+
+
+# -- T059: users.add_user / users.modify_user field_aliases= kwarg --
+
+
+async def test_add_user_service_function_field_aliases_kwarg() -> None:
+    """T059: ``users.add_user(field_aliases=...)`` emits each write alias.
+
+    A custom ``FieldAliases(write=("Custom", "Custom-Alt"))`` causes
+    the service function to emit BOTH names in the JSON payload, each
+    carrying the schedule-relay value. Default ``ScheduleRelay`` /
+    ``Schedule-Relay`` keys must be absent (the custom write list
+    fully replaces them).
+    """
+    from pylocal_akuvox import users as users_svc
+    from pylocal_akuvox._http import AkuvoxHttpClient
+    from pylocal_akuvox.capabilities import FieldAliases
+
+    with aioresponses() as m:
+        m.post(f"{BASE_URL}/api/user/set", payload=_SET_OK_RESPONSE)
+        async with AkuvoxHttpClient("192.168.1.100") as http:
+            await users_svc.add_user(
+                http,
+                name="Alice",
+                user_id="1",
+                schedule_relay="1001-1",
+                lift_floor_num="0",
+                field_aliases=FieldAliases(read=(), write=("Custom", "Custom-Alt")),
+            )
+
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+        body = m.requests[url_key][0].kwargs.get("json")
+        item = body["data"]["item"][0]
+        assert item["Custom"] == "1001-1"
+        assert item["Custom-Alt"] == "1001-1"
+        # Default keys must NOT appear when a custom write list is supplied.
+        assert "ScheduleRelay" not in item
+        assert "Schedule-Relay" not in item
+
+
+async def test_add_user_service_function_no_kwarg_byte_identical() -> None:
+    """T059: omitting ``field_aliases=`` emits today's dual-write payload.
+
+    Pins FR-016 — direct callers of the service function that do not
+    pass the new kwarg see byte-identical payloads to the pre-refactor
+    behaviour. Compared against a parallel call that explicitly passes
+    ``DEFAULT_USER_FIELD_ALIASES`` — both must produce identical
+    JSON bodies (same keys, same values, same order).
+    """
+    import json
+
+    from pylocal_akuvox import users as users_svc
+    from pylocal_akuvox._http import AkuvoxHttpClient
+    from pylocal_akuvox.capabilities import DEFAULT_USER_FIELD_ALIASES
+
+    with aioresponses() as m:
+        m.post(f"{BASE_URL}/api/user/set", payload=_SET_OK_RESPONSE, repeat=True)
+        async with AkuvoxHttpClient("192.168.1.100") as http:
+            await users_svc.add_user(
+                http,
+                name="Alice",
+                user_id="1",
+                schedule_relay="1001-1",
+                lift_floor_num="0",
+            )
+            await users_svc.add_user(
+                http,
+                name="Alice",
+                user_id="1",
+                schedule_relay="1001-1",
+                lift_floor_num="0",
+                field_aliases=DEFAULT_USER_FIELD_ALIASES,
+            )
+
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+        calls = m.requests[url_key]
+        assert len(calls) == 2
+        body_a = json.dumps(calls[0].kwargs.get("json"), sort_keys=False)
+        body_b = json.dumps(calls[1].kwargs.get("json"), sort_keys=False)
+        assert body_a == body_b
+
+
+async def test_modify_user_service_function_field_aliases_kwarg() -> None:
+    """T059: ``users.modify_user`` honours custom write aliases on set.
+
+    Emits each name in ``field_aliases.write`` with the new value;
+    the service function stays capability-unaware so any extra keys
+    inherited from the fetched record pass through unchanged
+    (capability extraction lives on the wrapper layer per T064).
+    """
+    from pylocal_akuvox import users as users_svc
+    from pylocal_akuvox._http import AkuvoxHttpClient
+    from pylocal_akuvox.capabilities import FieldAliases
+
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
+        m.post(f"{BASE_URL}/api/user/set", payload=_SET_OK_RESPONSE)
+        async with AkuvoxHttpClient("192.168.1.100") as http:
+            await users_svc.modify_user(
+                http,
+                id="1",
+                schedule_relay="2002-2",
+                field_aliases=FieldAliases(read=(), write=("Custom", "Custom-Alt")),
+            )
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+        item = m.requests[url_key][0].kwargs.get("json")["data"]["item"][0]
+        assert item["Custom"] == "2002-2"
+        assert item["Custom-Alt"] == "2002-2"
+
+
+# -- T059 (wrapper-layer): AkuvoxDevice.add_user / modify_user extract aliases --
+
+
+async def test_wrapper_add_user_passes_default_field_aliases_for_x916() -> None:
+    """T059 wrapper: X916 wrapper passes ``DEFAULT_USER_FIELD_ALIASES``.
+
+    Verified end-to-end via the on-the-wire payload: an X916 device
+    (matrix entry pins ``field_aliases["schedule_relay"] =
+    DEFAULT_USER_FIELD_ALIASES``) emits both ``ScheduleRelay`` and
+    ``Schedule-Relay`` keys in the add payload, matching the
+    pre-refactor dual-write byte-for-byte.
+    """
+    with aioresponses() as m:
+        register_default_info(m)
+        m.post(f"{BASE_URL}/api/user/set", payload=_SET_OK_RESPONSE)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            await device.add_user(
+                name="Alice",
+                user_id="1",
+                schedule_relay="1001-1",
+                lift_floor_num="0",
+            )
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+        item = m.requests[url_key][0].kwargs.get("json")["data"]["item"][0]
+        assert item["ScheduleRelay"] == "1001-1"
+        assert item["Schedule-Relay"] == "1001-1"
+
+
+# -- T064a: read-path plumbing (list_users threading capabilities=) --
+
+
+async def test_list_users_threads_synthetic_alias_through_wrapper() -> None:
+    """T064a: ``AkuvoxDevice.list_users`` passes capabilities to parser.
+
+    Wires a synthetic capability matrix entry so the X916-prefixed
+    device used by ``register_default_info`` carries a custom alias
+    list (``read=("CustomScheduleField",)``). Mocks ``/api/user/get``
+    to return items keyed only with ``"CustomScheduleField"`` (no
+    default chain key). The default parser would raise
+    :class:`AkuvoxParseError` on missing ``"ScheduleRelay"`` /
+    ``"Schedule-Relay"`` / ``"Schedule"``; the test passes only if
+    the wrapper threads its capability record all the way through to
+    ``User.from_api_response``.
+    """
+    from pylocal_akuvox.capabilities import (
+        DeviceCapabilities,
+        FieldAliases,
+    )
+
+    custom_caps = DeviceCapabilities(
+        device_class="X916",
+        firmware_version="916.30.10.114",
+        capabilities=dict(_X916_ALL_SUPPORTED_CAPABILITIES()),
+        field_aliases={
+            "schedule_relay": FieldAliases(
+                read=("CustomScheduleField",), write=("CustomScheduleField",)
+            ),
+        },
+        schema_shapes={},
+    )
+
+    list_payload = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {
+            "num": 1,
+            "item": [
+                {
+                    "ID": "1",
+                    "Name": "Alice",
+                    "UserID": "1",
+                    "CustomScheduleField": "1001-1",
+                    "WebRelay": "0",
+                    "LiftFloorNum": "0",
+                },
+            ],
+        },
+    }
+
+    with aioresponses() as m:
+        register_default_info(m)
+        m.get(f"{BASE_URL}/api/user/get", payload=list_payload)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            # Inject synthetic capabilities AFTER connect so the matrix
+            # lookup runs as usual; the test exercises the wrapper's
+            # extraction-from-self._capabilities path.
+            device._capabilities = custom_caps  # noqa: SLF001
+            users = await device.list_users()
+
+    assert len(users) == 1
+    assert users[0].schedule_relay == "1001-1"
+
+
+async def test_list_users_threads_alias_order_through_wrapper() -> None:
+    """T064a (conflict-resolution): wrapper honours alias declared order.
+
+    With ``read=("Schedule", "ScheduleRelay")`` (order reversed from
+    the default chain) and a payload carrying BOTH keys, the parser
+    must return the ``"Schedule"`` value because it is first in the
+    declared list. The default parser would return the
+    ``"ScheduleRelay"`` value (default chain first-match), so this
+    test fails unless the wrapper threads ``capabilities=`` all the
+    way through to the parser.
+    """
+    from pylocal_akuvox.capabilities import (
+        DeviceCapabilities,
+        FieldAliases,
+    )
+
+    custom_caps = DeviceCapabilities(
+        device_class="X916",
+        firmware_version="916.30.10.114",
+        capabilities=dict(_X916_ALL_SUPPORTED_CAPABILITIES()),
+        field_aliases={
+            "schedule_relay": FieldAliases(
+                read=("Schedule", "ScheduleRelay"), write=("ScheduleRelay",)
+            ),
+        },
+        schema_shapes={},
+    )
+
+    list_payload = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {
+            "num": 1,
+            "item": [
+                {
+                    "ID": "1",
+                    "Name": "Alice",
+                    "UserID": "1",
+                    "ScheduleRelay": "wrong_value",
+                    "Schedule": "right_value",
+                    "WebRelay": "0",
+                    "LiftFloorNum": "0",
+                },
+            ],
+        },
+    }
+
+    with aioresponses() as m:
+        register_default_info(m)
+        m.get(f"{BASE_URL}/api/user/get", payload=list_payload)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            device._capabilities = custom_caps  # noqa: SLF001
+            users = await device.list_users()
+
+    assert len(users) == 1
+    assert users[0].schedule_relay == "right_value"
+
+
+def _X916_ALL_SUPPORTED_CAPABILITIES() -> dict[Capability, CapabilityStatus]:
+    """Build the ``capabilities`` mapping for a synthetic X916-like profile.
+
+    Pulls from the production matrix entry so the synthetic profile
+    used by the read-path plumbing tests has the same capability gates
+    as ``register_default_info``'s X916 fixture — only the
+    ``field_aliases`` / ``schema_shapes`` differ.
+    """
+    from pylocal_akuvox.capability_matrix import CAPABILITY_MATRIX
+
+    for _pattern, caps in CAPABILITY_MATRIX:
+        if caps.device_class == "X916":
+            return dict(caps.capabilities)
+    msg = "X916 baseline entry missing from capability matrix"
+    raise AssertionError(msg)

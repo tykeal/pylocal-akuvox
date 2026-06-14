@@ -990,3 +990,59 @@ async def test_modify_schedule_week_auto_translates() -> None:
         assert item["Wed"] == "0"
         assert item["Thur"] == "0"
         assert item["Sat"] == "0"
+
+
+# ============================================================================
+# Phase 3 baseline pin (T066b): list_schedules read-path audit
+# ============================================================================
+
+
+async def test_list_schedules_baseline_parse_unchanged_x916() -> None:
+    """T066b: ``list_schedules`` baseline parse is unchanged for X916.
+
+    No per-device-class read aliasing is known for schedule today;
+    this test pins the no-op baseline so any future capability
+    extension (e.g. a ``field_aliases["schedule"]`` entry) lands with
+    a visible plumbing change. Asserts that the default X916 caller
+    sees byte-identical parsed schedule shapes after Phase 3's
+    capability-aware refactor.
+    """
+    import aiohttp
+    from aioresponses import aioresponses
+
+    from pylocal_akuvox.device import AkuvoxDevice
+    from tests.unit._helpers import register_default_info
+
+    base_url = "http://192.168.1.100"
+    payload = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {
+            "num": 1,
+            "item": [
+                {
+                    "ID": "1001",
+                    "Name": "AlwaysOn",
+                    "Type": "0",
+                    "RelayID": "1",
+                },
+            ],
+        },
+    }
+
+    with aioresponses() as m:
+        register_default_info(m)
+        m.get(f"{base_url}/api/schedule/get", payload=payload)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            schedules = await device.list_schedules()
+
+        url_key = ("GET", aiohttp.client.URL(f"{base_url}/api/schedule/get"))
+        # Pin the fact that the request was issued exactly once with
+        # no capability-derived parameters added to the URL.
+        assert len(m.requests[url_key]) == 1
+
+    assert len(schedules) == 1
+    assert schedules[0].name == "AlwaysOn"
+    assert schedules[0].id == "1001"
+    assert schedules[0].schedule_type == "0"

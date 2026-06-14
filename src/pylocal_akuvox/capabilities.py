@@ -397,7 +397,25 @@ class DeviceClassPattern:
         return observed == exact_segments
 
 
+#: Default ``FieldAliases`` for the ``schedule_relay`` logical field.
+#:
+#: Used as the no-kwarg fallback when ``User.from_api_response``,
+#: ``users.add_user``, ``users.modify_user``, and the corresponding
+#: ``AkuvoxDevice`` wrapper methods are invoked without a capability
+#: record (or with a capability record whose ``field_aliases`` mapping
+#: does not include ``"schedule_relay"``). Matches today's hardcoded
+#: chain byte-for-byte so direct service-function callers and legacy
+#: ``User.from_api_response(data)`` callers see no observable change
+#: post-refactor (FR-016 / SC-008). See ``research.md`` Decision 3
+#: §"Read side" and §"Write side".
+DEFAULT_USER_FIELD_ALIASES = FieldAliases(
+    read=("ScheduleRelay", "Schedule-Relay", "Schedule"),
+    write=("ScheduleRelay", "Schedule-Relay"),
+)
+
+
 __all__ = [
+    "DEFAULT_USER_FIELD_ALIASES",
     "Capability",
     "CapabilityStatus",
     "DeviceCapabilities",
