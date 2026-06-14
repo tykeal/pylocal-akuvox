@@ -839,7 +839,12 @@ def test_every_public_device_method_has_capability_gate() -> None:
 
 
 async def test_unsupported_raises_before_request_x915s_add_contact() -> None:
-    """X915S add_contact raises ``capability_missing`` with ZERO HTTP requests."""
+    """X915S add_contact raises ``capability_missing`` with no service request.
+
+    The connect-time ``GET /api/system/info`` is unavoidable; the
+    capability gate prevents any *additional* request beyond that
+    discovery call (asserted via ``len(m.requests) == 1`` below).
+    """
     from pylocal_akuvox.capabilities import Capability
     from pylocal_akuvox.exceptions import AkuvoxUnsupportedError
 
@@ -912,7 +917,12 @@ def test_attempt_unknown_capability_defaults_false() -> None:
 
 
 async def test_attempt_unknown_default_raises_for_unknown_capability() -> None:
-    """Default opt-out: UNKNOWN-status call raises with ZERO HTTP requests."""
+    """Default opt-out: UNKNOWN-status call raises with no service request.
+
+    The connect-time ``GET /api/system/info`` is unavoidable; no
+    *additional* request is issued beyond that discovery call
+    (asserted below).
+    """
     from pylocal_akuvox.exceptions import AkuvoxUnsupportedError
 
     with aioresponses() as m:

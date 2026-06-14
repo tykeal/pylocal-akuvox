@@ -10,14 +10,18 @@ Per ``specs/008-capability-matrix/contracts/adapter-dispatch.md``
   to ``POST /api/relay/trig`` with the documented body shape.
 * IT83 dispatches to ``GET /fcgi/do?action=OpenDoor&relay=<num>``.
 * IT83 with explicit ``adapter=Capability.RELAY_TRIGGER_API`` raises
-  ``capability_missing`` and emits ZERO HTTP requests.
+  ``capability_missing`` with no relay-trigger request issued
+  (the connect-time ``GET /api/system/info`` still happens; the
+  capability gate prevents any *additional* request).
 * X916 with explicit ``adapter=Capability.RELAY_TRIGGER_FCGI``
   (FCGI=UNKNOWN) raises ``capability_unknown`` by default; with the
   integrator opt-in flag set, it dispatches to the FCGI URL.
 * FCGI adapter rejects non-zero ``mode``/``level``/``delay`` with
-  :class:`AkuvoxValidationError`, ZERO HTTP requests.
+  :class:`AkuvoxValidationError` before any relay request is issued
+  (only the connect-time info call is recorded).
 * Unrecognised-device profile + ``trigger_relay`` →
-  ``capability_unknown``, ZERO HTTP requests.
+  ``capability_unknown`` with no relay request issued (only the
+  connect-time info call).
 * Empty registry simulates the ``adapter_missing`` reason.
 """
 

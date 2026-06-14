@@ -829,11 +829,10 @@ def _merge_probe_with_matrix(
     for capability, probe_status in probe.capabilities.items():
         if probe_status is CapabilityStatus.UNKNOWN:
             # Probe UNKNOWN never regresses a matrix-confirmed value.
-            # If the matrix has no entry, ``status_of`` would already
-            # default to UNKNOWN — so leaving the slot absent is
-            # equivalent and keeps the merged mapping minimal.
-            if capability not in merged:
-                merged[capability] = CapabilityStatus.UNKNOWN
+            # Per ``DeviceCapabilities.status_of`` the canonical
+            # representation is "absent ⇒ UNKNOWN", not
+            # "present-with-UNKNOWN", so leaving the slot untouched
+            # is the correct way to express an indeterminate probe.
             continue
         # Probe SUPPORTED or UNSUPPORTED always wins.
         merged[capability] = probe_status
