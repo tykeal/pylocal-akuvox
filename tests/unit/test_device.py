@@ -1134,3 +1134,53 @@ async def test_aenter_closes_session_when_discovery_fails() -> None:
     assert device._http._session is None
     assert device._info is None
     assert device._capabilities is None
+
+
+async def test_default_dispatch_reports_unknown_variant_in_error() -> None:
+    """All-UNKNOWN dispatch: error.capability points at the UNKNOWN variant.
+
+    Per Copilot review round 5: if the default dispatch fails
+    because API=UNSUPPORTED + FCGI=UNKNOWN (no SUPPORTED variant,
+    at least one UNKNOWN), the raised
+    AkuvoxUnsupportedError(reason="capability_unknown") must
+    carry a ``capability`` field that matches the variant that
+    actually triggered the UNKNOWN path. Reporting the API
+    variant in that case would be internally inconsistent — API
+    is UNSUPPORTED, not UNKNOWN.
+    """
+    from pylocal_akuvox import (
+        Capability,
+        CapabilityStatus,
+        DeviceCapabilities,
+    )
+
+    info_payload = {
+        "retcode": 0,
+        "action": "info",
+        "message": "",
+        "data": {
+            "Status": {
+                "Model": "Synthetic",
+                "MAC": "AA:BB:CC:DD:EE:FF",
+                "FirmwareVersion": "0.0.0",
+                "HardwareVersion": "1.0",
+            }
+        },
+    }
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", payload=info_payload)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            device._capabilities = DeviceCapabilities(  # noqa: SLF001
+                device_class="SyntheticAPIBlockedFCGIUnknown",
+                firmware_version="0.0.0",
+                capabilities={
+                    Capability.RELAY_TRIGGER_API: CapabilityStatus.UNSUPPORTED,
+                    # RELAY_TRIGGER_FCGI absent => UNKNOWN per status_of.
+                },
+                field_aliases={},
+                schema_shapes={},
+            )
+            with pytest.raises(AkuvoxUnsupportedError) as exc_info:
+                await device.trigger_relay(num=1)
+        assert exc_info.value.reason == "capability_unknown"
+        assert exc_info.value.capability is Capability.RELAY_TRIGGER_FCGI

@@ -516,18 +516,31 @@ class AkuvoxDevice:
             if caps.status_of(candidate) is CapabilityStatus.SUPPORTED:
                 return candidate
 
-        any_unknown = any(
-            caps.status_of(c) is CapabilityStatus.UNKNOWN
-            for c in RELAY_TRIGGER_PREFERENCE
+        # Pick the most-specific capability to attach to the raised
+        # error: if at least one variant is UNKNOWN we report the
+        # first UNKNOWN one (matching reason="capability_unknown"),
+        # otherwise every variant is UNSUPPORTED and we fall back to
+        # the first preference (the "primary" variant for the
+        # device class) so the error still carries a stable
+        # capability field for callers that key off it.
+        first_unknown: Capability | None = next(
+            (
+                c
+                for c in RELAY_TRIGGER_PREFERENCE
+                if caps.status_of(c) is CapabilityStatus.UNKNOWN
+            ),
+            None,
         )
-        if any_unknown:
+        if first_unknown is not None:
             reason = "capability_unknown"
+            reported = first_unknown
             msg_tail = (
                 "; add a matrix entry or pass adapter= explicitly with "
                 "device.attempt_unknown_capability=True"
             )
         else:
             reason = "capability_missing"
+            reported = RELAY_TRIGGER_PREFERENCE[0]
             msg_tail = ""
         msg = (
             f"Device {caps.device_class} has no supported "
@@ -535,7 +548,7 @@ class AkuvoxDevice:
         )
         raise AkuvoxUnsupportedError(
             msg,
-            capability=Capability.RELAY_TRIGGER_API,
+            capability=reported,
             device_class=caps.device_class,
             reason=reason,
         )
