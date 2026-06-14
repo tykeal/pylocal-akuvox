@@ -3,6 +3,7 @@
 
 """Tests for AkuvoxDevice connect/disconnect lifecycle and error cases."""
 
+import asyncio
 import contextlib
 import inspect
 from collections.abc import Callable
@@ -1186,3 +1187,36 @@ async def test_default_dispatch_reports_unknown_variant_in_error() -> None:
                 await device.trigger_relay(num=1)
         assert exc_info.value.reason == "capability_unknown"
         assert exc_info.value.capability is Capability.RELAY_TRIGGER_FCGI
+
+
+async def test_aenter_clears_state_when_cleanup_close_raises_cancelled() -> None:
+    """CancelledError during cleanup-close still resets cached state.
+
+    Per Copilot review round 8: on Python 3.13
+    ``asyncio.CancelledError`` inherits ``BaseException`` and would
+    bypass a ``contextlib.suppress(Exception)``. ``__aenter__``
+    wraps the cleanup close in ``contextlib.suppress(BaseException)``
+    around an ``asyncio.shield``, so a cancellation in the close
+    cannot skip the cached-state reset.
+    """
+    device = AkuvoxDevice("192.168.1.100")
+
+    async def raise_cancelled(*_args: object, **_kwargs: object) -> None:
+        """Stub ``__aexit__`` that immediately raises ``CancelledError``."""
+        raise asyncio.CancelledError
+
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", payload={"unexpected": "shape"})
+        with (
+            patch.object(device._http, "__aexit__", side_effect=raise_cancelled),
+            pytest.raises(AkuvoxParseError),
+        ):
+            await device.__aenter__()
+    assert device._info is None
+    assert device._capabilities is None
+    # The mocked __aexit__ raised before the real close ran, so the
+    # underlying aiohttp session is still open. Tidy it up here to
+    # avoid a noisy "Unclosed client session" warning from aiohttp.
+    if device._http._session is not None:
+        await device._http._session.close()
+        device._http._session = None

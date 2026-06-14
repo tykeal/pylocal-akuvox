@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 from typing import TYPE_CHECKING, Any
 
@@ -224,7 +225,12 @@ class AkuvoxDevice:
         we close the HTTP session we just opened (``__aexit__`` is
         not invoked for an aborting ``__aenter__``) before
         re-raising so the underlying aiohttp connector is not
-        leaked.
+        leaked. The close itself is wrapped in
+        :func:`asyncio.shield` and the broad
+        ``BaseException`` suppress so a ``CancelledError`` mid-
+        teardown (Python 3.13: ``CancelledError`` inherits
+        ``BaseException``) cannot skip the cached-state reset and
+        leak the connector.
         """
         await self._http.__aenter__()
         try:
@@ -238,10 +244,12 @@ class AkuvoxDevice:
             # Discovery failed — tear down the HTTP session we just
             # opened. ``__aexit__`` will not run because ``__aenter__``
             # aborted, so without this the aiohttp session/connector
-            # would leak. Re-raise the original error so the
-            # integrator sees the discovery failure unchanged.
-            with contextlib.suppress(Exception):
-                await self._http.__aexit__(None, None, None)
+            # would leak. Shield the close from cancellation and
+            # suppress any error (including ``BaseException``
+            # subclasses such as ``CancelledError``) so the cached-
+            # state reset and the ``raise`` below always run.
+            with contextlib.suppress(BaseException):
+                await asyncio.shield(self._http.__aexit__(None, None, None))
             self._info = None
             self._capabilities = None
             raise
