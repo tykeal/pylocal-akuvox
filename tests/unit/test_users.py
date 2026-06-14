@@ -1224,3 +1224,190 @@ def _X916_ALL_SUPPORTED_CAPABILITIES() -> dict[Capability, CapabilityStatus]:
             return dict(caps.capabilities)
     msg = "X916 baseline entry missing from capability matrix"
     raise AssertionError(msg)
+
+
+# -- Copilot review round 1: defensive paths --
+
+
+def test_user_from_api_response_empty_read_aliases_falls_back_to_default() -> None:
+    """Empty ``aliases.read`` degrades to ``DEFAULT_USER_FIELD_ALIASES``.
+
+    A capability record whose ``schedule_relay`` field carries an
+    empty ``read`` tuple (incomplete matrix entry, malformed probe
+    output, etc.) would otherwise make every parse raise
+    ``AkuvoxParseError`` even when the payload carries a legacy key.
+    The parser must fall back to the default chain so incomplete
+    capability data degrades gracefully instead of bricking the read
+    path (Copilot review round 1, ``models/users.py``).
+    """
+    from pylocal_akuvox.capabilities import DeviceCapabilities, FieldAliases
+    from pylocal_akuvox.models import User
+
+    caps = DeviceCapabilities(
+        device_class="Synth",
+        firmware_version="0.0.0",
+        capabilities={},
+        field_aliases={
+            "schedule_relay": FieldAliases(read=(), write=("ScheduleRelay",))
+        },
+        schema_shapes={},
+    )
+    data = {
+        "Name": "Alice",
+        "UserID": "1",
+        # Legacy default read key — must still be picked up under the
+        # default fallback chain because ``aliases.read`` was empty.
+        "ScheduleRelay": "1001-1",
+    }
+    user = User.from_api_response(data, capabilities=caps)
+    assert user.schedule_relay == "1001-1"
+
+
+async def test_add_user_service_function_empty_write_aliases_raises() -> None:
+    """``add_user`` raises ``AkuvoxValidationError`` on empty ``write``.
+
+    An empty ``write`` list would silently drop the schedule key from
+    the ``add`` payload, producing a request the device will reject
+    with an opaque error. Catching this at the service boundary
+    surfaces the misconfiguration with a clear message (Copilot
+    review round 1, ``users.add_user``).
+    """
+    from pylocal_akuvox import users as users_svc
+    from pylocal_akuvox._http import AkuvoxHttpClient
+    from pylocal_akuvox.capabilities import FieldAliases
+
+    bad_aliases = FieldAliases(read=("ScheduleRelay",), write=())
+
+    with aioresponses() as m:
+        # ``add_user`` should raise before ever issuing the POST,
+        # so the mock URL existence is not required — register it
+        # defensively so a regression that *does* hit the wire
+        # produces a more readable test failure than ConnectionError.
+        m.post(f"{BASE_URL}/api/user/set", payload=_SET_OK_RESPONSE)
+        async with AkuvoxHttpClient("192.168.1.100") as http:
+            with pytest.raises(
+                AkuvoxValidationError, match="field_aliases.write is empty"
+            ):
+                await users_svc.add_user(
+                    http,
+                    name="Alice",
+                    user_id="2001",
+                    schedule_relay="1001-1",
+                    lift_floor_num="0",
+                    field_aliases=bad_aliases,
+                )
+
+
+async def test_modify_user_strips_stale_read_only_alias_keys() -> None:
+    """``modify_user`` strips read-only alias keys returned by the device.
+
+    Scenario mirrors X915S current firmware (issue #118): the
+    ``user/get`` response includes the bare ``Schedule`` read alias.
+    The default write list is ``("ScheduleRelay", "Schedule-Relay")``,
+    so without the read-alias-strip the merged ``set`` payload would
+    echo ``Schedule`` back alongside the freshly-written write keys —
+    defeating the "omit schedule keys when unset" contract and
+    risking a stale value on subsequent reads. Verifies that ``set``
+    no longer carries the ``Schedule`` key regardless of whether
+    ``schedule_relay`` is supplied or omitted (Copilot review round
+    1, ``users.modify_user``).
+
+    Case A: schedule_relay supplied -> set re-writes write aliases
+    and strips the stale read-only alias.
+    Case B: schedule_relay omitted -> all aliases (incl. read-only) stripped.
+    """
+    import aiohttp
+
+    from pylocal_akuvox import users as users_svc
+    from pylocal_akuvox._http import AkuvoxHttpClient
+
+    # Device returns ``Schedule`` in the get payload — stale read alias.
+    get_with_stale_schedule = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {
+            "num": 1,
+            "item": [
+                {
+                    "ID": "1",
+                    "Name": "Alice",
+                    "UserID": "2001",
+                    "WebRelay": "0",
+                    "ScheduleRelay": "1001-1",
+                    "Schedule-Relay": "1001-1",
+                    "Schedule": "STALE",  # the read-only alias
+                    "LiftFloorNum": "0",
+                    "PrivatePIN": "",
+                    "CardCode": "",
+                },
+            ],
+        },
+    }
+
+    # Case A: schedule_relay supplied -> set re-writes write aliases
+    # and strips the stale read-only alias.
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=get_with_stale_schedule)
+        m.post(f"{BASE_URL}/api/user/set", payload=_SET_OK_RESPONSE)
+        async with AkuvoxHttpClient("192.168.1.100") as http:
+            await users_svc.modify_user(
+                http,
+                id="1",
+                schedule_relay="2002-2",
+            )
+
+        # Find the POST request and inspect its payload.
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+        post_calls = m.requests.get(url_key, [])
+        assert len(post_calls) == 1
+        sent = post_calls[0].kwargs.get("json")
+        sent_item = sent["data"]["item"][0]
+        assert "Schedule" not in sent_item
+        assert sent_item["ScheduleRelay"] == "2002-2"
+        assert sent_item["Schedule-Relay"] == "2002-2"
+
+    # Case B: schedule_relay omitted -> all aliases (incl. read-only) stripped.
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=get_with_stale_schedule)
+        m.post(f"{BASE_URL}/api/user/set", payload=_SET_OK_RESPONSE)
+        async with AkuvoxHttpClient("192.168.1.100") as http:
+            await users_svc.modify_user(http, id="1", name="Renamed")
+
+        post_calls = m.requests.get(url_key, [])
+        assert len(post_calls) == 1
+        sent = post_calls[0].kwargs.get("json")
+        sent_item = sent["data"]["item"][0]
+        assert "Schedule" not in sent_item
+        assert "ScheduleRelay" not in sent_item
+        assert "Schedule-Relay" not in sent_item
+        assert sent_item["Name"] == "Renamed"
+
+
+async def test_modify_user_service_function_empty_write_aliases_raises() -> None:
+    """``modify_user`` raises on empty ``write`` when schedule supplied.
+
+    Pure no-op merges (``schedule_relay`` left as ``None``) are still
+    allowed even on an empty write list — only blocks the case where
+    a schedule update is actually requested and would silently drop
+    (Copilot review round 1, ``users.modify_user``).
+    """
+    from pylocal_akuvox import users as users_svc
+    from pylocal_akuvox._http import AkuvoxHttpClient
+    from pylocal_akuvox.capabilities import FieldAliases
+
+    bad_aliases = FieldAliases(read=("ScheduleRelay",), write=())
+
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
+        m.post(f"{BASE_URL}/api/user/set", payload=_SET_OK_RESPONSE)
+        async with AkuvoxHttpClient("192.168.1.100") as http:
+            with pytest.raises(
+                AkuvoxValidationError, match="field_aliases.write is empty"
+            ):
+                await users_svc.modify_user(
+                    http,
+                    id="1",
+                    schedule_relay="2002-2",
+                    field_aliases=bad_aliases,
+                )

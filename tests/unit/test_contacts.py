@@ -776,19 +776,21 @@ async def test_list_contacts_threads_apartment_book_through_wrapper() -> None:
     Injects a synthetic capability profile with
     ``schema_shapes["contact"] = APARTMENT_BOOK`` and mocks
     ``/api/contact/get`` to return apartment-book-style items with no
-    ``ID`` field. The door-phone default parser would also accept this
-    (because ``ID`` is ``data.get("ID")``, not required), so we
-    additionally assert that the apartment-book branch was taken by
-    checking that the resulting :class:`Contact` instances are
-    well-formed and ``id`` is ``None``. The stronger guarantee that
-    capabilities are threaded is delivered by the FieldAliases test
-    in test_users.py — here we cover the contacts-side plumbing
-    explicitly.
+    ``ID`` field. Both parser branches currently treat ``ID`` as
+    optional (``data.get("ID")``), so payload structure alone does
+    not discriminate — we additionally spy on
+    :meth:`Contact.from_api_response` to assert it is invoked with
+    ``capabilities=custom_caps``. The spy is what makes this test
+    MUST-fail if the wrapper drops the ``capabilities=`` kwarg
+    (Copilot review round 1 strengthened-discriminator).
     """
+    from unittest.mock import patch
+
     from pylocal_akuvox.capabilities import (
         DeviceCapabilities,
         SchemaShape,
     )
+    from pylocal_akuvox.models import Contact
 
     custom_caps = DeviceCapabilities(
         device_class="X916",  # match register_default_info
@@ -817,16 +819,30 @@ async def test_list_contacts_threads_apartment_book_through_wrapper() -> None:
         },
     }
 
+    original_from_api = Contact.from_api_response
+    seen_capabilities: list[DeviceCapabilities | None] = []
+
+    def _spy(data: object, **kwargs: object) -> Contact:
+        """Capture ``capabilities=`` kwarg, then delegate to the real parser."""
+        seen_capabilities.append(kwargs.get("capabilities"))  # type: ignore[arg-type]
+        return original_from_api(data, **kwargs)  # type: ignore[arg-type]
+
     with aioresponses() as m:
         register_default_info(m)
         m.get(f"{BASE_URL}/api/contact/get", payload=apt_payload)
         async with AkuvoxDevice("192.168.1.100") as device:
             device._capabilities = custom_caps  # noqa: SLF001
-            results = await device.list_contacts()
+            with patch.object(Contact, "from_api_response", side_effect=_spy):
+                results = await device.list_contacts()
 
     assert len(results) == 1
     assert results[0].name == "Apt 101 Resident"
     assert results[0].id is None
+    # The strong-discriminator assertion: every parse call received
+    # the wrapper-extracted capabilities — proves end-to-end
+    # threading from ``AkuvoxDevice.list_contacts`` through
+    # ``contacts.list_contacts`` into ``Contact.from_api_response``.
+    assert seen_capabilities == [custom_caps]
 
 
 async def test_list_contacts_default_door_phone_byte_identical() -> None:

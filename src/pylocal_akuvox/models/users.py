@@ -61,6 +61,15 @@ class User:
             aliases = capabilities.field_aliases.get(
                 "schedule_relay", DEFAULT_USER_FIELD_ALIASES
             )
+        # Defensive: a capability record with an empty ``read`` tuple
+        # for the schedule-relay field (incomplete matrix entry, or
+        # an unexpected probe output) would otherwise make every
+        # parse raise ``AkuvoxParseError`` even for payloads that
+        # carry the legacy keys. Fall back to the default chain so
+        # incomplete capability data degrades gracefully rather than
+        # bricking the read path (Copilot review round 1).
+        if not aliases.read:
+            aliases = DEFAULT_USER_FIELD_ALIASES
 
         missing = object()
         schedule_relay: Any = missing

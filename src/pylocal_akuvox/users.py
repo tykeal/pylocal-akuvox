@@ -105,6 +105,18 @@ async def add_user(
         if field_aliases is not None
         else DEFAULT_USER_FIELD_ALIASES.write
     )
+    # Defensive: a capability record with an empty ``write`` tuple
+    # would silently drop the schedule key entirely, producing a
+    # malformed ``add`` payload the device will reject. Validate
+    # eagerly so the caller gets a clear ``AkuvoxValidationError``
+    # at the service boundary instead of an opaque device-side
+    # rejection (Copilot review round 1).
+    if not write_aliases:
+        msg = (
+            "field_aliases.write is empty; add_user cannot emit a "
+            "schedule-relay key without at least one write alias"
+        )
+        raise AkuvoxValidationError(msg)
 
     payload: dict[str, Any] = {
         "Name": name,
@@ -178,6 +190,59 @@ async def _get_user_by_id(http: AkuvoxHttpClient, internal_id: str) -> dict[str,
     raise AkuvoxDeviceError(msg)
 
 
+def _resolve_alias_lists(
+    field_aliases: FieldAliases | None,
+) -> tuple[tuple[str, ...], tuple[str, ...], list[str]]:
+    """Resolve write/read alias tuples plus their ordered union.
+
+    Returns ``(write_aliases, read_aliases, all_aliases)`` derived
+    from ``field_aliases`` when supplied, or from
+    :data:`DEFAULT_USER_FIELD_ALIASES` when ``None``. ``all_aliases``
+    is the read-first, write-second ordered union (deduplicated)
+    used to strip stale alias keys from a fetched record.
+    """
+    write_aliases = (
+        field_aliases.write
+        if field_aliases is not None
+        else DEFAULT_USER_FIELD_ALIASES.write
+    )
+    read_aliases = (
+        field_aliases.read
+        if field_aliases is not None
+        else DEFAULT_USER_FIELD_ALIASES.read
+    )
+    all_aliases = list(read_aliases) + [
+        alias for alias in write_aliases if alias not in read_aliases
+    ]
+    return write_aliases, read_aliases, all_aliases
+
+
+def _apply_schedule_to_record(
+    current: dict[str, Any],
+    schedule_relay: str | None,
+    *,
+    write_aliases: tuple[str, ...],
+    all_aliases: list[str],
+) -> None:
+    """Mutate ``current`` to set or strip schedule-relay aliases.
+
+    When ``schedule_relay`` is supplied, every known alias is first
+    popped (covers stale read-only aliases such as ``Schedule`` on
+    X915S current FW; see Copilot review round 1 — issue #118) and
+    then the value is written under each name in ``write_aliases``.
+    When ``schedule_relay`` is ``None``, every known alias is
+    stripped.
+    """
+    if schedule_relay is not None:
+        for alias in all_aliases:
+            current.pop(alias, None)
+        for alias in write_aliases:
+            current[alias] = schedule_relay
+    else:
+        for alias in all_aliases:
+            current.pop(alias, None)
+
+
 async def modify_user(
     http: AkuvoxHttpClient,
     *,
@@ -218,11 +283,19 @@ async def modify_user(
     validate_pin(private_pin)
     validate_schedule_relay(schedule_relay)
 
-    write_aliases = (
-        field_aliases.write
-        if field_aliases is not None
-        else DEFAULT_USER_FIELD_ALIASES.write
-    )
+    write_aliases, _read_aliases, all_aliases = _resolve_alias_lists(field_aliases)
+    # Defensive: same rationale as ``add_user`` — an empty write
+    # list would silently drop the schedule key when ``schedule_relay``
+    # is supplied, producing a malformed ``set`` payload (Copilot
+    # review round 1). Only enforced when a schedule update is
+    # actually requested; pure no-op merges with ``schedule_relay``
+    # left as ``None`` are still allowed even on an empty write list.
+    if schedule_relay is not None and not write_aliases:
+        msg = (
+            "field_aliases.write is empty; modify_user cannot emit a "
+            "schedule-relay key without at least one write alias"
+        )
+        raise AkuvoxValidationError(msg)
 
     current = await _get_user_by_id(http, id)
     if name is not None:
@@ -235,12 +308,12 @@ async def modify_user(
         current["CardCode"] = card_code
     if web_relay is not None:
         current["WebRelay"] = web_relay
-    if schedule_relay is not None:
-        for alias in write_aliases:
-            current[alias] = schedule_relay
-    else:
-        for alias in write_aliases:
-            current.pop(alias, None)
+    _apply_schedule_to_record(
+        current,
+        schedule_relay,
+        write_aliases=write_aliases,
+        all_aliases=all_aliases,
+    )
     if lift_floor_num is not None:
         current["LiftFloorNum"] = lift_floor_num
 
