@@ -81,7 +81,11 @@ def register_default_info(
             tests that rebuild the device.
 
     """
-    m.get(url, payload=payload or DEFAULT_INFO_PAYLOAD, repeat=repeat)
+    m.get(
+        url,
+        payload=payload if payload is not None else DEFAULT_INFO_PAYLOAD,
+        repeat=repeat,
+    )
 
 
 __all__ = [

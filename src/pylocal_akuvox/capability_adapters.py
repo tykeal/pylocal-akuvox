@@ -92,8 +92,14 @@ async def _fcgi_relay_trigger(http: AkuvoxHttpClient, args: RelayTriggerArgs) ->
     :meth:`get`) because the IT83 FCGI handler returns a text/plain or
     text/html success body, not a ``{"retcode": ...}`` envelope. The
     envelope parser would raise :class:`AkuvoxParseError` on a
-    successful door-open. Any non-2xx HTTP status is translated to
-    :class:`AkuvoxDeviceError`.
+    successful door-open. HTTP status mapping (mirrors
+    :meth:`AkuvoxHttpClient._handle_response` so downstream integrators
+    can catch a single auth-error type regardless of which adapter
+    fired):
+
+    * 2xx → success (return)
+    * 401 / 403 → :class:`AkuvoxAuthenticationError`
+    * any other non-2xx → :class:`AkuvoxDeviceError`
     """
     if args.mode != 0 or args.level != 0 or args.delay != 0:
         msg = (

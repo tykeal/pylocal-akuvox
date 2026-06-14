@@ -20,7 +20,7 @@ Covers the five tests required by
 
 from __future__ import annotations
 
-import re
+import ast
 from pathlib import Path
 
 import pytest
@@ -71,11 +71,17 @@ def test_structured_constructor_capability_unknown() -> None:
 def test_reason_taxonomy_closed() -> None:
     """Production raises only use values in the documented closed set.
 
-    Greps every ``raise AkuvoxUnsupportedError(...)`` call site in
-    ``src/`` and asserts the literal string passed to ``reason=`` is
-    one of the allowed values. Catches accidental reason-string drift
-    that would corrupt the closed-set discriminator (e.g.
-    ``reason="unknown_capability"`` vs ``reason="capability_unknown"``).
+    Parses every Python source file under ``src/pylocal_akuvox/`` with
+    :mod:`ast` and extracts the literal ``reason=`` keyword argument
+    from every ``AkuvoxUnsupportedError(...)`` call (matched by the
+    callable name only — both ``AkuvoxUnsupportedError(...)`` and
+    ``exceptions.AkuvoxUnsupportedError(...)`` forms are accepted).
+    Restricting to AST call-keyword matching avoids the false positives
+    a naive regex would produce against docstrings, comments, and
+    unrelated ``reason=...`` kwargs on other constructors. Catches
+    accidental reason-string drift that would corrupt the closed-set
+    discriminator (e.g. ``reason="unknown_capability"`` vs
+    ``reason="capability_unknown"``).
     """
     allowed = {
         "capability_missing",
@@ -85,14 +91,35 @@ def test_reason_taxonomy_closed() -> None:
         "envelope_unsupported",
     }
     src = Path(__file__).resolve().parents[2] / "src" / "pylocal_akuvox"
-    pattern = re.compile(r"reason\s*=\s*['\"]([a-z_]+)['\"]")
+
+    def _call_name(func: ast.expr) -> str | None:
+        """Return the callable name for a ``Call.func`` AST node."""
+        if isinstance(func, ast.Name):
+            return func.id
+        if isinstance(func, ast.Attribute):
+            return func.attr
+        return None
+
     found: set[str] = set()
     for path in src.rglob("*.py"):
-        text = path.read_text()
-        for match in pattern.finditer(text):
-            found.add(match.group(1))
+        tree = ast.parse(path.read_text(), filename=str(path))
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and _call_name(node.func) == "AkuvoxUnsupportedError"
+            ):
+                for kw in node.keywords:
+                    if (
+                        kw.arg == "reason"
+                        and isinstance(kw.value, ast.Constant)
+                        and isinstance(kw.value.value, str)
+                    ):
+                        found.add(kw.value.value)
     # Every observed reason string is in the allowed closed set.
-    assert found, "expected at least one reason= literal in src/"
+    assert found, (
+        "expected at least one AkuvoxUnsupportedError(..., reason=...) "
+        "call site in src/"
+    )
     assert found <= allowed, f"unexpected reasons: {sorted(found - allowed)}"
 
 

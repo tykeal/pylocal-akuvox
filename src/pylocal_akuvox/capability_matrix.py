@@ -3,12 +3,19 @@
 
 """Curated capability matrix for known Akuvox device classes.
 
-This module is intentionally **data-only**: it owns the
-``CAPABILITY_MATRIX`` constant and nothing else. The matching helper
-:func:`pylocal_akuvox.capabilities.lookup_capabilities` lives in
+This module owns the ``CAPABILITY_MATRIX`` constant — the curated
+list of ``(DeviceClassPattern, DeviceCapabilities)`` entries that
+:func:`pylocal_akuvox.capabilities.lookup_capabilities` consults
+at connect time. ``lookup_capabilities`` itself lives in
 ``capabilities.py`` and lazy-imports this module to avoid an import
 cycle with :mod:`pylocal_akuvox.capability_adapters` (which itself
 imports from :mod:`pylocal_akuvox.capabilities`).
+
+The module also defines a small ``_library_version`` helper plus
+the ``_LIB_VERSION`` and ``_OBSERVED_AT`` sentinels that every
+:class:`Provenance` instance threads through; these are private and
+exist solely to keep every matrix entry's provenance consistent
+across the process (sampled once at import time).
 
 The matrix is curated **most-specific-first**: the first
 ``DeviceClassPattern`` that matches an observed device wins. Adding a
