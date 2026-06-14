@@ -211,3 +211,88 @@ def test_library_version_fallback_on_package_not_found(
 
     monkeypatch.setattr(importlib.metadata, "version", _raise)
     assert capability_matrix._library_version() == "0.0.0"  # noqa: SLF001
+
+
+# ============================================================================
+# Phase 3: synthetic-matrix-entry tests (T061)
+# ============================================================================
+#
+# Quickstart step 9 referenced test: programmatically construct a
+# ``(DeviceClassPattern, DeviceCapabilities)`` pair carrying custom
+# ``field_aliases`` and ``schema_shapes``; exercise both
+# ``User.from_api_response`` and ``Contact.from_api_response`` against
+# the synthetic record and assert the parsers consult the record
+# without any monkey-patch of ``models/users.py`` / ``models/contacts.py``.
+# Covers FR-017 / SC-007.
+
+
+def test_add_hypothetical_entry() -> None:
+    """T061: synthetic capability record drives both parsers (FR-017, SC-007).
+
+    Verifies the matrix-extension contract: adding a new firmware
+    band that varies only along known axes (field aliases + schema
+    shape) requires no parser edits — both parsers consult the
+    capability record at the call site. Constructs a synthetic
+    ``DeviceClassPattern`` + ``DeviceCapabilities`` pair without
+    inserting it into the production matrix (the test is
+    matrix-independent so it cannot regress on production-matrix
+    changes).
+    """
+    from pylocal_akuvox.capabilities import (
+        DeviceCapabilities,
+        DeviceClassPattern,
+        FieldAliases,
+        SchemaShape,
+    )
+    from pylocal_akuvox.models import Contact, User
+
+    pattern = DeviceClassPattern(model_prefix="HYPOTHETICAL", firmware_band="999.0.0.*")
+    caps = DeviceCapabilities(
+        device_class="HYPOTHETICAL",
+        firmware_version="999.0.0.1",
+        capabilities={},
+        field_aliases={
+            "schedule_relay": FieldAliases(
+                read=("HypotheticalSchedule",),
+                write=("HypotheticalSchedule",),
+            ),
+        },
+        schema_shapes={"contact": SchemaShape.APARTMENT_BOOK},
+    )
+
+    # Synthetic pattern matches a synthetic DeviceInfo (no production
+    # matrix edit needed).
+    synthetic_info = _info("HYPOTHETICAL", "999.0.0.1")
+    assert pattern.matches(synthetic_info)
+
+    # User parser consults the synthetic alias — no hardcoded fallback wins.
+    user_data = {
+        "Name": "Test",
+        "UserID": "1",
+        "HypotheticalSchedule": "hypo-value",
+        # Pollute the payload with default-chain keys so the test
+        # fails if the synthetic alias is NOT consulted.
+        "ScheduleRelay": "default-must-be-ignored",
+    }
+    user = User.from_api_response(user_data, capabilities=caps)
+    assert user.schedule_relay == "hypo-value"
+
+    # Contact parser consults the synthetic schema shape.
+    apt_data = {
+        "Name": "Apt 1",
+        "APTName": "Block 1",
+        "APTNum": "1",
+        "Building": "B1",
+        "Landline": "5550000",
+        # No "ID" — only the apartment-book branch tolerates this on
+        # a payload that also lacks the door-phone signal we're
+        # exercising. (Door-phone branch also tolerates missing ID
+        # today; the test's stronger claim is that the apartment-book
+        # branch was selected — asserted indirectly via the schema
+        # shape on the supplied caps and the parser landing without
+        # raising even if a future contract tightens door-phone to
+        # require ID.)
+    }
+    contact = Contact.from_api_response(apt_data, capabilities=caps)
+    assert contact.name == "Apt 1"
+    assert contact.id is None

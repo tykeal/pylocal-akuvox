@@ -33,10 +33,12 @@ from __future__ import annotations
 import importlib.metadata
 
 from pylocal_akuvox.capabilities import (
+    DEFAULT_USER_FIELD_ALIASES,
     Capability,
     CapabilityStatus,
     DeviceCapabilities,
     DeviceClassPattern,
+    FieldAliases,
     Provenance,
     SchemaShape,
 )
@@ -73,6 +75,12 @@ _IT83_83_30_10_4 = DeviceCapabilities(
         Capability.RELAY_STATUS: CapabilityStatus.UNSUPPORTED,
         Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
     },
+    # Alias / schema-shape mappings left empty — the matrix-marked
+    # user/contact CRUD capabilities are all ``UNKNOWN`` for IT83 so
+    # the relevant parsers/payload-builders are never reached on this
+    # device class. Leaving these empty makes the wrapper fall back to
+    # the safe defaults if a caller opts in via
+    # ``attempt_unknown_capability=True`` (FR-017).
     field_aliases={},
     schema_shapes={},
     provenance=Provenance(
@@ -116,7 +124,20 @@ _X915S_CURRENT = DeviceCapabilities(
         Capability.LOG_CALL: CapabilityStatus.SUPPORTED,
         Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
     },
-    field_aliases={},
+    # X915S current FW returns the bare ``Schedule`` key on user
+    # reads (issue #118 / PR #120). Order matters: the parser walks
+    # ``read`` in declared order and uses the first match, so
+    # ``Schedule`` comes first to win against any future payload
+    # that happens to also carry ``ScheduleRelay``. Write list keeps
+    # parity with X916 (``ScheduleRelay`` + ``Schedule-Relay`` —
+    # dual-write satisfies both firmware bands and preserves the
+    # E18C compatibility contract).
+    field_aliases={
+        "schedule_relay": FieldAliases(
+            read=("Schedule", "ScheduleRelay", "Schedule-Relay"),
+            write=("ScheduleRelay", "Schedule-Relay"),
+        ),
+    },
     schema_shapes={"contact": SchemaShape.APARTMENT_BOOK},
     provenance=Provenance(
         test_bench_device_id="maintainer's bench unit",
@@ -155,8 +176,11 @@ _E18C_CURRENT = DeviceCapabilities(
         Capability.LOG_CALL: CapabilityStatus.SUPPORTED,
         Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
     },
-    field_aliases={},
-    schema_shapes={},
+    # E18C aliasing matches X916 — accepts both ``ScheduleRelay`` and
+    # ``Schedule-Relay`` on read; emits both on write (the spec-line-119
+    # collision rule observed in issues #99/#101).
+    field_aliases={"schedule_relay": DEFAULT_USER_FIELD_ALIASES},
+    schema_shapes={"contact": SchemaShape.DOOR_PHONE},
     provenance=Provenance(
         test_bench_device_id="maintainer's bench unit",
         firmware_version="18.30.11.21",
@@ -194,8 +218,11 @@ _X916_BASELINE = DeviceCapabilities(
         Capability.LOG_CALL: CapabilityStatus.SUPPORTED,
         Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
     },
-    field_aliases={},
-    schema_shapes={},
+    # X916 baseline aliasing — matches today's hardcoded default chain
+    # byte-for-byte. Door-phone contact schema (no apartment-book
+    # keys observed on this class).
+    field_aliases={"schedule_relay": DEFAULT_USER_FIELD_ALIASES},
+    schema_shapes={"contact": SchemaShape.DOOR_PHONE},
     provenance=Provenance(
         test_bench_device_id="maintainer's bench unit",
         firmware_version="916.30.10.114",

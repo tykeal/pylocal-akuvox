@@ -6,9 +6,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pylocal_akuvox.exceptions import AkuvoxParseError
+
+if TYPE_CHECKING:
+    from pylocal_akuvox.capabilities import DeviceCapabilities
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -28,15 +31,57 @@ class User:
     source_type: str | None = None
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any]) -> User:
-        """Create User from API response data."""
+    def from_api_response(
+        cls,
+        data: dict[str, Any],
+        *,
+        capabilities: DeviceCapabilities | None = None,
+    ) -> User:
+        """Create User from API response data.
+
+        ``capabilities`` is an optional :class:`DeviceCapabilities`
+        record. When supplied, the parser consults
+        ``capabilities.field_aliases.get("schedule_relay")`` to find
+        the schedule-relay field, walking each name in
+        ``FieldAliases.read`` in declared order and using the first
+        match. When omitted (or when the record has no
+        ``"schedule_relay"`` entry), the parser falls back to
+        :data:`pylocal_akuvox.capabilities.DEFAULT_USER_FIELD_ALIASES`,
+        which is byte-identical to the pre-refactor hardcoded chain
+        ``("ScheduleRelay", "Schedule-Relay", "Schedule")`` — preserves
+        FR-016 (no externally observable change for default callers).
+        """
+        # Lazy import to avoid a models→capabilities→models cycle:
+        # capabilities.py reads DeviceInfo from models, so importing it
+        # at module top would form a cycle on first access.
+        from pylocal_akuvox.capabilities import DEFAULT_USER_FIELD_ALIASES
+
+        aliases = DEFAULT_USER_FIELD_ALIASES
+        if capabilities is not None:
+            aliases = capabilities.field_aliases.get(
+                "schedule_relay", DEFAULT_USER_FIELD_ALIASES
+            )
+        # Defensive: a capability record with an empty ``read`` tuple
+        # for the schedule-relay field (incomplete matrix entry, or
+        # an unexpected probe output) would otherwise make every
+        # parse raise ``AkuvoxParseError`` even for payloads that
+        # carry the legacy keys. Fall back to the default chain so
+        # incomplete capability data degrades gracefully rather than
+        # bricking the read path (Copilot review round 1).
+        if not aliases.read:
+            aliases = DEFAULT_USER_FIELD_ALIASES
+
         missing = object()
         schedule_relay: Any = missing
-        for key in ("ScheduleRelay", "Schedule-Relay", "Schedule"):
+        for key in aliases.read:
             if key in data:
                 schedule_relay = data[key]
                 break
         if schedule_relay is missing:
+            # Reuse the pre-refactor message verbatim so the existing
+            # regression assertions in test_models.py (which probe the
+            # exact substring set) keep passing under the default
+            # fallback path (FR-016 / SC-008).
             msg = (
                 "Missing required field 'ScheduleRelay' (or 'Schedule-Relay'/"
                 "'Schedule' on some firmwares) in user data"

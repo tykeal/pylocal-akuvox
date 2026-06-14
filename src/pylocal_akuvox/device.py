@@ -330,7 +330,16 @@ class AkuvoxDevice:
             allow_unknown=self.attempt_unknown_capability,
         )
         from pylocal_akuvox import users
+        from pylocal_akuvox.capabilities import DEFAULT_USER_FIELD_ALIASES
 
+        # ``_require_capabilities`` returns the same cached
+        # ``DeviceCapabilities`` instance every call; second call is
+        # cheap and lets us extract the alias mapping without poking
+        # at the still-Optional ``self._capabilities`` attribute.
+        caps = self._require_capabilities()
+        field_aliases = caps.field_aliases.get(
+            "schedule_relay", DEFAULT_USER_FIELD_ALIASES
+        )
         await users.add_user(
             self._http,
             name=name,
@@ -340,6 +349,7 @@ class AkuvoxDevice:
             lift_floor_num=lift_floor_num,
             private_pin=private_pin,
             card_code=card_code,
+            field_aliases=field_aliases,
         )
 
     async def list_users(self, *, page: int | None = None) -> list[User]:
@@ -350,7 +360,9 @@ class AkuvoxDevice:
         )
         from pylocal_akuvox import users
 
-        return await users.list_users(self._http, page=page)
+        return await users.list_users(
+            self._http, page=page, capabilities=self._require_capabilities()
+        )
 
     async def modify_user(
         self,
@@ -370,7 +382,12 @@ class AkuvoxDevice:
             allow_unknown=self.attempt_unknown_capability,
         )
         from pylocal_akuvox import users
+        from pylocal_akuvox.capabilities import DEFAULT_USER_FIELD_ALIASES
 
+        caps = self._require_capabilities()
+        field_aliases = caps.field_aliases.get(
+            "schedule_relay", DEFAULT_USER_FIELD_ALIASES
+        )
         await users.modify_user(
             self._http,
             id=id,
@@ -381,6 +398,7 @@ class AkuvoxDevice:
             web_relay=web_relay,
             schedule_relay=schedule_relay,
             lift_floor_num=lift_floor_num,
+            field_aliases=field_aliases,
         )
 
     async def delete_user(self, *, id: str) -> None:
@@ -764,7 +782,9 @@ class AkuvoxDevice:
         )
         from pylocal_akuvox import contacts
 
-        return await contacts.list_contacts(self._http, page=page)
+        return await contacts.list_contacts(
+            self._http, page=page, capabilities=self._require_capabilities()
+        )
 
     async def add_contact(
         self,
@@ -779,12 +799,16 @@ class AkuvoxDevice:
             allow_unknown=self.attempt_unknown_capability,
         )
         from pylocal_akuvox import contacts
+        from pylocal_akuvox.capabilities import SchemaShape
 
+        caps = self._require_capabilities()
+        shape = caps.schema_shapes.get("contact", SchemaShape.DOOR_PHONE)
         await contacts.add_contact(
             self._http,
             name=name,
             phone=phone,
             group=group,
+            schema_shape=shape,
         )
 
     async def modify_contact(
@@ -801,17 +825,27 @@ class AkuvoxDevice:
             allow_unknown=self.attempt_unknown_capability,
         )
         from pylocal_akuvox import contacts
+        from pylocal_akuvox.capabilities import SchemaShape
 
+        caps = self._require_capabilities()
+        shape = caps.schema_shapes.get("contact", SchemaShape.DOOR_PHONE)
         await contacts.modify_contact(
             self._http,
             id=id,
             name=name,
             phone=phone,
             group=group,
+            schema_shape=shape,
         )
 
     async def delete_contact(self, *, id: str | list[str]) -> None:
-        """Delete one or more contacts from the device."""
+        """Delete one or more contacts from the device.
+
+        Gate-only: ``delete_contact`` is shape-agnostic (the
+        delete-by-id payload is identical across schemas), so the
+        wrapper performs the capability check and then delegates to
+        the service function without a ``schema_shape=`` kwarg.
+        """
         self._require_capabilities().require(
             Capability.CONTACT_DELETE,
             allow_unknown=self.attempt_unknown_capability,
