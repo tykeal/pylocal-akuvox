@@ -1048,3 +1048,50 @@ async def test_default_dispatch_all_unsupported_raises_capability_missing() -> N
             with pytest.raises(AkuvoxUnsupportedError) as exc_info:
                 await device.trigger_relay(num=1)
         assert exc_info.value.reason == "capability_missing"
+
+
+async def test_aexit_clears_cached_info_and_capabilities() -> None:
+    """``__aexit__`` resets cached state so re-entry sees fresh data.
+
+    Per Copilot review round 2: ``get_info()`` advertises caching
+    "for the duration of a connection". Without clearing on exit,
+    a second ``async with`` block would reuse the stale snapshot
+    and capability-gated wrappers would silently dispatch against
+    pre-reconnect data.
+    """
+    device = AkuvoxDevice("192.168.1.100")
+    with aioresponses() as m:
+        register_default_info(m, repeat=True)
+        async with device:
+            assert device._info is not None
+            assert device._capabilities is not None
+        assert device._info is None
+        assert device._capabilities is None
+        # Re-entry must succeed and re-populate.
+        async with device:
+            assert device._info is not None
+            assert device._capabilities is not None
+        assert device._info is None
+        assert device._capabilities is None
+
+
+async def test_trigger_relay_rejects_non_relay_adapter_override() -> None:
+    """``trigger_relay(adapter=Capability.USER_ADD)`` raises validation error.
+
+    The ``adapter=`` parameter is typed as ``Capability`` but only
+    relay-trigger variants make sense. A non-relay capability
+    would have previously leaked ``KeyError`` from the internal
+    ``CAPABILITY_TO_VARIANT`` mapping; the adapter must reject
+    such overrides at the public boundary with
+    :class:`AkuvoxValidationError`.
+    """
+    from pylocal_akuvox.capabilities import Capability
+    from pylocal_akuvox.exceptions import AkuvoxValidationError
+
+    with aioresponses() as m:
+        register_default_info(m)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxValidationError) as exc_info:
+                await device.trigger_relay(num=1, adapter=Capability.USER_ADD)
+        assert "relay-trigger variant" in str(exc_info.value)
+        assert "user.add" in str(exc_info.value)

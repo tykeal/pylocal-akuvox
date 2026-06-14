@@ -21,7 +21,7 @@ from pylocal_akuvox.capability_adapters import (
     RelayTriggerArgs,
 )
 from pylocal_akuvox.capability_probe import probe_capabilities as _probe_capabilities
-from pylocal_akuvox.exceptions import AkuvoxUnsupportedError
+from pylocal_akuvox.exceptions import AkuvoxUnsupportedError, AkuvoxValidationError
 from pylocal_akuvox.models import DeviceInfo, DeviceStatus
 
 if TYPE_CHECKING:
@@ -224,8 +224,26 @@ class AkuvoxDevice:
         exc_val: BaseException | None,
         exc_tb: object,
     ) -> None:
-        """Close the underlying HTTP session."""
-        await self._http.__aexit__(exc_type, exc_val, exc_tb)
+        """Close the underlying HTTP session and clear cached state.
+
+        Resets ``self._info`` and ``self._capabilities`` to ``None``
+        so the lifecycle semantics promised by ``get_info()``
+        ("cached … for the duration of a connection") hold across
+        re-entry. A subsequent ``async with`` will re-issue
+        ``/api/system/info`` and re-resolve the matrix entry,
+        ensuring that capability checks gate on fresh data rather
+        than on a stale snapshot from a prior connection.
+
+        Capability-gated wrappers will also fail fast via
+        :meth:`_require_capabilities` if they are (incorrectly)
+        called after exit instead of producing a confusing
+        ``aiohttp`` connection error from the closed transport.
+        """
+        try:
+            await self._http.__aexit__(exc_type, exc_val, exc_tb)
+        finally:
+            self._info = None
+            self._capabilities = None
 
     async def get_info(self) -> DeviceInfo:
         """Retrieve device identification data.
@@ -413,7 +431,21 @@ class AkuvoxDevice:
         the device confirms it ``UNSUPPORTED`` (always raises) or
         ``UNKNOWN`` without the integrator opt-in (raises unless
         ``attempt_unknown_capability=True``).
+
+        The override must be one of the relay-trigger variants
+        registered in :data:`RELAY_TRIGGER_PREFERENCE`. Passing an
+        unrelated :class:`Capability` (e.g. ``Capability.USER_ADD``)
+        is a programming error and raises
+        :class:`AkuvoxValidationError` rather than leaking a
+        ``KeyError`` from the internal variant mapping.
         """
+        if adapter not in RELAY_TRIGGER_PREFERENCE:
+            allowed = ", ".join(c.value for c in RELAY_TRIGGER_PREFERENCE)
+            msg = (
+                f"adapter override {adapter.value!r} is not a relay-trigger "
+                f"variant; allowed values: {allowed}"
+            )
+            raise AkuvoxValidationError(msg)
         status = caps.status_of(adapter)
         if status is CapabilityStatus.UNSUPPORTED:
             msg = (
