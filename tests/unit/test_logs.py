@@ -9,6 +9,7 @@ from aioresponses import aioresponses
 
 from pylocal_akuvox.device import AkuvoxDevice
 from pylocal_akuvox.exceptions import AkuvoxDeviceError
+from tests.unit._helpers import register_default_info
 
 BASE_URL = "http://192.168.1.100"
 
@@ -101,6 +102,7 @@ _ERROR_RESPONSE: dict[str, object] = {
 async def test_get_door_logs_correct_endpoint() -> None:
     """Verify get_door_logs GETs /api/doorlog/get."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/doorlog/get", payload=_DOOR_LOG_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_door_logs()
@@ -117,6 +119,7 @@ async def test_get_door_logs_correct_endpoint() -> None:
 async def test_get_door_logs_with_pagination() -> None:
     """Verify get_door_logs sends page query parameter."""
     with aioresponses() as m:
+        register_default_info(m)
         url = f"{BASE_URL}/api/doorlog/get?page=1"
         m.get(url, payload=_DOOR_LOG_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
@@ -133,6 +136,7 @@ async def test_get_door_logs_with_pagination() -> None:
 async def test_get_door_logs_empty_returns_empty_list() -> None:
     """Verify empty device returns empty list not error."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/doorlog/get", payload=_EMPTY_LOG_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_door_logs()
@@ -149,6 +153,7 @@ async def test_get_door_logs_no_item_key_returns_empty() -> None:
         "data": {"num": 0},
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/doorlog/get", payload=response)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_door_logs()
@@ -159,6 +164,7 @@ async def test_get_door_logs_no_item_key_returns_empty() -> None:
 async def test_get_door_logs_error_raises_device_error() -> None:
     """Verify device error raises AkuvoxDeviceError."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/doorlog/get", payload=_ERROR_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxDeviceError):
@@ -172,6 +178,7 @@ async def test_get_door_logs_error_raises_device_error() -> None:
 async def test_get_call_logs_correct_endpoint() -> None:
     """Verify get_call_logs GETs /api/calllog/get."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/calllog/get", payload=_CALL_LOG_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_call_logs()
@@ -189,6 +196,7 @@ async def test_get_call_logs_correct_endpoint() -> None:
 async def test_get_call_logs_with_pagination() -> None:
     """Verify get_call_logs sends page query parameter."""
     with aioresponses() as m:
+        register_default_info(m)
         url = f"{BASE_URL}/api/calllog/get?page=2"
         m.get(url, payload=_CALL_LOG_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
@@ -205,6 +213,7 @@ async def test_get_call_logs_with_pagination() -> None:
 async def test_get_call_logs_empty_returns_empty_list() -> None:
     """Verify empty device returns empty list not error."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/calllog/get", payload=_EMPTY_LOG_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_call_logs()
@@ -221,6 +230,7 @@ async def test_get_call_logs_no_item_key_returns_empty() -> None:
         "data": {"num": 0},
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/calllog/get", payload=response)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_call_logs()
@@ -231,6 +241,7 @@ async def test_get_call_logs_no_item_key_returns_empty() -> None:
 async def test_get_call_logs_error_raises_device_error() -> None:
     """Verify device error raises AkuvoxDeviceError."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/calllog/get", payload=_ERROR_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxDeviceError):
@@ -247,6 +258,7 @@ async def test_get_door_logs_non_list_item_returns_empty() -> None:
         "data": {"num": 0, "item": "not-a-list"},
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/doorlog/get", payload=response)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_door_logs()
@@ -263,6 +275,7 @@ async def test_get_call_logs_non_list_item_returns_empty() -> None:
         "data": {"num": 0, "item": "not-a-list"},
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/calllog/get", payload=response)
         async with AkuvoxDevice("192.168.1.100") as device:
             logs = await device.get_call_logs()

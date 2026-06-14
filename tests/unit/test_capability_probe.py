@@ -20,12 +20,15 @@ import aiohttp
 import pytest
 from aioresponses import aioresponses
 
+from pylocal_akuvox._http import AkuvoxHttpClient
 from pylocal_akuvox.capabilities import (
     Capability,
     CapabilityStatus,
+    DeviceCapabilities,
     FieldAliases,
     SchemaShape,
 )
+from pylocal_akuvox.capability_probe import probe_capabilities as _probe_helper
 from pylocal_akuvox.device import AkuvoxDevice
 from pylocal_akuvox.exceptions import (
     AkuvoxAuthenticationError,
@@ -35,6 +38,20 @@ from pylocal_akuvox.exceptions import (
 )
 
 BASE_URL = "http://192.168.1.100"
+
+
+def _make_probe_client(timeout: int = 5) -> AkuvoxHttpClient:
+    """Build an AkuvoxHttpClient for direct probe-helper testing.
+
+    Phase 2 changed ``AkuvoxDevice.__aenter__`` to issue its own
+    ``/api/system/info`` call before the integrator can call
+    :meth:`AkuvoxDevice.probe_capabilities`. The probe contract
+    (``contracts/probe-api.md``) is about the helper itself, so probe
+    tests exercise the helper directly against a bare HTTP client to
+    keep their per-test request log focused on probe traffic.
+    """
+    return AkuvoxHttpClient(host="192.168.1.100", timeout=timeout, request_delay=0.0)
+
 
 # A complete X916-shaped /api/system/info payload that DeviceInfo.from_api_response
 # can parse without raising.
@@ -152,11 +169,11 @@ async def test_probe_is_non_destructive() -> None:
     destructive guarantee" and SC-001.
     """
     # --- (a) full success path ------------------------------------------
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         _register_full_x916_probe(m)
-        async with device:
-            profile = await device.probe_capabilities()
+        async with client:
+            profile = await _probe_helper(client)
 
         log = _request_paths(m)
         # Exactly 9 requests, in the documented declared order.
@@ -170,23 +187,23 @@ async def test_probe_is_non_destructive() -> None:
     assert profile.device_class == "X916S"
 
     # --- (b) step-1 401 aborts after 1 call -----------------------------
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/system/info", status=401, body="Unauthorized")
-        async with device:
+        async with client:
             with pytest.raises(AkuvoxAuthenticationError):
-                await device.probe_capabilities()
+                await _probe_helper(client)
         log = _request_paths(m)
         assert len(log) == 1
         assert log == ["/api/system/info"]
 
     # --- (c) step-1 403 aborts after 1 call -----------------------------
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/system/info", status=403, body="Forbidden")
-        async with device:
+        async with client:
             with pytest.raises(AkuvoxRequestError) as excinfo:
-                await device.probe_capabilities()
+                await _probe_helper(client)
         assert (
             "permissions" in str(excinfo.value).lower()
             or "forbidden" in str(excinfo.value).lower()
@@ -196,7 +213,7 @@ async def test_probe_is_non_destructive() -> None:
         assert log == ["/api/system/info"]
 
     # --- (d) later-step 401 records UNKNOWN and continues ---------------
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/system/info", payload=_X916_SYSTEM_INFO_BODY)
         m.get(f"{BASE_URL}/api/system/status", payload=_ok())
@@ -207,15 +224,15 @@ async def test_probe_is_non_destructive() -> None:
         m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/relay/status", payload=_ok())
-        async with device:
-            profile = await device.probe_capabilities()
+        async with client:
+            profile = await _probe_helper(client)
         log = _request_paths(m)
         assert len(log) == 9
     assert profile.status_of(Capability.USER_LIST) is CapabilityStatus.UNKNOWN
     assert "401" in profile.notes["user_get_body"]
 
     # later-step 403 → also UNKNOWN + continue
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/system/info", payload=_X916_SYSTEM_INFO_BODY)
         m.get(f"{BASE_URL}/api/system/status", payload=_ok())
@@ -226,8 +243,8 @@ async def test_probe_is_non_destructive() -> None:
         m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/relay/status", payload=_ok())
-        async with device:
-            profile = await device.probe_capabilities()
+        async with client:
+            profile = await _probe_helper(client)
         log = _request_paths(m)
         assert len(log) == 9
     assert profile.status_of(Capability.USER_LIST) is CapabilityStatus.UNKNOWN
@@ -236,12 +253,12 @@ async def test_probe_is_non_destructive() -> None:
 
 async def test_probe_step_1_invalid_json_raises_parse_error_after_one_call() -> None:
     """Step-1 d1: invalid JSON → AkuvoxParseError, exactly 1 call (T014.d1)."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/system/info", body="<html>nope</html>", status=200)
-        async with device:
+        async with client:
             with pytest.raises(AkuvoxParseError) as excinfo:
-                await device.probe_capabilities()
+                await _probe_helper(client)
         assert isinstance(excinfo.value.__cause__, json.JSONDecodeError)
         log = _request_paths(m)
         assert len(log) == 1
@@ -249,43 +266,43 @@ async def test_probe_step_1_invalid_json_raises_parse_error_after_one_call() -> 
 
 async def test_probe_step_1_envelope_missing_fields_raises_parse_error() -> None:
     """Step-1 d2: malformed envelope → AkuvoxParseError, 1 call (T014.d2)."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         # JSON list (not dict) → envelope check fails.
         m.get(f"{BASE_URL}/api/system/info", payload=[], status=200)
-        async with device:
+        async with client:
             with pytest.raises(AkuvoxParseError) as excinfo:
-                await device.probe_capabilities()
+                await _probe_helper(client)
         assert "envelope" in str(excinfo.value).lower()
         log = _request_paths(m)
         assert len(log) == 1
 
     # JSON dict missing 'retcode' key → also envelope-malformed.
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/system/info", payload={"foo": "bar"}, status=200)
-        async with device:
+        async with client:
             with pytest.raises(AkuvoxParseError) as excinfo:
-                await device.probe_capabilities()
+                await _probe_helper(client)
         assert "envelope" in str(excinfo.value).lower()
 
     # JSON dict with non-int retcode → also envelope-malformed.
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         m.get(
             f"{BASE_URL}/api/system/info",
             payload={"retcode": "zero"},
             status=200,
         )
-        async with device:
+        async with client:
             with pytest.raises(AkuvoxParseError) as excinfo:
-                await device.probe_capabilities()
+                await _probe_helper(client)
         assert "envelope" in str(excinfo.value).lower()
 
 
 async def test_probe_step_1_device_info_construction_fails() -> None:
     """Step-1 d3: valid envelope but missing DeviceInfo fields (T014.d3)."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         # Envelope is valid; data is empty → DeviceInfo.from_api_response raises.
         m.get(
@@ -293,9 +310,9 @@ async def test_probe_step_1_device_info_construction_fails() -> None:
             payload={"retcode": 0, "data": {}},
             status=200,
         )
-        async with device:
+        async with client:
             with pytest.raises(AkuvoxParseError) as excinfo:
-                await device.probe_capabilities()
+                await _probe_helper(client)
         assert "DeviceInfo" in str(excinfo.value)
         # Cause should be the AkuvoxParseError raised by DeviceInfo.from_api_response.
         assert isinstance(excinfo.value.__cause__, AkuvoxParseError)
@@ -333,11 +350,11 @@ async def test_probe_classification_table_for_user_list(
     payload: dict[str, Any], status: int, expected_status: CapabilityStatus
 ) -> None:
     """Each classification-table row maps to the expected CapabilityStatus."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         _register_x916_probe_with_step3(m, payload, step3_status=status)
-        async with device:
-            profile = await device.probe_capabilities()
+        async with client:
+            profile = await _probe_helper(client)
     assert profile.status_of(Capability.USER_LIST) is expected_status
 
 
@@ -349,11 +366,11 @@ async def test_probe_records_unsupported_action_on_contact_get() -> None:
     """
     for marker in ("unsupported action", "unsupport action"):  # noqa: E501  device typo (codespell:ignore)
         body = {"retcode": -1, "message": marker}
-        device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+        client = _make_probe_client()
         with aioresponses() as m:
             _register_x916_probe_with_step4(m, body)
-            async with device:
-                profile = await device.probe_capabilities()
+            async with client:
+                profile = await _probe_helper(client)
 
         assert (
             profile.status_of(Capability.CONTACT_LIST) is CapabilityStatus.UNSUPPORTED
@@ -379,11 +396,11 @@ async def test_probe_records_unsupported_action_on_user_get_no_write_inference()
     """
     for marker in ("unsupported action", "unsupport action"):  # noqa: E501  device typo (codespell:ignore)
         body = {"retcode": -1, "message": marker}
-        device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+        client = _make_probe_client()
         with aioresponses() as m:
             _register_x916_probe_with_step3(m, body)
-            async with device:
-                profile = await device.probe_capabilities()
+            async with client:
+                profile = await _probe_helper(client)
         assert profile.status_of(Capability.USER_LIST) is CapabilityStatus.UNSUPPORTED
         for cap in (
             Capability.USER_ADD,
@@ -396,7 +413,7 @@ async def test_probe_records_unsupported_action_on_user_get_no_write_inference()
 
 async def test_probe_records_http_500_on_user_get_as_unknown_with_note() -> None:
     """HTTP 500 on /api/user/get → USER_LIST=UNKNOWN + raw body note."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/system/info", payload=_X916_SYSTEM_INFO_BODY)
         m.get(f"{BASE_URL}/api/system/status", payload=_ok())
@@ -407,8 +424,8 @@ async def test_probe_records_http_500_on_user_get_as_unknown_with_note() -> None
         m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/relay/status", payload=_ok())
-        async with device:
-            profile = await device.probe_capabilities()
+        async with client:
+            profile = await _probe_helper(client)
     assert profile.status_of(Capability.USER_LIST) is CapabilityStatus.UNKNOWN
     assert "user_get_body" in profile.notes
     assert "500" in profile.notes["user_get_body"]
@@ -416,7 +433,7 @@ async def test_probe_records_http_500_on_user_get_as_unknown_with_note() -> None
 
 async def test_probe_records_http_4xx_other_on_later_step_as_unknown() -> None:
     """HTTP 4xx (other than 401/403) on later step → UNKNOWN + note."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/system/info", payload=_X916_SYSTEM_INFO_BODY)
         m.get(f"{BASE_URL}/api/system/status", payload=_ok())
@@ -427,8 +444,8 @@ async def test_probe_records_http_4xx_other_on_later_step_as_unknown() -> None:
         m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/relay/status", status=404, body="not-found")
-        async with device:
-            profile = await device.probe_capabilities()
+        async with client:
+            profile = await _probe_helper(client)
     assert profile.status_of(Capability.RELAY_STATUS) is CapabilityStatus.UNKNOWN
     assert "404" in profile.notes["relay_status_body"]
 
@@ -440,12 +457,12 @@ async def test_probe_records_http_4xx_other_on_later_step_as_unknown() -> None:
 
 async def test_probe_records_schedule_relay_field_alias_e18c_style() -> None:
     """E18C-style 'Schedule-Relay' key recorded in field_aliases."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     user_body = _ok({"Item": [{"ID": 1, "Name": "alice", "Schedule-Relay": "1"}]})
     with aioresponses() as m:
         _register_x916_probe_with_step3(m, user_body)
-        async with device:
-            profile = await device.probe_capabilities()
+        async with client:
+            profile = await _probe_helper(client)
     aliases = profile.field_aliases["schedule_relay"]
     assert "Schedule-Relay" in aliases.read
     assert aliases.read[0] == "Schedule-Relay"
@@ -453,18 +470,18 @@ async def test_probe_records_schedule_relay_field_alias_e18c_style() -> None:
 
 async def test_probe_records_schedule_relay_field_alias_x915s_style() -> None:
     """X915S-style 'Schedule' key recorded in field_aliases."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     user_body = _ok({"Item": [{"ID": 1, "Name": "alice", "Schedule": "1"}]})
     with aioresponses() as m:
         _register_x916_probe_with_step3(m, user_body)
-        async with device:
-            profile = await device.probe_capabilities()
+        async with client:
+            profile = await _probe_helper(client)
     assert profile.field_aliases["schedule_relay"].read == ("Schedule",)
 
 
 async def test_probe_records_apartment_book_schema_shape() -> None:
     """Apartment-book contact body → schema_shapes['contact']=APARTMENT_BOOK."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     contact_body = _ok(
         {
             "Item": [
@@ -479,19 +496,19 @@ async def test_probe_records_apartment_book_schema_shape() -> None:
     )
     with aioresponses() as m:
         _register_x916_probe_with_step4(m, contact_body)
-        async with device:
-            profile = await device.probe_capabilities()
+        async with client:
+            profile = await _probe_helper(client)
     assert profile.schema_shapes["contact"] is SchemaShape.APARTMENT_BOOK
 
 
 async def test_probe_records_door_phone_schema_shape() -> None:
     """Door-phone contact body → schema_shapes['contact']=DOOR_PHONE."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     contact_body = _ok({"Item": [{"Name": "alice", "Phone": "555-0100", "ID": 1}]})
     with aioresponses() as m:
         _register_x916_probe_with_step4(m, contact_body)
-        async with device:
-            profile = await device.probe_capabilities()
+        async with client:
+            profile = await _probe_helper(client)
     assert profile.schema_shapes["contact"] is SchemaShape.DOOR_PHONE
 
 
@@ -503,7 +520,7 @@ async def test_probe_records_door_phone_schema_shape() -> None:
 
 async def test_probe_is_idempotent() -> None:
     """Two consecutive probes against the same mock produce equal profiles."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         # Repeat=True so the same fixtures match every probe step in
         # both runs.
@@ -520,9 +537,9 @@ async def test_probe_is_idempotent() -> None:
         m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=_ok(), repeat=True)
         m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=_ok(), repeat=True)
         m.get(f"{BASE_URL}/api/relay/status", payload=_ok(), repeat=True)
-        async with device:
-            a = await device.probe_capabilities()
-            b = await device.probe_capabilities()
+        async with client:
+            a = await _probe_helper(client)
+            b = await _probe_helper(client)
 
     # The profiles compare exactly equal (no per-field normalisation).
     assert a == b
@@ -533,11 +550,11 @@ async def test_probe_is_idempotent() -> None:
 
 async def test_probe_does_not_infer_any_write_capability_on_x916() -> None:
     """Fully-responsive X916 → every write capability absent from the profile."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         _register_full_x916_probe(m)
-        async with device:
-            profile = await device.probe_capabilities()
+        async with client:
+            profile = await _probe_helper(client)
 
     write_caps = (
         Capability.USER_ADD,
@@ -567,7 +584,7 @@ async def test_probe_transport_refused_during_step_4_raises_no_partial() -> None
     Covers ``contracts/probe-api.md`` Edge case 5: probe aborts and no
     partial DeviceCapabilities is returned.
     """
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/system/info", payload=_X916_SYSTEM_INFO_BODY)
         m.get(f"{BASE_URL}/api/system/status", payload=_ok())
@@ -576,10 +593,9 @@ async def test_probe_transport_refused_during_step_4_raises_no_partial() -> None
             f"{BASE_URL}/api/contact/get?page=1",
             exception=aiohttp.ClientError("Connection refused"),
         )
-        async with device:
+        async with client:
             with pytest.raises(AkuvoxConnectionError):
-                await device.probe_capabilities()
-            assert device.capabilities is None
+                await _probe_helper(client)
 
 
 # ---------------------------------------------------------------------------
@@ -589,12 +605,12 @@ async def test_probe_transport_refused_during_step_4_raises_no_partial() -> None
 
 async def test_probe_step_1_http_500_raises_connection_error() -> None:
     """Step-1 HTTP 500 → AkuvoxConnectionError, abort after 1 call."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/system/info", status=500, body="boom")
-        async with device:
+        async with client:
             with pytest.raises(AkuvoxConnectionError) as excinfo:
-                await device.probe_capabilities()
+                await _probe_helper(client)
         assert "500" in str(excinfo.value)
         log = _request_paths(m)
         assert len(log) == 1
@@ -602,26 +618,26 @@ async def test_probe_step_1_http_500_raises_connection_error() -> None:
 
 async def test_probe_step_1_http_404_raises_connection_error() -> None:
     """Step-1 HTTP 404 (4xx other than 401/403) → AkuvoxConnectionError."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/system/info", status=404, body="missing")
-        async with device:
+        async with client:
             with pytest.raises(AkuvoxConnectionError) as excinfo:
-                await device.probe_capabilities()
+                await _probe_helper(client)
         assert "404" in str(excinfo.value)
 
 
 async def test_probe_step_1_transport_failure_raises_connection_error() -> None:
     """Transport-level failure on step 1 → AkuvoxConnectionError."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         m.get(
             f"{BASE_URL}/api/system/info",
             exception=aiohttp.ClientError("refused"),
         )
-        async with device:
+        async with client:
             with pytest.raises(AkuvoxConnectionError):
-                await device.probe_capabilities()
+                await _probe_helper(client)
 
 
 async def test_probe_step_1_payload_data_not_dict_treated_as_empty() -> None:
@@ -631,16 +647,16 @@ async def test_probe_step_1_payload_data_not_dict_treated_as_empty() -> None:
     dict (no 'Status' field), which the probe wraps. Confirms the
     payload coercion path on lines around _step_1_payload.
     """
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     with aioresponses() as m:
         m.get(
             f"{BASE_URL}/api/system/info",
             payload={"retcode": 0, "data": "not-a-dict"},
             status=200,
         )
-        async with device:
+        async with client:
             with pytest.raises(AkuvoxParseError):
-                await device.probe_capabilities()
+                await _probe_helper(client)
 
 
 def test_step_1_payload_rejects_bool_retcode() -> None:
@@ -661,7 +677,7 @@ def test_step_1_payload_rejects_bool_retcode() -> None:
 
 async def test_probe_step_3_aliases_recorded_in_observed_order() -> None:
     """Multiple alias keys in user list recorded in the order observed."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     user_body = _ok(
         {
             "Item": [
@@ -675,8 +691,8 @@ async def test_probe_step_3_aliases_recorded_in_observed_order() -> None:
     )
     with aioresponses() as m:
         _register_x916_probe_with_step3(m, user_body)
-        async with device:
-            profile = await device.probe_capabilities()
+        async with client:
+            profile = await _probe_helper(client)
     assert profile.field_aliases["schedule_relay"].read == (
         "ScheduleRelay",
         "Schedule-Relay",
@@ -686,23 +702,23 @@ async def test_probe_step_3_aliases_recorded_in_observed_order() -> None:
 
 async def test_probe_step_3_no_recognised_keys_no_alias_entry() -> None:
     """User-list with no schedule keys → no field_aliases entry."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     user_body = _ok({"Item": [{"ID": 1, "Name": "alice"}]})
     with aioresponses() as m:
         _register_x916_probe_with_step3(m, user_body)
-        async with device:
-            profile = await device.probe_capabilities()
+        async with client:
+            profile = await _probe_helper(client)
     assert "schedule_relay" not in profile.field_aliases
 
 
 async def test_probe_step_4_empty_item_list_no_shape_entry() -> None:
     """Contact-list with empty Item → no schema_shapes entry."""
-    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    client = _make_probe_client()
     contact_body = _ok({"Item": []})
     with aioresponses() as m:
         _register_x916_probe_with_step4(m, contact_body)
-        async with device:
-            profile = await device.probe_capabilities()
+        async with client:
+            profile = await _probe_helper(client)
     assert "contact" not in profile.schema_shapes
 
 
@@ -1040,7 +1056,7 @@ async def test_probe_is_idempotent_across_time_varying_system_status() -> None:
     probes against an unchanged device produce byte-equal
     :class:`DeviceCapabilities`.
     """
-    device_a = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    device_a = _make_probe_client()
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/system/info", payload=_X916_SYSTEM_INFO_BODY)
         # First probe sees one set of timestamps...
@@ -1060,9 +1076,9 @@ async def test_probe_is_idempotent_across_time_varying_system_status() -> None:
         m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/relay/status", payload=_ok())
         async with device_a:
-            profile_a = await device_a.probe_capabilities()
+            profile_a = await _probe_helper(device_a)
 
-    device_b = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    device_b = _make_probe_client()
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/system/info", payload=_X916_SYSTEM_INFO_BODY)
         # ...second probe sees a *different* set of timestamps...
@@ -1082,7 +1098,7 @@ async def test_probe_is_idempotent_across_time_varying_system_status() -> None:
         m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=_ok())
         m.get(f"{BASE_URL}/api/relay/status", payload=_ok())
         async with device_b:
-            profile_b = await device_b.probe_capabilities()
+            profile_b = await _probe_helper(device_b)
 
     # ...yet the recorded profile must compare exactly equal.
     assert profile_a == profile_b
@@ -1172,3 +1188,322 @@ def test_record_user_schema_keys_skips_non_dict_items() -> None:
     _record_user_schema_keys(notes, body)
     # Only the dict item contributed.
     assert notes["user_schema_observed_keys"] == "Building"
+
+
+# ---------------------------------------------------------------------------
+# T041: 9-cell probe-vs-matrix merge contract
+# ---------------------------------------------------------------------------
+
+
+_X916_INFO_FOR_MERGE: dict[str, object] = {
+    "retcode": 0,
+    "action": "info",
+    "message": "",
+    "data": {
+        "Status": {
+            "Model": "X916",
+            "MAC": "AA:BB:CC:DD:EE:FF",
+            "FirmwareVersion": "916.30.10.114",
+            "HardwareVersion": "1.0",
+        }
+    },
+}
+_IT83_INFO_FOR_MERGE: dict[str, object] = {
+    "retcode": 0,
+    "action": "info",
+    "message": "",
+    "data": {
+        "Status": {
+            "Model": "IT83",
+            "MAC": "AA:BB:CC:DD:EE:FF",
+            "FirmwareVersion": "83.30.10.4",
+            "HardwareVersion": "1.0",
+        }
+    },
+}
+
+
+def _probe_only_responses(
+    *, user_list_status: str, relay_status_status: str
+) -> dict[str, str]:
+    """Build per-endpoint mock dicts keyed by category for the merge harness.
+
+    Each value is one of ``"S"`` (200 keyed payload), ``"U"``
+    (``"No handlers"`` body), or ``"K"`` (HTTP 500). Other endpoints
+    default to an unrelated 200 keyed payload so they don't accidentally
+    flip the merge cell under test.
+    """
+    return {
+        "user_list": user_list_status,
+        "relay_status": relay_status_status,
+    }
+
+
+def _register_probe_mocks(
+    m: aioresponses,
+    *,
+    user_list: str,
+    relay_status: str,
+) -> None:
+    """Register a single round of the 9-call probe with the configured signals.
+
+    Endpoints other than the two we vary return a generic 200 keyed
+    payload so probe classifies them deterministically (USER_LIST and
+    RELAY_STATUS are the test pivots; everything else stays
+    SUPPORTED-ish so the merge cell under test isn't masked by an
+    unrelated probe-UNSUPPORTED hit).
+    """
+    keyed_ok = {
+        "retcode": 0,
+        "action": "get",
+        "message": "",
+        "data": {"Item": [{"ID": "1"}], "Total": 1},
+    }
+    no_handlers = {
+        "retcode": 0,
+        "action": "get",
+        "message": "No handlers for this request",
+        "data": {},
+    }
+
+    def _resolve(signal: str) -> dict[str, object] | int:
+        """Map a signal token to its corresponding mock payload or status."""
+        if signal == "S":
+            return keyed_ok
+        if signal == "U":
+            return no_handlers
+        # signal == "K"
+        return 500
+
+    # Step 2 — health probe (always SUPPORTED for the merge harness).
+    m.get(
+        f"{BASE_URL}/api/system/status",
+        payload={
+            "retcode": 0,
+            "action": "status",
+            "message": "",
+            "data": {"SystemTime": 1700000000, "UpTime": 86400},
+        },
+    )
+
+    # User list (GET /api/user/get?page=1)
+    user_response = _resolve(user_list)
+    if isinstance(user_response, int):
+        m.get(f"{BASE_URL}/api/user/get?page=1", status=user_response)
+    else:
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=user_response)
+
+    # Relay status (GET /api/relay/status)
+    relay_response = _resolve(relay_status)
+    if isinstance(relay_response, int):
+        m.get(f"{BASE_URL}/api/relay/status", status=relay_response)
+    else:
+        m.get(f"{BASE_URL}/api/relay/status", payload=relay_response)
+
+    # The other probe endpoints return generic keyed payloads so they
+    # don't cross-contaminate the merge cell under test.
+    m.get(f"{BASE_URL}/api/contact/get?page=1", payload=keyed_ok)
+    m.get(f"{BASE_URL}/api/schedule/get", payload=keyed_ok)
+    m.get(f"{BASE_URL}/api/group/get", payload=keyed_ok)
+    m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=keyed_ok)
+    m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=keyed_ok)
+
+
+# Matrix-SUPPORTED row: pin to X916 USER_LIST.
+
+
+@pytest.mark.parametrize(
+    ("probe_signal", "expected"),
+    [
+        ("S", CapabilityStatus.SUPPORTED),
+        ("U", CapabilityStatus.UNSUPPORTED),
+        ("K", CapabilityStatus.SUPPORTED),  # matrix preserved on probe-UNKNOWN
+    ],
+    ids=["matrix_S_probe_S", "matrix_S_probe_U", "matrix_S_probe_K"],
+)
+async def test_merge_matrix_supported_x916_user_list(
+    probe_signal: str, expected: CapabilityStatus
+) -> None:
+    """X916 USER_LIST + each probe outcome → expected merged status."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/system/info",
+            payload=_X916_INFO_FOR_MERGE,
+            repeat=True,
+        )
+        _register_probe_mocks(m, user_list=probe_signal, relay_status="S")
+        async with AkuvoxDevice("192.168.1.100") as device:
+            merged = await device.probe_capabilities()
+    assert merged.status_of(Capability.USER_LIST) is expected
+
+
+# Matrix-UNSUPPORTED row: pin to IT83 RELAY_STATUS.
+
+
+@pytest.mark.parametrize(
+    ("probe_signal", "expected"),
+    [
+        ("S", CapabilityStatus.SUPPORTED),  # probe wins
+        ("U", CapabilityStatus.UNSUPPORTED),  # both agree
+        ("K", CapabilityStatus.UNSUPPORTED),  # matrix preserved
+    ],
+    ids=["matrix_U_probe_S", "matrix_U_probe_U", "matrix_U_probe_K"],
+)
+async def test_merge_matrix_unsupported_it83_relay_status(
+    probe_signal: str, expected: CapabilityStatus
+) -> None:
+    """IT83 RELAY_STATUS + each probe outcome → expected merged status."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/system/info",
+            payload=_IT83_INFO_FOR_MERGE,
+            repeat=True,
+        )
+        _register_probe_mocks(m, user_list="S", relay_status=probe_signal)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            merged = await device.probe_capabilities()
+    assert merged.status_of(Capability.RELAY_STATUS) is expected
+
+
+# Matrix-UNKNOWN row: pin to IT83 USER_LIST.
+
+
+@pytest.mark.parametrize(
+    ("probe_signal", "expected"),
+    [
+        ("S", CapabilityStatus.SUPPORTED),
+        ("U", CapabilityStatus.UNSUPPORTED),
+        ("K", CapabilityStatus.UNKNOWN),
+    ],
+    ids=["matrix_K_probe_S", "matrix_K_probe_U", "matrix_K_probe_K"],
+)
+async def test_merge_matrix_unknown_it83_user_list(
+    probe_signal: str, expected: CapabilityStatus
+) -> None:
+    """IT83 USER_LIST + each probe outcome → expected merged status."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/system/info",
+            payload=_IT83_INFO_FOR_MERGE,
+            repeat=True,
+        )
+        _register_probe_mocks(m, user_list=probe_signal, relay_status="U")
+        async with AkuvoxDevice("192.168.1.100") as device:
+            merged = await device.probe_capabilities()
+    assert merged.status_of(Capability.USER_LIST) is expected
+
+
+# --- Write-capability non-regression (FR-003 / BLOCKER 3) ---------------
+
+
+async def test_user_list_unsupported_does_not_regress_user_add() -> None:
+    """Read-side UNSUPPORTED MUST NOT propagate to the corresponding write.
+
+    X916 matrix has ``USER_ADD = SUPPORTED``. Even if the probe
+    classifies ``USER_LIST`` as UNSUPPORTED (``"No handlers"`` body
+    on the read endpoint), the merged profile MUST keep
+    ``USER_ADD`` SUPPORTED — read signals never imply write
+    capability per FR-003.
+    """
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/system/info",
+            payload=_X916_INFO_FOR_MERGE,
+            repeat=True,
+        )
+        _register_probe_mocks(m, user_list="U", relay_status="S")
+        async with AkuvoxDevice("192.168.1.100") as device:
+            merged = await device.probe_capabilities()
+    assert merged.status_of(Capability.USER_LIST) is CapabilityStatus.UNSUPPORTED
+    assert merged.status_of(Capability.USER_ADD) is CapabilityStatus.SUPPORTED
+
+
+# --- Probe with no matrix entry (probe-only flow) -----------------------
+
+
+async def test_merge_with_no_matrix_returns_probe_unchanged() -> None:
+    """Probe-only flow (no matrix entry) returns the probe profile as-is."""
+    from pylocal_akuvox.device import _merge_probe_with_matrix
+
+    probe_only = await _probe_run_minimal()
+    merged = _merge_probe_with_matrix(None, probe_only)
+    assert merged is probe_only
+
+
+async def _probe_run_minimal() -> DeviceCapabilities:
+    """Helper: run the probe against a minimal mock to get a real profile."""
+    info_payload: dict[str, object] = {
+        "retcode": 0,
+        "action": "info",
+        "message": "",
+        "data": {
+            "Status": {
+                "Model": "UnknownDevice",
+                "MAC": "AA:BB:CC:DD:EE:FF",
+                "FirmwareVersion": "1.0.0.0",
+                "HardwareVersion": "1.0",
+            }
+        },
+    }
+    keyed_ok = {
+        "retcode": 0,
+        "action": "get",
+        "message": "",
+        "data": {"Item": [{"ID": "1"}], "Total": 1},
+    }
+    status_payload = {
+        "retcode": 0,
+        "action": "status",
+        "message": "",
+        "data": {"SystemTime": 1700000000, "UpTime": 86400},
+    }
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/system/info", payload=info_payload)
+        m.get(f"{BASE_URL}/api/system/status", payload=status_payload)
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=keyed_ok)
+        m.get(f"{BASE_URL}/api/contact/get?page=1", payload=keyed_ok)
+        m.get(f"{BASE_URL}/api/schedule/get", payload=keyed_ok)
+        m.get(f"{BASE_URL}/api/group/get", payload=keyed_ok)
+        m.get(f"{BASE_URL}/api/relay/status", payload=keyed_ok)
+        m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=keyed_ok)
+        m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=keyed_ok)
+        async with AkuvoxHttpClient(host="192.168.1.100", timeout=5) as client:
+            return await _probe_helper(client, timeout=5.0)
+
+
+# --- Conservative-empty + probe merge drops the discriminator note ---------
+
+
+async def test_merge_strips_device_not_in_matrix_note_from_conservative_empty() -> None:
+    """Probing an unrecognised device should clear the discriminator note.
+
+    A conservative-empty profile (matrix-side) carries the
+    ``"device_not_in_matrix"`` notes key that ``DeviceCapabilities.require``
+    uses to choose ``reason="device_unrecognized"``. Once the probe has
+    enumerated the device, that condition no longer applies: a remaining
+    UNKNOWN capability should now raise ``reason="capability_unknown"``
+    (probed but indeterminate), not ``device_unrecognized`` (never probed).
+    """
+    from types import MappingProxyType
+
+    from pylocal_akuvox.capabilities import DeviceCapabilities
+    from pylocal_akuvox.device import (
+        _DEVICE_NOT_IN_MATRIX_NOTE,
+        _merge_probe_with_matrix,
+    )
+
+    matrix_conservative = DeviceCapabilities(
+        device_class="UnknownDevice",
+        firmware_version="0.0.0",
+        capabilities={},
+        field_aliases={},
+        schema_shapes={},
+        notes={"device_not_in_matrix": _DEVICE_NOT_IN_MATRIX_NOTE},
+        provenance=None,
+    )
+    probe = await _probe_run_minimal()
+    merged = _merge_probe_with_matrix(matrix_conservative, probe)
+    assert "device_not_in_matrix" not in merged.notes
+    # Sanity: merged is a fresh DeviceCapabilities (not the matrix object)
+    # so the matrix entry's read-only notes are untouched.
+    assert isinstance(merged.notes, MappingProxyType)

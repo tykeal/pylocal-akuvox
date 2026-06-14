@@ -57,6 +57,10 @@ repos:
         args: ["--fix=lf"]
       - id: name-tests-test
         args: ["--pytest-test-first"]
+        # Allow ``_*.py`` private helper modules under ``tests/`` (e.g.
+        # ``tests/unit/_helpers.py``). These are imported by test
+        # modules but are not themselves pytest collection targets.
+        exclude: ^tests/.+/_[^/]+\.py$
       # Disabled; TOX lint will otherwise fail
       - id: no-commit-to-branch
         args:

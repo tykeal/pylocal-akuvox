@@ -14,6 +14,7 @@ from pylocal_akuvox.exceptions import (
     AkuvoxDeviceError,
     AkuvoxValidationError,
 )
+from tests.unit._helpers import register_default_info
 
 BASE_URL = "http://192.168.1.100"
 
@@ -82,6 +83,7 @@ _EMPTY_PAGE_RESPONSE: dict[str, object] = {
 async def test_list_contacts_returns_contacts() -> None:
     """Verify list_contacts returns Contact objects."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/contact/get",
             payload=_CONTACT_GET_RESPONSE,
@@ -103,6 +105,7 @@ async def test_list_contacts_returns_contacts() -> None:
 async def test_list_contacts_paginated() -> None:
     """Verify page parameter is passed to request."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/contact/get?page=2",
             payload=_CONTACT_EMPTY_RESPONSE,
@@ -116,6 +119,7 @@ async def test_list_contacts_paginated() -> None:
 async def test_list_contacts_empty() -> None:
     """Verify empty item list returns empty collection."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/contact/get",
             payload=_CONTACT_EMPTY_RESPONSE,
@@ -135,6 +139,7 @@ async def test_list_contacts_no_item_key() -> None:
         "data": {"num": 0},
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/contact/get", payload=no_item)
         async with AkuvoxDevice("192.168.1.100") as device:
             contacts = await device.list_contacts()
@@ -151,6 +156,7 @@ async def test_list_contacts_non_list_items() -> None:
         "data": {"num": 0, "item": "not-a-list"},
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/contact/get", payload=bad_response)
         async with AkuvoxDevice("192.168.1.100") as device:
             contacts = await device.list_contacts()
@@ -174,6 +180,7 @@ async def test_list_contacts_skips_non_dict() -> None:
         },
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/contact/get", payload=mixed_response)
         async with AkuvoxDevice("192.168.1.100") as device:
             contacts = await device.list_contacts()
@@ -198,6 +205,7 @@ async def test_list_contacts_missing_name_raises() -> None:
         },
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/contact/get", payload=bad_response)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxParseError, match="Missing required field"):
@@ -211,6 +219,7 @@ async def test_list_contacts_missing_name_raises() -> None:
 async def test_add_contact_sends_correct_payload() -> None:
     """Verify add_contact sends correct envelope to /api/contact/set."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/contact/set",
             payload=_MUTATION_OK_RESPONSE,
@@ -228,6 +237,7 @@ async def test_add_contact_sends_correct_payload() -> None:
 async def test_add_contact_with_group_and_phone() -> None:
     """Verify add_contact includes phone and group when provided."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/contact/set",
             payload=_MUTATION_OK_RESPONSE,
@@ -248,12 +258,14 @@ async def test_add_contact_with_group_and_phone() -> None:
 @pytest.mark.asyncio
 async def test_add_contact_empty_name_raises() -> None:
     """Verify empty name raises AkuvoxValidationError."""
-    async with AkuvoxDevice("192.168.1.100") as device:
-        with pytest.raises(
-            AkuvoxValidationError,
-            match="name is required",
-        ):
-            await device.add_contact(name="")
+    with aioresponses() as m:
+        register_default_info(m)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(
+                AkuvoxValidationError,
+                match="name is required",
+            ):
+                await device.add_contact(name="")
 
 
 # -- modify_contact tests --
@@ -263,6 +275,7 @@ async def test_add_contact_empty_name_raises() -> None:
 async def test_modify_contact_fetches_and_merges() -> None:
     """Verify modify_contact does fetch-merge-write."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/contact/get?page=1",
             payload=_CONTACT_GET_RESPONSE,
@@ -287,6 +300,7 @@ async def test_modify_contact_fetches_and_merges() -> None:
 async def test_modify_contact_changes_group() -> None:
     """Verify modify_contact can change group membership."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/contact/get?page=1",
             payload=_CONTACT_GET_RESPONSE,
@@ -309,6 +323,7 @@ async def test_modify_contact_changes_group() -> None:
 async def test_modify_contact_not_found_raises() -> None:
     """Verify modify_contact raises when ID not found."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/contact/get?page=1",
             payload=_CONTACT_GET_RESPONSE,
@@ -332,6 +347,7 @@ async def test_modify_contact_non_list_items_raises() -> None:
         "data": {"num": 0, "item": "not-a-list"},
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/contact/get?page=1",
             payload=non_list_response,
@@ -360,6 +376,7 @@ async def test_modify_contact_non_dict_entries_raises() -> None:
         "data": {"num": 0, "item": []},
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/contact/get?page=1",
             payload=non_dict_response,
@@ -379,12 +396,14 @@ async def test_modify_contact_non_dict_entries_raises() -> None:
 @pytest.mark.asyncio
 async def test_modify_contact_no_fields_raises() -> None:
     """Verify modify_contact raises when no fields are provided."""
-    async with AkuvoxDevice("192.168.1.100") as device:
-        with pytest.raises(
-            AkuvoxValidationError,
-            match="at least one of name, phone, or group",
-        ):
-            await device.modify_contact(id="1")
+    with aioresponses() as m:
+        register_default_info(m)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(
+                AkuvoxValidationError,
+                match="at least one of name, phone, or group",
+            ):
+                await device.modify_contact(id="1")
 
 
 # -- delete_contact tests --
@@ -394,6 +413,7 @@ async def test_modify_contact_no_fields_raises() -> None:
 async def test_delete_contact_single() -> None:
     """Verify delete_contact sends single ID."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/contact/set",
             payload=_DEL_OK_RESPONSE,
@@ -411,6 +431,7 @@ async def test_delete_contact_single() -> None:
 async def test_delete_contact_batch() -> None:
     """Verify delete_contact sends multiple IDs."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/contact/set",
             payload=_DEL_OK_RESPONSE,
@@ -429,6 +450,7 @@ async def test_delete_contact_batch() -> None:
 async def test_device_list_contacts_delegates() -> None:
     """Verify device.list_contacts delegates to contacts module."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/contact/get",
             payload=_CONTACT_EMPTY_RESPONSE,
@@ -442,6 +464,7 @@ async def test_device_list_contacts_delegates() -> None:
 async def test_device_add_contact_delegates() -> None:
     """Verify device.add_contact delegates to contacts module."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/contact/set",
             payload=_MUTATION_OK_RESPONSE,
@@ -454,6 +477,7 @@ async def test_device_add_contact_delegates() -> None:
 async def test_device_modify_contact_delegates() -> None:
     """Verify device.modify_contact delegates to contacts module."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/contact/get?page=1",
             payload=_CONTACT_GET_RESPONSE,
@@ -470,6 +494,7 @@ async def test_device_modify_contact_delegates() -> None:
 async def test_device_delete_contact_delegates() -> None:
     """Verify device.delete_contact delegates to contacts module."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/contact/set",
             payload=_DEL_OK_RESPONSE,

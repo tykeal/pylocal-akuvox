@@ -232,8 +232,15 @@ async def test_unsupported_api_raises_unsupported_error(
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/system/info", payload=response)
         async with client:
-            with pytest.raises(AkuvoxUnsupportedError):
+            with pytest.raises(AkuvoxUnsupportedError) as exc_info:
                 await client.get("/api/system/info")
+    # T042 backward-compat: legacy single-arg construction still produces
+    # an instance with ``.reason is None`` (the structured-fields evolution
+    # in T044 is purely additive — see contracts/unsupported-error.md
+    # §"Backward-compatibility guarantees").
+    assert exc_info.value.reason is None
+    assert exc_info.value.capability is None
+    assert exc_info.value.device_class is None
 
 
 async def test_concurrent_requests_serialize(
