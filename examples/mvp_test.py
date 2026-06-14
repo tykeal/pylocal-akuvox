@@ -65,12 +65,16 @@ from pylocal_akuvox import (
     AkuvoxDevice,
     AuthConfig,
     AuthMethod,
+    Capability,
+    CapabilityStatus,
+    DeviceCapabilities,
 )
 from pylocal_akuvox.exceptions import (
     AkuvoxAuthenticationError,
     AkuvoxConnectionError,
     AkuvoxError,
     AkuvoxParseError,
+    AkuvoxUnsupportedError,
     AkuvoxValidationError,
 )
 
@@ -656,6 +660,139 @@ def skip_step(results: TestResults, label: str, reason: str) -> None:
     print(f"  ⊘ {label} skipped: {reason}")
 
 
+def _effective_status(
+    capabilities: DeviceCapabilities,
+    *caps: Capability,
+) -> CapabilityStatus:
+    """Return the best-of-N capability status across ``*caps``.
+
+    Used by :func:`step` to gate operations whose backend has multiple
+    transport variants (today only relay trigger has both
+    ``RELAY_TRIGGER_API`` and ``RELAY_TRIGGER_FCGI``). The rule is:
+
+    * Any ``SUPPORTED`` wins — at least one variant works on this
+      device class, so :meth:`AkuvoxDevice.trigger_relay` will dispatch
+      successfully.
+    * All ``UNSUPPORTED`` → ``UNSUPPORTED`` — every variant has been
+      confirmed-negative; the gate fails fast.
+    * Otherwise → ``UNKNOWN`` — at least one variant has been observed
+      ``UNKNOWN``; the gate suggests the integrator opt in.
+    """
+    statuses = [capabilities.status_of(cap) for cap in caps]
+    if any(status is CapabilityStatus.SUPPORTED for status in statuses):
+        return CapabilityStatus.SUPPORTED
+    if all(status is CapabilityStatus.UNSUPPORTED for status in statuses):
+        return CapabilityStatus.UNSUPPORTED
+    return CapabilityStatus.UNKNOWN
+
+
+def _record_capability_skip(results: TestResults, name: str, reason: str) -> None:
+    """Record + print a capability-gate skip in the ``SKIP: <name>:`` style."""
+    if results.diagnostics is not None:
+        results.diagnostics.begin_test(name)
+        results.diagnostics.finish_test("skipped", reason)
+    results.mark_skipped(name, reason)
+    print(f"  SKIP: {name}: {reason}")
+
+
+async def step[T](
+    *,
+    results: TestResults,
+    name: str,
+    capability: Capability | tuple[Capability, ...],
+    capabilities: DeviceCapabilities,
+    coro_factory: Callable[[], Awaitable[T]],
+) -> T | None:
+    """Capability-gate one diagnostic step (Phase 4, FR-019).
+
+    Per ``specs/008-capability-matrix/research.md`` Decision 9, this
+    consults the supplied :class:`DeviceCapabilities` profile and:
+
+    * ``UNSUPPORTED`` → print ``SKIP: <name>: not supported on this
+      device class (<device_class>)`` and return ``None``.
+    * ``UNKNOWN`` → print ``SKIP: <name>: status unknown on this
+      device class (<device_class>); add a matrix entry or set
+      device.attempt_unknown_capability=True to opt in`` and return
+      ``None``.
+    * ``SUPPORTED`` → call ``coro_factory()`` and run the resulting
+      coroutine. On success print ``OK:   <name>`` and return the
+      result. On a runtime :class:`AkuvoxUnsupportedError` (rare
+      matrix-vs-actual mismatch — the device emitted "unsupported
+      action" even though the matrix marked the capability
+      ``SUPPORTED``) the failure is re-mapped to ``SKIP: <name>:
+      <message> (reason=<reason>)``.
+
+    ``capability`` may be a single :class:`Capability` or a tuple of
+    them; the tuple form uses :func:`_effective_status` to gate on
+    the best-of-N status (used today only by
+    :meth:`AkuvoxDevice.trigger_relay` which has both API and FCGI
+    variants).
+
+    Connection / authentication errors propagate unchanged (the
+    integrator wants the script to abort, not skip past a
+    "device unreachable" event). ``TestStepSkipped`` / generic
+    failures fall through to the same FAIL handling as
+    :func:`run_step` for parity with the legacy code path.
+    """
+    if isinstance(capability, tuple):
+        status = _effective_status(capabilities, *capability)
+    else:
+        status = capabilities.status_of(capability)
+
+    if status is CapabilityStatus.UNSUPPORTED:
+        reason = f"not supported on this device class ({capabilities.device_class})"
+        _record_capability_skip(results, name, reason)
+        return None
+    if status is CapabilityStatus.UNKNOWN:
+        reason = (
+            f"status unknown on this device class ({capabilities.device_class}); "
+            f"add a matrix entry or set "
+            f"device.attempt_unknown_capability=True to opt in"
+        )
+        _record_capability_skip(results, name, reason)
+        return None
+
+    # SUPPORTED — execute and report outcome.
+    _begin_diagnostic_step(results, name)
+    try:
+        result = await coro_factory()
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        raise
+    except (AkuvoxConnectionError, AkuvoxAuthenticationError) as exc:
+        _finish_diagnostic_step(results, "failed", str(exc), exc)
+        raise
+    except AkuvoxUnsupportedError as exc:
+        reason = f"{exc} (reason={exc.reason})"
+        _finish_diagnostic_step(results, "skipped", reason, exc)
+        results.mark_skipped(name, reason)
+        print(f"  SKIP: {name}: {reason}")
+        return None
+    except TestStepSkipped as exc:
+        message = str(exc)
+        _finish_diagnostic_step(results, "skipped", message, exc)
+        results.mark_skipped(name, message)
+        print(f"  SKIP: {name}: {message}")
+        return None
+    except (TestStepFailed, AkuvoxError) as exc:
+        message = str(exc)
+        _finish_diagnostic_step(results, "failed", message, exc)
+        results.mark_failed(name, message)
+        print(f"  ✗ {name}: {message}")
+        return None
+    except Exception as exc:  # noqa: BLE001 - diagnostic script safety net
+        message = f"{type(exc).__name__}: {_first_line(str(exc))}"
+        _finish_diagnostic_step(results, "failed", message, exc)
+        results.mark_failed(name, message)
+        print(f"  ✗ {name}: {message}")
+        traceback.print_exc()
+        return None
+
+    _finish_diagnostic_step(results, "passed")
+    results.mark_passed(name)
+    print(f"  OK:   {name}")
+    return result
+
+
 async def run_step[T](
     results: TestResults,
     label: str,
@@ -731,6 +868,25 @@ def build_auth(args: argparse.Namespace) -> AuthConfig | None:
     }
     method = method_map[args.auth]
     return AuthConfig(method=method, username=args.user, password=args.password)
+
+
+def _install_probed_capabilities(
+    device: AkuvoxDevice, profile: DeviceCapabilities
+) -> None:
+    """Override ``device._capabilities`` with the supplied probe-merged profile.
+
+    The :meth:`AkuvoxDevice.__aenter__` boundary populates
+    ``_capabilities`` from the static matrix only. After
+    :func:`_probe_device_capabilities` has captured a probe-merged
+    profile for the whole script run (Decision 9), this helper
+    installs the same profile onto every subsequent connection so
+    the wrapper-level per-method capability gate and :func:`step`'s
+    gating use the same source of truth — otherwise a
+    probe-discovered ``SUPPORTED`` capability could pass
+    :func:`step` and then be rejected by the wrapper layer's
+    matrix-derived gate (or vice versa for ``UNSUPPORTED``).
+    """
+    device._capabilities = profile  # noqa: SLF001 - probe-vs-matrix layer parity
 
 
 def create_device(
@@ -1137,10 +1293,16 @@ async def test_delete_user(device: AkuvoxDevice, internal_id: str) -> None:
 
 
 async def test_trigger_relay(device: AkuvoxDevice) -> None:
-    """Test: Trigger relay 1 with auto-close."""
-    print_header("TRIGGER RELAY (/api/relay/trig)")
-    await device.trigger_relay(num=1, delay=1)
-    print("  Triggered relay 1 (auto-close, delay=1s)")
+    """Test: Trigger relay 1.
+
+    Uses ``delay=0`` (the FCGI variant rejects non-zero
+    ``mode``/``level``/``delay``; the API variant treats ``delay=0``
+    as "use the device-side default close timer", which is the safest
+    cross-device choice).
+    """
+    print_header("TRIGGER RELAY (/api/relay/trig | /fcgi/do?action=OpenDoor)")
+    await device.trigger_relay(num=1)
+    print("  Triggered relay 1")
     print("  ✓ trigger_relay() OK")
 
 
@@ -1285,10 +1447,33 @@ async def _check_validation(label: str, coro: Coroutine[object, object, None]) -
 
 
 async def test_validation() -> None:
-    """Test: Client-side validation (no device needed)."""
+    """Test: Client-side validation (no device needed).
+
+    Phase 2 added a per-call capability gate that runs *before*
+    the service-layer input validation. To keep this offline
+    diagnostic working, we manually install a permissive empty
+    capability profile and toggle ``attempt_unknown_capability``
+    so the gate falls through and the underlying validation raises
+    the expected :class:`AkuvoxValidationError`. The device is
+    never connected; the gate is opened only enough for input
+    validation to run.
+    """
     print_header("CLIENT-SIDE VALIDATION (no network)")
 
     device = AkuvoxDevice("0.0.0.0")
+    # Install an empty offline profile so the per-call gate falls
+    # through to the service-layer validation. ``_capabilities`` is
+    # nominally private; touching it directly here is the documented
+    # offline-test escape hatch — the alternative would be to spin
+    # up an actual device connection just to validate input shapes.
+    device._capabilities = DeviceCapabilities(  # noqa: SLF001
+        device_class="OFFLINE",
+        firmware_version="0.0.0",
+        capabilities={},
+        field_aliases={},
+        schema_shapes={},
+    )
+    device.attempt_unknown_capability = True
 
     await _check_validation(
         "Invalid PIN rejected",
@@ -1385,47 +1570,88 @@ async def _run_read_tests(
     device: AkuvoxDevice,
     results: TestResults,
     *,
+    capabilities: DeviceCapabilities,
     redact_stdout: bool,
 ) -> None:
-    """Run all read-only tests against a connected device."""
+    """Run all read-only tests against a connected device.
+
+    Each step is capability-gated against ``capabilities`` (the
+    probe-merged profile captured once at the top of :func:`run_all`).
+    ``get_device_info`` and ``get_device_status`` are intentionally
+    *not* gated — they are the universal connect-time discovery
+    surface (see :meth:`AkuvoxDevice.get_info` /
+    :meth:`AkuvoxDevice.get_status`); their failure aborts the script
+    via ``run_step``'s connection-error propagation.
+    """
+    _install_probed_capabilities(device, capabilities)
     await run_step(
         results,
-        "GET DEVICE INFO",
+        "get_device_info",
         test_get_info(device, redact_stdout=redact_stdout),
     )
-    await run_step(results, "GET DEVICE STATUS", test_get_status(device))
-    await run_step(
-        results,
-        "LIST USERS",
-        test_list_users(device, redact_stdout=redact_stdout),
+    await run_step(results, "get_device_status", test_get_status(device))
+    await step(
+        results=results,
+        name="list_users",
+        capability=Capability.USER_LIST,
+        capabilities=capabilities,
+        coro_factory=lambda: test_list_users(device, redact_stdout=redact_stdout),
     )
-    await run_step(results, "GET RELAY STATUS", test_get_relay_status(device))
-    await run_step(results, "GET DEVICE CONFIG", test_get_device_config(device))
-    await run_step(results, "DISCOVER CONFIG KEYS", test_discover_config_keys(device))
-    await run_step(
-        results,
-        "LIST SCHEDULES",
-        test_list_schedules(device, redact_stdout=redact_stdout),
+    await step(
+        results=results,
+        name="get_relay_status",
+        capability=Capability.RELAY_STATUS,
+        capabilities=capabilities,
+        coro_factory=lambda: test_get_relay_status(device),
     )
-    await run_step(
-        results,
-        "LIST GROUPS",
-        test_list_groups(device, redact_stdout=redact_stdout),
+    await step(
+        results=results,
+        name="get_device_config",
+        capability=Capability.DEVICE_CONFIG_GET,
+        capabilities=capabilities,
+        coro_factory=lambda: test_get_device_config(device),
     )
-    await run_step(
-        results,
-        "LIST CONTACTS",
-        test_list_contacts(device, redact_stdout=redact_stdout),
+    await step(
+        results=results,
+        name="discover_config_keys",
+        capability=Capability.KEY_DISCOVERY,
+        capabilities=capabilities,
+        coro_factory=lambda: test_discover_config_keys(device),
     )
-    await run_step(
-        results,
-        "GET DOOR LOGS",
-        test_get_door_logs(device, redact_stdout=redact_stdout),
+    await step(
+        results=results,
+        name="list_schedules",
+        capability=Capability.SCHEDULE_LIST,
+        capabilities=capabilities,
+        coro_factory=lambda: test_list_schedules(device, redact_stdout=redact_stdout),
     )
-    await run_step(
-        results,
-        "GET CALL LOGS",
-        test_get_call_logs(device, redact_stdout=redact_stdout),
+    await step(
+        results=results,
+        name="list_groups",
+        capability=Capability.GROUP_LIST,
+        capabilities=capabilities,
+        coro_factory=lambda: test_list_groups(device, redact_stdout=redact_stdout),
+    )
+    await step(
+        results=results,
+        name="list_contacts",
+        capability=Capability.CONTACT_LIST,
+        capabilities=capabilities,
+        coro_factory=lambda: test_list_contacts(device, redact_stdout=redact_stdout),
+    )
+    await step(
+        results=results,
+        name="get_door_logs",
+        capability=Capability.LOG_DOOR,
+        capabilities=capabilities,
+        coro_factory=lambda: test_get_door_logs(device, redact_stdout=redact_stdout),
+    )
+    await step(
+        results=results,
+        name="get_call_logs",
+        capability=Capability.LOG_CALL,
+        capabilities=capabilities,
+        coro_factory=lambda: test_get_call_logs(device, redact_stdout=redact_stdout),
     )
 
 
@@ -1525,52 +1751,68 @@ async def _run_write_tests(
     device_kwargs: dict[str, Any],
     results: TestResults,
     *,
+    capabilities: DeviceCapabilities,
     redact_stdout: bool,
 ) -> None:
-    """Run write tests (user/schedule CRUD, relay trigger)."""
+    """Run write tests (user/schedule CRUD, relay trigger).
+
+    All write steps are capability-gated against the shared
+    ``capabilities`` profile (probed once at the top of
+    :func:`run_all`, threaded in here per Decision 9). Steps with a
+    dependent chain (modify/delete after add) fall through to the
+    existing ``skip_step`` dependency-skip path when the parent step
+    SKIPs or fails.
+    """
     if results.diagnostics is None:
         msg = "write tests require diagnostics"
         raise RuntimeError(msg)
 
     async with create_device(device_kwargs, results.diagnostics) as device:
+        _install_probed_capabilities(device, capabilities)
         # User add + delete FIRST — before any other
         # requests to avoid CGI state corruption.
-        internal_id = await run_step(
-            results,
-            "ADD USER",
-            test_add_user(device, redact_stdout=redact_stdout),
+        internal_id = await step(
+            results=results,
+            name="add_user",
+            capability=Capability.USER_ADD,
+            capabilities=capabilities,
+            coro_factory=lambda: test_add_user(device, redact_stdout=redact_stdout),
         )
         if internal_id is None:
-            reason = "requires internal ID from ADD USER"
-            skip_step(results, "MODIFY USER", reason)
-            skip_step(results, "DELETE USER", reason)
-            skip_step(results, "VERIFY USER DELETION", reason)
+            reason = "requires internal ID from add_user"
+            skip_step(results, "modify_user", reason)
+            skip_step(results, "delete_user", reason)
+            skip_step(results, "verify_user_deletion", reason)
         else:
-            await run_step(
-                results,
-                "MODIFY USER",
-                test_modify_user(
-                    device,
-                    internal_id,
-                    redact_stdout=redact_stdout,
+            await step(
+                results=results,
+                name="modify_user",
+                capability=Capability.USER_MODIFY,
+                capabilities=capabilities,
+                coro_factory=lambda: test_modify_user(
+                    device, internal_id, redact_stdout=redact_stdout
                 ),
             )
-            await run_step(
-                results,
-                "DELETE USER",
-                test_delete_user(device, internal_id),
+            await step(
+                results=results,
+                name="delete_user",
+                capability=Capability.USER_DELETE,
+                capabilities=capabilities,
+                coro_factory=lambda: test_delete_user(device, internal_id),
             )
-            if results.was_passed("DELETE USER"):
-                await run_step(
-                    results,
-                    "VERIFY USER DELETION",
-                    test_verify_user_deletion(device, internal_id),
+            if results.was_passed("delete_user"):
+                await step(
+                    results=results,
+                    name="verify_user_deletion",
+                    capability=Capability.USER_LIST,
+                    capabilities=capabilities,
+                    coro_factory=lambda: test_verify_user_deletion(device, internal_id),
                 )
             else:
                 skip_step(
                     results,
-                    "VERIFY USER DELETION",
-                    "requires DELETE USER to pass",
+                    "verify_user_deletion",
+                    "requires delete_user to pass",
                 )
 
     # Device needs cooldown between request groups
@@ -1578,71 +1820,119 @@ async def _run_write_tests(
     await asyncio.sleep(_MUTATION_SETTLE_SECS * 3)
 
     async with create_device(device_kwargs, results.diagnostics) as device:
+        _install_probed_capabilities(device, capabilities)
         # Schedule add + delete
-        sched_id = await run_step(results, "ADD SCHEDULE", test_add_schedule(device))
+        sched_id = await step(
+            results=results,
+            name="add_schedule",
+            capability=Capability.SCHEDULE_ADD,
+            capabilities=capabilities,
+            coro_factory=lambda: test_add_schedule(device),
+        )
         if sched_id is None:
-            reason = "requires internal ID from ADD SCHEDULE"
-            skip_step(results, "MODIFY SCHEDULE", reason)
-            skip_step(results, "DELETE SCHEDULE", reason)
-            skip_step(results, "VERIFY SCHEDULE DELETION", reason)
+            reason = "requires internal ID from add_schedule"
+            skip_step(results, "modify_schedule", reason)
+            skip_step(results, "delete_schedule", reason)
+            skip_step(results, "verify_schedule_deletion", reason)
         else:
-            await run_step(
-                results,
-                "MODIFY SCHEDULE",
-                test_modify_schedule(device, sched_id),
+            await step(
+                results=results,
+                name="modify_schedule",
+                capability=Capability.SCHEDULE_MODIFY,
+                capabilities=capabilities,
+                coro_factory=lambda: test_modify_schedule(device, sched_id),
             )
-            await run_step(
-                results,
-                "DELETE SCHEDULE",
-                test_delete_schedule(device, sched_id),
+            await step(
+                results=results,
+                name="delete_schedule",
+                capability=Capability.SCHEDULE_DELETE,
+                capabilities=capabilities,
+                coro_factory=lambda: test_delete_schedule(device, sched_id),
             )
-            if results.was_passed("DELETE SCHEDULE"):
-                await run_step(
-                    results,
-                    "VERIFY SCHEDULE DELETION",
-                    test_verify_schedule_deletion(device, sched_id),
+            if results.was_passed("delete_schedule"):
+                await step(
+                    results=results,
+                    name="verify_schedule_deletion",
+                    capability=Capability.SCHEDULE_LIST,
+                    capabilities=capabilities,
+                    coro_factory=lambda: test_verify_schedule_deletion(
+                        device, sched_id
+                    ),
                 )
             else:
                 skip_step(
                     results,
-                    "VERIFY SCHEDULE DELETION",
-                    "requires DELETE SCHEDULE to pass",
+                    "verify_schedule_deletion",
+                    "requires delete_schedule to pass",
                 )
 
-        # Relay trigger (safe: auto-close after 1s)
-        await run_step(results, "TRIGGER RELAY", test_trigger_relay(device))
+        # Relay trigger (auto-closes per the device-side default
+        # close timer; ``test_trigger_relay`` invokes
+        # :meth:`AkuvoxDevice.trigger_relay` with the default
+        # ``delay=0`` so the IT83 FCGI variant accepts it — the
+        # FCGI adapter rejects any non-zero ``mode``/``level``/
+        # ``delay``). Adapter-gated via the (API, FCGI) tuple so
+        # IT83 routes to the FCGI variant and door phones route
+        # to the API variant; the smoke tests exercise both sides.
+        await step(
+            results=results,
+            name="trigger_relay",
+            capability=(
+                Capability.RELAY_TRIGGER_API,
+                Capability.RELAY_TRIGGER_FCGI,
+            ),
+            capabilities=capabilities,
+            coro_factory=lambda: test_trigger_relay(device),
+        )
 
         # Config set + read-back verification
-        await run_step(results, "SET DEVICE CONFIG", test_set_device_config(device))
+        await step(
+            results=results,
+            name="set_device_config",
+            capability=Capability.DEVICE_CONFIG_SET,
+            capabilities=capabilities,
+            coro_factory=lambda: test_set_device_config(device),
+        )
 
     # Cooldown before group tests
     print("\n  ⏳ Waiting for device to settle…")
     await asyncio.sleep(_MUTATION_SETTLE_SECS * 3)
 
     async with create_device(device_kwargs, results.diagnostics) as device:
+        _install_probed_capabilities(device, capabilities)
         # Group add + delete
-        group_id = await run_step(results, "ADD GROUP", test_add_group(device))
+        group_id = await step(
+            results=results,
+            name="add_group",
+            capability=Capability.GROUP_ADD,
+            capabilities=capabilities,
+            coro_factory=lambda: test_add_group(device),
+        )
         if group_id is None:
-            reason = "requires internal ID from ADD GROUP"
-            skip_step(results, "DELETE GROUP", reason)
-            skip_step(results, "VERIFY GROUP DELETION", reason)
+            reason = "requires internal ID from add_group"
+            skip_step(results, "delete_group", reason)
+            skip_step(results, "verify_group_deletion", reason)
         else:
-            await run_step(
-                results,
-                "DELETE GROUP",
-                test_delete_group(device, group_id),
+            await step(
+                results=results,
+                name="delete_group",
+                capability=Capability.GROUP_DELETE,
+                capabilities=capabilities,
+                coro_factory=lambda: test_delete_group(device, group_id),
             )
-            if results.was_passed("DELETE GROUP"):
-                await run_step(
-                    results,
-                    "VERIFY GROUP DELETION",
-                    test_verify_group_deletion(device, group_id),
+            if results.was_passed("delete_group"):
+                await step(
+                    results=results,
+                    name="verify_group_deletion",
+                    capability=Capability.GROUP_LIST,
+                    capabilities=capabilities,
+                    coro_factory=lambda: test_verify_group_deletion(device, group_id),
                 )
             else:
                 skip_step(
                     results,
-                    "VERIFY GROUP DELETION",
-                    "requires DELETE GROUP to pass",
+                    "verify_group_deletion",
+                    "requires delete_group to pass",
                 )
 
     # Cooldown before contact tests
@@ -1650,35 +1940,50 @@ async def _run_write_tests(
     await asyncio.sleep(_MUTATION_SETTLE_SECS * 3)
 
     async with create_device(device_kwargs, results.diagnostics) as device:
+        _install_probed_capabilities(device, capabilities)
         # Contact add + modify + delete
-        contact_id = await run_step(results, "ADD CONTACT", test_add_contact(device))
+        contact_id = await step(
+            results=results,
+            name="add_contact",
+            capability=Capability.CONTACT_ADD,
+            capabilities=capabilities,
+            coro_factory=lambda: test_add_contact(device),
+        )
         if contact_id is None:
-            reason = "requires internal ID from ADD CONTACT"
-            skip_step(results, "MODIFY CONTACT", reason)
-            skip_step(results, "DELETE CONTACT", reason)
-            skip_step(results, "VERIFY CONTACT DELETION", reason)
+            reason = "requires internal ID from add_contact"
+            skip_step(results, "modify_contact", reason)
+            skip_step(results, "delete_contact", reason)
+            skip_step(results, "verify_contact_deletion", reason)
         else:
-            await run_step(
-                results,
-                "MODIFY CONTACT",
-                test_modify_contact(device, contact_id),
+            await step(
+                results=results,
+                name="modify_contact",
+                capability=Capability.CONTACT_MODIFY,
+                capabilities=capabilities,
+                coro_factory=lambda: test_modify_contact(device, contact_id),
             )
-            await run_step(
-                results,
-                "DELETE CONTACT",
-                test_delete_contact(device, contact_id),
+            await step(
+                results=results,
+                name="delete_contact",
+                capability=Capability.CONTACT_DELETE,
+                capabilities=capabilities,
+                coro_factory=lambda: test_delete_contact(device, contact_id),
             )
-            if results.was_passed("DELETE CONTACT"):
-                await run_step(
-                    results,
-                    "VERIFY CONTACT DELETION",
-                    test_verify_contact_deletion(device, contact_id),
+            if results.was_passed("delete_contact"):
+                await step(
+                    results=results,
+                    name="verify_contact_deletion",
+                    capability=Capability.CONTACT_LIST,
+                    capabilities=capabilities,
+                    coro_factory=lambda: test_verify_contact_deletion(
+                        device, contact_id
+                    ),
                 )
             else:
                 skip_step(
                     results,
-                    "VERIFY CONTACT DELETION",
-                    "requires DELETE CONTACT to pass",
+                    "verify_contact_deletion",
+                    "requires delete_contact to pass",
                 )
 
     # Cooldown before read tests
@@ -1687,7 +1992,15 @@ async def _run_write_tests(
 
 
 async def run_all(args: argparse.Namespace) -> None:
-    """Run all MVP tests against the device."""
+    """Run all MVP tests against the device.
+
+    Per ``specs/008-capability-matrix/research.md`` Decision 9 / FR-019,
+    the device is probed exactly once at the top of the online flow.
+    The returned :class:`DeviceCapabilities` is threaded into both
+    :func:`_run_write_tests` and :func:`_run_read_tests`, which gate
+    each step through :func:`step` so unsupported / unknown capabilities
+    print a ``SKIP: <name>: ...`` banner instead of attempting-and-failing.
+    """
     auth = build_auth(args)
     auth_desc = args.auth if args.auth != "none" else "allowlist (no auth)"
     ssl_desc = ""
@@ -1725,10 +2038,13 @@ async def run_all(args: argparse.Namespace) -> None:
     # but not persist data). Workaround: run each CRUD group in its own
     # connection with a cooldown pause between groups.
     try:
+        capabilities = await _probe_device_capabilities(device_kwargs, diagnostics)
+
         if args.write:
             await _run_write_tests(
                 device_kwargs,
                 results,
+                capabilities=capabilities,
                 redact_stdout=args.redact_stdout,
             )
 
@@ -1736,6 +2052,7 @@ async def run_all(args: argparse.Namespace) -> None:
             await _run_read_tests(
                 device,
                 results,
+                capabilities=capabilities,
                 redact_stdout=args.redact_stdout,
             )
 
@@ -1744,7 +2061,7 @@ async def run_all(args: argparse.Namespace) -> None:
                 print("  Use --write to test:")
                 print("    - add/modify/delete user")
                 print("    - add/modify/delete schedule")
-                print("    - trigger relay (auto-close, 1s)")
+                print("    - trigger relay (device-side default close timer)")
                 print("  ⚠ Write tests WILL create and delete test data")
 
     except AkuvoxConnectionError as exc:
@@ -1764,6 +2081,28 @@ async def run_all(args: argparse.Namespace) -> None:
         report_path = Path(args.json_report)
         diagnostics.write_json(report_path)
         print(f"\n  JSON report written: {report_path}")
+
+
+async def _probe_device_capabilities(
+    device_kwargs: dict[str, Any], diagnostics: DiagnosticReport
+) -> DeviceCapabilities:
+    """Open a short-lived connection, probe once, and return the profile.
+
+    The probe is the **only** capability discovery the script performs
+    (FR-019 / Decision 9). Subsequent connections opened by
+    :func:`_run_write_tests` and :func:`_run_read_tests` reuse the
+    profile captured here rather than re-probing on every context entry.
+    """
+    print_header("CAPABILITY PROBE")
+    async with create_device(device_kwargs, diagnostics) as device:
+        capabilities = await device.probe_capabilities()
+    supported = len(capabilities.supported_set)
+    print(
+        f"  Device class: {capabilities.device_class} "
+        f"(firmware {capabilities.firmware_version})"
+    )
+    print(f"  Supported capabilities: {supported}")
+    return capabilities
 
 
 def main() -> None:
