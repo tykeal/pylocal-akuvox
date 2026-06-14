@@ -151,7 +151,12 @@ async def test_it83_routes_to_fcgi_do() -> None:
 
 
 async def test_it83_with_api_adapter_override_raises_capability_missing() -> None:
-    """IT83 + ``adapter=API`` raises ``capability_missing`` (zero requests)."""
+    """IT83 + ``adapter=API`` raises ``capability_missing``.
+
+    No relay-trigger request is issued; the only HTTP call in the
+    log is the unavoidable connect-time ``GET /api/system/info``
+    (asserted via ``len(m.requests) == 1`` below).
+    """
     with aioresponses() as m:
         register_default_info(m, payload=_IT83_INFO)
         async with AkuvoxDevice("192.168.1.100") as device:
