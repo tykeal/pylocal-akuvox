@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, Any
 
 from pylocal_akuvox._http import AkuvoxHttpClient
@@ -21,7 +22,11 @@ from pylocal_akuvox.capability_adapters import (
     RelayTriggerArgs,
 )
 from pylocal_akuvox.capability_probe import probe_capabilities as _probe_capabilities
-from pylocal_akuvox.exceptions import AkuvoxUnsupportedError, AkuvoxValidationError
+from pylocal_akuvox.exceptions import (
+    AkuvoxConnectionError,
+    AkuvoxUnsupportedError,
+    AkuvoxValidationError,
+)
 from pylocal_akuvox.models import DeviceInfo, DeviceStatus
 
 if TYPE_CHECKING:
@@ -142,7 +147,18 @@ class AkuvoxDevice:
         conservative-empty fallback) before any service call can run,
         so a ``None`` here means the integrator is calling a service
         method without ever entering the async context manager — a
-        usage error that should fail loudly.
+        lifecycle / usage error, not a capability-taxonomy condition.
+
+        Raises :class:`AkuvoxConnectionError` to mirror the behaviour
+        of :meth:`get_info` and the rest of the public surface when
+        the underlying HTTP session is not open. The structured
+        ``AkuvoxUnsupportedError`` taxonomy is reserved for genuine
+        capability outcomes (``device_unrecognized``,
+        ``capability_missing``, ``capability_unknown``,
+        ``adapter_missing``, ``envelope_unsupported``); collapsing a
+        lifecycle error into ``device_unrecognized`` would conflate
+        "no matrix entry matched" with "context manager never
+        entered".
         """
         if self._capabilities is None:
             msg = (
@@ -151,10 +167,7 @@ class AkuvoxDevice:
                 "enter the context manager before calling service "
                 "methods"
             )
-            raise AkuvoxUnsupportedError(
-                msg,
-                reason="device_unrecognized",
-            )
+            raise AkuvoxConnectionError(msg)
         return self._capabilities
 
     async def probe_capabilities(
@@ -207,15 +220,31 @@ class AkuvoxDevice:
         ``get_info()`` errors propagate (auth, parse, connection) so
         the integrator sees them at the ``async with`` boundary; the
         context manager has not "succeeded" if the device was not
-        reachable for capability discovery.
+        reachable for capability discovery. When discovery raises,
+        we close the HTTP session we just opened (``__aexit__`` is
+        not invoked for an aborting ``__aenter__``) before
+        re-raising so the underlying aiohttp connector is not
+        leaked.
         """
         await self._http.__aenter__()
-        info = await self.get_info()
-        self._info = info
-        profile = lookup_capabilities(info)
-        if profile is None:
-            profile = _conservative_empty_profile(info)
-        self._capabilities = profile
+        try:
+            info = await self.get_info()
+            self._info = info
+            profile = lookup_capabilities(info)
+            if profile is None:
+                profile = _conservative_empty_profile(info)
+            self._capabilities = profile
+        except BaseException:
+            # Discovery failed — tear down the HTTP session we just
+            # opened. ``__aexit__`` will not run because ``__aenter__``
+            # aborted, so without this the aiohttp session/connector
+            # would leak. Re-raise the original error so the
+            # integrator sees the discovery failure unchanged.
+            with contextlib.suppress(Exception):
+                await self._http.__aexit__(None, None, None)
+            self._info = None
+            self._capabilities = None
+            raise
         return self
 
     async def __aexit__(

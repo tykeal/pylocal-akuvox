@@ -1004,12 +1004,18 @@ async def test_trigger_relay_without_context_manager_raises() -> None:
     """Calling a service method before __aenter__ surfaces a clear error.
 
     Covers the defensive ``self._capabilities is None`` arm of
-    ``_require_capabilities``.
+    ``_require_capabilities``. Per Copilot review round 4, this is
+    a lifecycle / session-not-open error rather than a capability
+    outcome, so the helper raises :class:`AkuvoxConnectionError`
+    (mirroring the rest of the public surface when the HTTP
+    session is closed) instead of an
+    :class:`AkuvoxUnsupportedError` with the misleading
+    ``device_unrecognized`` reason.
     """
     device = AkuvoxDevice("192.168.1.100")
-    with pytest.raises(AkuvoxUnsupportedError) as exc_info:
+    with pytest.raises(AkuvoxConnectionError) as exc_info:
         await device.trigger_relay(num=1)
-    assert exc_info.value.reason == "device_unrecognized"
+    assert "context manager" in str(exc_info.value)
 
 
 async def test_default_dispatch_all_unsupported_raises_capability_missing() -> None:
@@ -1105,3 +1111,26 @@ async def test_trigger_relay_rejects_non_relay_adapter_override() -> None:
                 await device.trigger_relay(num=1, adapter=Capability.USER_ADD)
         assert "relay-trigger variant" in str(exc_info.value)
         assert "user.add" in str(exc_info.value)
+
+
+async def test_aenter_closes_session_when_discovery_fails() -> None:
+    """If discovery raises inside ``__aenter__``, the HTTP session is closed.
+
+    Per Copilot review round 4: ``_http.__aenter__()`` ran
+    successfully, then ``get_info()`` raises (e.g. parse error on
+    a malformed payload). ``__aexit__`` will not be invoked for an
+    aborting ``__aenter__``, so without an internal try/except the
+    aiohttp session and connector would leak. Assert that the
+    underlying session is closed and that cached state is reset
+    after the failed connect.
+    """
+    device = AkuvoxDevice("192.168.1.100")
+    with aioresponses() as m:
+        # Malformed envelope -> AkuvoxParseError inside get_info().
+        m.get(f"{BASE_URL}/api/system/info", payload={"unexpected": "shape"})
+        with pytest.raises(AkuvoxParseError):
+            await device.__aenter__()
+    # Session must be torn down; cached state must be cleared.
+    assert device._http._session is None
+    assert device._info is None
+    assert device._capabilities is None
