@@ -1411,3 +1411,75 @@ async def test_modify_user_service_function_empty_write_aliases_raises() -> None
                     schedule_relay="2002-2",
                     field_aliases=bad_aliases,
                 )
+
+
+# -- Copilot review round 2: service-side empty-read fallback --
+
+
+async def test_modify_user_empty_read_aliases_strips_default_legacy_keys() -> None:
+    """``modify_user`` strips default read aliases when ``read`` is empty.
+
+    Mirrors the empty-``read`` parser fallback that Copilot caught
+    in round 1: a degenerate capability record with empty ``read``
+    must NOT leave the stale ``Schedule`` key in the merged record
+    on the unset path. The service helper now falls back to
+    ``DEFAULT_USER_FIELD_ALIASES.read`` for the strip union when
+    ``field_aliases.read`` is empty (Copilot review round 2,
+    ``users._resolve_alias_lists``).
+    """
+    from pylocal_akuvox import users as users_svc
+    from pylocal_akuvox._http import AkuvoxHttpClient
+    from pylocal_akuvox.capabilities import FieldAliases
+
+    bad_aliases = FieldAliases(
+        # Empty read tuple — would prevent ``Schedule`` from being
+        # stripped if not for the fallback.
+        read=(),
+        write=("ScheduleRelay", "Schedule-Relay"),
+    )
+
+    get_with_stale_schedule = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {
+            "num": 1,
+            "item": [
+                {
+                    "ID": "1",
+                    "Name": "Alice",
+                    "UserID": "2001",
+                    "WebRelay": "0",
+                    "Schedule": "STALE",
+                    "ScheduleRelay": "1001-1",
+                    "Schedule-Relay": "1001-1",
+                    "LiftFloorNum": "0",
+                    "PrivatePIN": "",
+                    "CardCode": "",
+                },
+            ],
+        },
+    }
+
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=get_with_stale_schedule)
+        m.post(f"{BASE_URL}/api/user/set", payload=_SET_OK_RESPONSE)
+        async with AkuvoxHttpClient("192.168.1.100") as http:
+            await users_svc.modify_user(
+                http,
+                id="1",
+                name="Renamed",  # only Name update; schedule_relay omitted
+                field_aliases=bad_aliases,
+            )
+
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+        post_calls = m.requests.get(url_key, [])
+        assert len(post_calls) == 1
+        sent = post_calls[0].kwargs.get("json")
+        sent_item = sent["data"]["item"][0]
+        # The whole point of the fallback: ``Schedule`` must be
+        # stripped even though the supplied ``read`` tuple was empty.
+        assert "Schedule" not in sent_item
+        assert "ScheduleRelay" not in sent_item
+        assert "Schedule-Relay" not in sent_item
+        assert sent_item["Name"] == "Renamed"

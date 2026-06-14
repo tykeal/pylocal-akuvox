@@ -57,7 +57,7 @@ async def list_contacts(
     ``capabilities`` is threaded to each
     :meth:`Contact.from_api_response` call so the parser can choose
     between door-phone and apartment-book parse paths via
-    ``capabilities.schema_shapes.get("contact", DOOR_PHONE)``
+    ``capabilities.schema_shapes.get("contact", SchemaShape.DOOR_PHONE)``
     (FR-015). The default ``None`` falls through to the door-phone
     branch, preserving byte-identical behaviour for direct callers
     (FR-016 / SC-008).

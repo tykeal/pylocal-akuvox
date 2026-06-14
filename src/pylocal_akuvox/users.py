@@ -211,6 +211,22 @@ def _resolve_alias_lists(
         if field_aliases is not None
         else DEFAULT_USER_FIELD_ALIASES.read
     )
+    # Mirror ``User.from_api_response``'s empty-``read`` fallback
+    # (Copilot round 1 in ``models/users.py``; round 2 caught the
+    # corresponding gap here): a capability record whose ``read``
+    # tuple is empty would otherwise leave ``all_aliases`` without
+    # the legacy ``Schedule`` key — and ``modify_user(...,
+    # schedule_relay=None)`` would silently fail to strip the
+    # stale read-only alias returned by X915S current FW. Fall
+    # back to the default read chain so degenerate matrix data
+    # still produces the documented "omit schedule keys when
+    # unset" behaviour. ``write`` is intentionally NOT
+    # back-filled — an empty ``write`` already triggers an
+    # eager ``AkuvoxValidationError`` in ``modify_user`` whenever
+    # ``schedule_relay`` is supplied, and a pure no-op merge
+    # (``schedule_relay=None``) genuinely wants no writes.
+    if not read_aliases:
+        read_aliases = DEFAULT_USER_FIELD_ALIASES.read
     all_aliases = list(read_aliases) + [
         alias for alias in write_aliases if alias not in read_aliases
     ]
@@ -265,9 +281,23 @@ async def modify_user(
     ``field_aliases.write`` (defaulting to
     :data:`pylocal_akuvox.capabilities.DEFAULT_USER_FIELD_ALIASES`,
     which mirrors today's hardcoded
-    ``("ScheduleRelay", "Schedule-Relay")`` dual-write). When unset,
-    every name in the same write list is removed from the merged
-    record to avoid conflicting values across firmwares.
+    ``("ScheduleRelay", "Schedule-Relay")`` dual-write). On both
+    the set and the unset paths, every name in the **read+write
+    union** is first stripped from the merged record (so a stale
+    read-only alias such as ``Schedule`` returned by X915S current
+    FW cannot survive the round-trip and re-emerge on the next
+    read); on the set path, the write aliases are then re-populated
+    with the new value. The unset path therefore removes every
+    known alias (read and write) — not just the write list — to
+    avoid conflicting values across firmwares.
+
+    An empty ``write`` tuple combined with a supplied
+    ``schedule_relay`` raises ``AkuvoxValidationError`` (the loop
+    would otherwise silently drop the schedule key). An empty
+    ``read`` tuple falls back to
+    :data:`DEFAULT_USER_FIELD_ALIASES.read` for the strip union so
+    degenerate matrix data still strips the legacy ``Schedule``
+    key.
 
     Service-module functions stay capability-unaware: this function
     does **not** consult any global capability matrix or
