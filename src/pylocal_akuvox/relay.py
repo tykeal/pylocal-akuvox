@@ -15,6 +15,41 @@ if TYPE_CHECKING:
 _MAX_DELAY = 65535
 
 
+def _validate_relay_trigger_args(
+    *,
+    num: int,
+    mode: int,
+    level: int,
+    delay: int,
+) -> None:
+    """Shared input validation for relay-trigger arguments.
+
+    Used by both the legacy free-function :func:`trigger_relay` (kept
+    for backward compatibility with callers using
+    ``AkuvoxHttpClient`` directly) and the capability-aware
+    :meth:`AkuvoxDevice.trigger_relay` adapter dispatch path. Raises
+    :class:`AkuvoxValidationError` on any out-of-range argument; never
+    issues a network request.
+    """
+    # ``isinstance(x, bool)`` rejection: ``bool`` is a subclass of
+    # ``int`` in Python, and silently accepting ``True``/``False``
+    # would let confusing bug-prone calls like
+    # ``trigger_relay(num=True)`` issue a real request with ``num=1``.
+    # Reject explicitly so the caller sees the type error here.
+    if isinstance(num, bool) or num < 1:
+        msg = "Relay number must be a positive integer"
+        raise AkuvoxValidationError(msg)
+    if isinstance(mode, bool) or mode not in (0, 1):
+        msg = "Mode must be 0 (Auto Close) or 1 (Manual)"
+        raise AkuvoxValidationError(msg)
+    if isinstance(level, bool) or level not in (0, 1):
+        msg = "Level must be 0 (NO-COM) or 1 (NC-COM)"
+        raise AkuvoxValidationError(msg)
+    if isinstance(delay, bool) or delay < 0 or delay > _MAX_DELAY:
+        msg = f"Delay must be 0-{_MAX_DELAY} seconds"
+        raise AkuvoxValidationError(msg)
+
+
 async def trigger_relay(
     http: AkuvoxHttpClient,
     *,
@@ -33,18 +68,7 @@ async def trigger_relay(
         delay: Close delay in seconds (0-65535).
 
     """
-    if num < 1:
-        msg = "Relay number must be a positive integer"
-        raise AkuvoxValidationError(msg)
-    if mode not in (0, 1):
-        msg = "Mode must be 0 (Auto Close) or 1 (Manual)"
-        raise AkuvoxValidationError(msg)
-    if level not in (0, 1):
-        msg = "Level must be 0 (NO-COM) or 1 (NC-COM)"
-        raise AkuvoxValidationError(msg)
-    if delay < 0 or delay > _MAX_DELAY:
-        msg = f"Delay must be 0-{_MAX_DELAY} seconds"
-        raise AkuvoxValidationError(msg)
+    _validate_relay_trigger_args(num=num, mode=mode, level=level, delay=delay)
 
     payload: dict[str, Any] = {
         "num": num,

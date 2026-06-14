@@ -12,6 +12,7 @@ from pylocal_akuvox.exceptions import (
     AkuvoxValidationError,
 )
 from pylocal_akuvox.users import validate_pin, validate_schedule_relay
+from tests.unit._helpers import register_default_info
 
 BASE_URL = "http://192.168.1.100"
 
@@ -162,6 +163,7 @@ def test_validate_schedule_relay_invalid_format() -> None:
 async def test_add_user_posts_to_correct_endpoint() -> None:
     """Verify add_user POSTs to /api/user/set with required fields."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/user/set",
             payload={
@@ -196,6 +198,7 @@ async def test_add_user_posts_to_correct_endpoint() -> None:
 async def test_add_user_emits_dual_primary_relay_schedule_keys() -> None:
     """Verify add_user emits both primary schedule field names."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/user/set",
             payload={
@@ -225,6 +228,7 @@ async def test_add_user_emits_dual_primary_relay_schedule_keys() -> None:
 async def test_add_user_does_not_introduce_secondary_relay_keys() -> None:
     """Verify add_user does not emit secondary schedule fields."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/user/set",
             payload={
@@ -254,6 +258,7 @@ async def test_add_user_does_not_introduce_secondary_relay_keys() -> None:
 async def test_add_user_with_pin() -> None:
     """Verify add_user includes optional PIN in payload."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/user/set",
             payload={
@@ -276,47 +281,54 @@ async def test_add_user_with_pin() -> None:
 
 async def test_add_user_invalid_pin_raises_validation_error() -> None:
     """Verify add_user with invalid PIN raises AkuvoxValidationError."""
-    async with AkuvoxDevice("192.168.1.100") as device:
-        with pytest.raises(AkuvoxValidationError, match="4.*8 digits"):
-            await device.add_user(
-                name="Alice",
-                user_id="2001",
-                private_pin="12ab",
-                web_relay="0",
-                schedule_relay="1001-1",
-                lift_floor_num="0",
-            )
+    with aioresponses() as m:
+        register_default_info(m)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxValidationError, match="4.*8 digits"):
+                await device.add_user(
+                    name="Alice",
+                    user_id="2001",
+                    private_pin="12ab",
+                    web_relay="0",
+                    schedule_relay="1001-1",
+                    lift_floor_num="0",
+                )
 
 
 async def test_add_user_invalid_schedule_relay_raises() -> None:
     """Verify add_user with invalid schedule_relay raises."""
-    async with AkuvoxDevice("192.168.1.100") as device:
-        with pytest.raises(AkuvoxValidationError, match="schedule_relay"):
-            await device.add_user(
-                name="Alice",
-                user_id="2001",
-                web_relay="0",
-                schedule_relay="bad-format",
-                lift_floor_num="0",
-            )
+    with aioresponses() as m:
+        register_default_info(m)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxValidationError, match="schedule_relay"):
+                await device.add_user(
+                    name="Alice",
+                    user_id="2001",
+                    web_relay="0",
+                    schedule_relay="bad-format",
+                    lift_floor_num="0",
+                )
 
 
 async def test_add_user_empty_schedule_relay_raises() -> None:
     """Verify add_user rejects empty schedule_relay (required field)."""
-    async with AkuvoxDevice("192.168.1.100") as device:
-        with pytest.raises(AkuvoxValidationError, match="schedule_relay"):
-            await device.add_user(
-                name="Alice",
-                user_id="2001",
-                web_relay="0",
-                schedule_relay="",
-                lift_floor_num="0",
-            )
+    with aioresponses() as m:
+        register_default_info(m)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxValidationError, match="schedule_relay"):
+                await device.add_user(
+                    name="Alice",
+                    user_id="2001",
+                    web_relay="0",
+                    schedule_relay="",
+                    lift_floor_num="0",
+                )
 
 
 async def test_modify_user_empty_pin_omitted() -> None:
     """Verify modify_user normalizes empty string PIN to None (omit)."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
         m.post(
             f"{BASE_URL}/api/user/set",
@@ -340,6 +352,7 @@ async def test_modify_user_empty_pin_omitted() -> None:
 async def test_list_users_posts_to_correct_endpoint() -> None:
     """Verify list_users GETs from /api/user/get and returns User list."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/user/get",
             payload={
@@ -386,6 +399,7 @@ async def test_list_users_posts_to_correct_endpoint() -> None:
 async def test_list_users_paginated() -> None:
     """Verify list_users with page parameter sends page as query param."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/user/get?page=1",
             payload={
@@ -419,6 +433,7 @@ async def test_list_users_paginated() -> None:
 async def test_list_users_empty_returns_empty_list() -> None:
     """Verify list_users with no users returns empty list."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/user/get",
             payload={
@@ -441,6 +456,7 @@ async def test_list_users_empty_returns_empty_list() -> None:
 async def test_modify_user_posts_to_correct_endpoint() -> None:
     """Verify modify_user fetches user then POSTs to /api/user/set."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
         m.post(
             f"{BASE_URL}/api/user/set",
@@ -453,6 +469,7 @@ async def test_modify_user_posts_to_correct_endpoint() -> None:
 async def test_modify_user_emits_dual_primary_relay_schedule_keys() -> None:
     """Verify modify_user emits both primary schedule field names."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
         m.post(
             f"{BASE_URL}/api/user/set",
@@ -472,6 +489,7 @@ async def test_modify_user_emits_dual_primary_relay_schedule_keys() -> None:
 async def test_modify_user_omits_primary_schedule_keys_when_unset() -> None:
     """Verify modify_user omits primary schedule fields when unset."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
         m.post(
             f"{BASE_URL}/api/user/set",
@@ -513,6 +531,7 @@ async def test_modify_user_keeps_secondary_relay_single_key() -> None:
     }
 
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/user/get?page=1", payload=response)
         m.post(
             f"{BASE_URL}/api/user/set",
@@ -531,14 +550,17 @@ async def test_modify_user_keeps_secondary_relay_single_key() -> None:
 
 async def test_modify_user_invalid_pin_raises() -> None:
     """Verify modify_user with invalid PIN raises AkuvoxValidationError."""
-    async with AkuvoxDevice("192.168.1.100") as device:
-        with pytest.raises(AkuvoxValidationError, match="4.*8 digits"):
-            await device.modify_user(id="1", private_pin="bad")
+    with aioresponses() as m:
+        register_default_info(m)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxValidationError, match="4.*8 digits"):
+                await device.modify_user(id="1", private_pin="bad")
 
 
 async def test_delete_user_posts_to_correct_endpoint() -> None:
     """Verify delete_user POSTs to /api/user/set with ID."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/user/set",
             payload={
@@ -557,6 +579,7 @@ async def test_add_user_duplicate_returns_device_error() -> None:
     from pylocal_akuvox.exceptions import AkuvoxDeviceError
 
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/user/set",
             payload={
@@ -580,6 +603,7 @@ async def test_add_user_duplicate_returns_device_error() -> None:
 async def test_add_user_with_card_code() -> None:
     """Verify add_user includes card_code in payload."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/user/set",
             payload={
@@ -603,6 +627,7 @@ async def test_add_user_with_card_code() -> None:
 async def test_list_users_non_list_items_returns_empty() -> None:
     """Verify list_users returns empty list if items is not a list."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/user/get",
             payload={
@@ -621,6 +646,7 @@ async def test_list_users_non_list_items_returns_empty() -> None:
 async def test_modify_user_all_fields() -> None:
     """Verify modify_user sends all optional fields when provided."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
         m.post(
             f"{BASE_URL}/api/user/set",
@@ -642,6 +668,7 @@ async def test_modify_user_all_fields() -> None:
 async def test_modify_user_without_pin() -> None:
     """Verify modify_user works without private_pin."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
         m.post(
             f"{BASE_URL}/api/user/set",
@@ -660,6 +687,7 @@ async def test_modify_user_not_found_raises() -> None:
     from pylocal_akuvox.exceptions import AkuvoxDeviceError
 
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
         m.get(f"{BASE_URL}/api/user/get?page=2", payload=_EMPTY_PAGE_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
@@ -678,6 +706,7 @@ async def test_modify_user_malformed_item_raises() -> None:
         "data": {"num": 0, "item": "not-a-list"},
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/user/get?page=1", payload=bad_response)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxDeviceError, match="not found"):
@@ -686,33 +715,38 @@ async def test_modify_user_malformed_item_raises() -> None:
 
 async def test_add_user_empty_name_raises() -> None:
     """Verify add_user rejects empty name (required field)."""
-    async with AkuvoxDevice("192.168.1.100") as device:
-        with pytest.raises(AkuvoxValidationError, match="name"):
-            await device.add_user(
-                name="",
-                user_id="2001",
-                web_relay="0",
-                schedule_relay="1001-1",
-                lift_floor_num="0",
-            )
+    with aioresponses() as m:
+        register_default_info(m)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxValidationError, match="name"):
+                await device.add_user(
+                    name="",
+                    user_id="2001",
+                    web_relay="0",
+                    schedule_relay="1001-1",
+                    lift_floor_num="0",
+                )
 
 
 async def test_add_user_empty_user_id_raises() -> None:
     """Verify add_user rejects empty user_id (required field)."""
-    async with AkuvoxDevice("192.168.1.100") as device:
-        with pytest.raises(AkuvoxValidationError, match="user_id"):
-            await device.add_user(
-                name="Alice",
-                user_id="",
-                web_relay="0",
-                schedule_relay="1001-1",
-                lift_floor_num="0",
-            )
+    with aioresponses() as m:
+        register_default_info(m)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxValidationError, match="user_id"):
+                await device.add_user(
+                    name="Alice",
+                    user_id="",
+                    web_relay="0",
+                    schedule_relay="1001-1",
+                    lift_floor_num="0",
+                )
 
 
 async def test_add_user_without_web_relay() -> None:
     """Verify add_user omits WebRelay when not provided."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/user/set",
             payload={
@@ -743,6 +777,7 @@ async def test_add_user_without_web_relay() -> None:
 async def test_list_users_non_dict_items_skipped() -> None:
     """Verify list_users skips non-dict items in the response."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/user/get",
             payload={

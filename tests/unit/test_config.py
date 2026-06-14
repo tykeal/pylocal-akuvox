@@ -16,6 +16,7 @@ from pylocal_akuvox.exceptions import (
     AkuvoxValidationError,
 )
 from pylocal_akuvox.models import DeviceConfig
+from tests.unit._helpers import register_default_info
 
 # -- T004: get_device_config() function tests --
 
@@ -37,6 +38,7 @@ _CONFIG_RESPONSE = {
 async def test_get_device_config_returns_device_config() -> None:
     """Verify get_device_config returns a DeviceConfig with all keys."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/config/get", payload=_CONFIG_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             cfg = await device.get_device_config()
@@ -56,6 +58,7 @@ async def test_get_device_config_device_error() -> None:
         "data": {},
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/config/get", payload=error_response)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxDeviceError, match="Failed"):
@@ -65,6 +68,7 @@ async def test_get_device_config_device_error() -> None:
 async def test_get_device_config_connection_error() -> None:
     """Verify connection failure raises AkuvoxConnectionError."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/config/get",
             exception=aiohttp.ClientConnectionError("refused"),
@@ -87,6 +91,7 @@ _SET_SUCCESS_RESPONSE = {
 async def test_set_device_config_single_key() -> None:
     """Verify set_device_config sends correct envelope for one key."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.set_device_config({"Config.DoorSetting.RELAY.HoldDelayA": "8"})
@@ -105,6 +110,7 @@ async def test_set_device_config_multiple_keys() -> None:
         "Config.DoorSetting.RELAY.NameA": "Front Door",
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.set_device_config(settings)
@@ -117,6 +123,7 @@ async def test_set_device_config_multiple_keys() -> None:
 async def test_set_device_config_empty_dict_raises() -> None:
     """Verify empty settings dict raises AkuvoxValidationError."""
     with aioresponses() as m:
+        register_default_info(m)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="at least one"):
                 await device.set_device_config({})
@@ -133,6 +140,7 @@ async def test_set_device_config_device_error() -> None:
         "data": {},
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.post(f"{BASE_URL}/api/config/set", payload=error_response)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxDeviceError, match="set failed"):
@@ -144,6 +152,7 @@ async def test_set_device_config_device_error() -> None:
 async def test_set_device_config_connection_error() -> None:
     """Verify connection failure raises AkuvoxConnectionError."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/config/set",
             exception=aiohttp.ClientConnectionError("refused"),

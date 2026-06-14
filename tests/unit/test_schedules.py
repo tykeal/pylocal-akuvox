@@ -21,6 +21,7 @@ from pylocal_akuvox.schedules import (
     validate_time,
     validate_week,
 )
+from tests.unit._helpers import register_default_info
 
 BASE_URL = "http://192.168.1.100"
 
@@ -274,6 +275,7 @@ def test_validate_daily_invalid_chars() -> None:
 async def test_add_schedule_posts_correct_endpoint() -> None:
     """Verify add_schedule POSTs to /api/schedule/set."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(f"{BASE_URL}/api/schedule/set", payload=_ADD_OK_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.add_schedule(
@@ -303,6 +305,7 @@ async def test_add_schedule_posts_correct_endpoint() -> None:
 async def test_add_schedule_minimal() -> None:
     """Verify add_schedule with only required fields."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(f"{BASE_URL}/api/schedule/set", payload=_ADD_OK_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.add_schedule(schedule_type="0")
@@ -321,51 +324,57 @@ async def test_add_schedule_minimal() -> None:
 async def test_add_schedule_invalid_type_rejected() -> None:
     """Verify add_schedule rejects invalid schedule type."""
     with aioresponses() as m:
+        register_default_info(m)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="schedule_type"):
                 await device.add_schedule(schedule_type="9")
-        assert len(m.requests) == 0
+        assert len(m.requests) == 1  # only the connect-time /api/system/info call
 
 
 async def test_add_schedule_invalid_time_rejected() -> None:
     """Verify add_schedule rejects invalid time format."""
     with aioresponses() as m:
+        register_default_info(m)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="HH:MM"):
                 await device.add_schedule(schedule_type="1", time_start="9:00")
-        assert len(m.requests) == 0
+        assert len(m.requests) == 1  # only the connect-time /api/system/info call
 
 
 async def test_add_schedule_invalid_date_rejected() -> None:
     """Verify add_schedule rejects invalid date format."""
     with aioresponses() as m:
+        register_default_info(m)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="YYYYMMDD"):
                 await device.add_schedule(schedule_type="1", date_start="2026-01")
-        assert len(m.requests) == 0
+        assert len(m.requests) == 1  # only the connect-time /api/system/info call
 
 
 async def test_add_schedule_invalid_week_rejected() -> None:
     """Verify add_schedule rejects invalid week codes."""
     with aioresponses() as m:
+        register_default_info(m)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="digits 0-6"):
                 await device.add_schedule(schedule_type="1", week="789")
-        assert len(m.requests) == 0
+        assert len(m.requests) == 1  # only the connect-time /api/system/info call
 
 
 async def test_add_schedule_invalid_daily_rejected() -> None:
     """Verify add_schedule rejects invalid daily format."""
     with aioresponses() as m:
+        register_default_info(m)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="HH:MM-HH:MM"):
                 await device.add_schedule(schedule_type="1", daily="bad")
-        assert len(m.requests) == 0
+        assert len(m.requests) == 1  # only the connect-time /api/system/info call
 
 
 async def test_add_schedule_with_dates() -> None:
     """Verify add_schedule includes date fields in payload."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(f"{BASE_URL}/api/schedule/set", payload=_ADD_OK_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.add_schedule(
@@ -387,6 +396,7 @@ async def test_add_schedule_with_dates() -> None:
 async def test_add_schedule_with_daily() -> None:
     """Verify add_schedule includes daily field in payload."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(f"{BASE_URL}/api/schedule/set", payload=_ADD_OK_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.add_schedule(
@@ -409,6 +419,7 @@ async def test_add_schedule_with_daily() -> None:
 async def test_list_schedules_returns_items() -> None:
     """Verify list_schedules returns parsed AccessSchedule list."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/schedule/get", payload=_SCHEDULE_GET_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             schedules = await device.list_schedules()
@@ -423,6 +434,7 @@ async def test_list_schedules_returns_items() -> None:
 async def test_list_schedules_empty() -> None:
     """Verify list_schedules returns empty list when none exist."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(f"{BASE_URL}/api/schedule/get", payload=_EMPTY_PAGE_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             schedules = await device.list_schedules()
@@ -433,6 +445,7 @@ async def test_list_schedules_empty() -> None:
 async def test_list_schedules_with_page() -> None:
     """Verify list_schedules passes page parameter."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/schedule/get?page=2",
             payload=_SCHEDULE_GET_RESPONSE,
@@ -450,6 +463,7 @@ async def test_list_schedules_with_page() -> None:
 async def test_list_schedules_non_list_items() -> None:
     """Verify list_schedules returns empty on non-list items."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/schedule/get",
             payload={
@@ -468,6 +482,7 @@ async def test_list_schedules_non_list_items() -> None:
 async def test_list_schedules_device_error() -> None:
     """Verify list_schedules raises on device error."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/schedule/get",
             payload={
@@ -488,6 +503,7 @@ async def test_list_schedules_device_error() -> None:
 async def test_modify_schedule_read_modify_write() -> None:
     """Verify modify_schedule fetches, merges, and sends."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/schedule/get?page=1",
             payload=_SCHEDULE_GET_RESPONSE,
@@ -513,6 +529,7 @@ async def test_modify_schedule_read_modify_write() -> None:
 async def test_modify_schedule_not_found() -> None:
     """Verify modify_schedule raises when schedule ID is not found."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/schedule/get?page=1",
             payload=_EMPTY_PAGE_RESPONSE,
@@ -525,10 +542,11 @@ async def test_modify_schedule_not_found() -> None:
 async def test_modify_schedule_validates_type() -> None:
     """Verify modify_schedule validates schedule_type before fetch."""
     with aioresponses() as m:
+        register_default_info(m)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="schedule_type"):
                 await device.modify_schedule(id="1001", schedule_type="9")
-        assert len(m.requests) == 0
+        assert len(m.requests) == 1  # only the connect-time /api/system/info call
 
 
 async def test_modify_schedule_paginates_to_find() -> None:
@@ -549,6 +567,7 @@ async def test_modify_schedule_paginates_to_find() -> None:
         },
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/schedule/get?page=1",
             payload={
@@ -591,6 +610,7 @@ async def test_modify_schedule_paginates_to_find() -> None:
 async def test_modify_schedule_without_name() -> None:
     """Verify modify_schedule works without name (covers skip)."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/schedule/get?page=1",
             payload=_SCHEDULE_GET_RESPONSE,
@@ -612,6 +632,7 @@ async def test_modify_schedule_without_name() -> None:
 async def test_modify_schedule_all_merge_fields() -> None:
     """Verify modify_schedule merges all optional fields."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/schedule/get?page=1",
             payload=_SCHEDULE_GET_RESPONSE,
@@ -649,6 +670,7 @@ async def test_modify_schedule_all_merge_fields() -> None:
 async def test_delete_schedule_posts_correct_endpoint() -> None:
     """Verify delete_schedule POSTs to /api/schedule/set."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(f"{BASE_URL}/api/schedule/set", payload=_DEL_OK_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.delete_schedule(id="1001")
@@ -667,6 +689,7 @@ async def test_delete_schedule_posts_correct_endpoint() -> None:
 async def test_delete_schedule_device_error() -> None:
     """Verify delete_schedule raises on device error."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/schedule/set",
             payload={
@@ -717,6 +740,7 @@ def test_validate_day_flag_rejects_text() -> None:
 async def test_add_schedule_with_day_fields() -> None:
     """Verify add_schedule includes individual day fields in payload."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(f"{BASE_URL}/api/schedule/set", payload=_ADD_OK_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.add_schedule(
@@ -747,10 +771,11 @@ async def test_add_schedule_with_day_fields() -> None:
 async def test_add_schedule_invalid_day_flag_rejected() -> None:
     """Verify add_schedule rejects invalid day flag values."""
     with aioresponses() as m:
+        register_default_info(m)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="'0' or '1'"):
                 await device.add_schedule(schedule_type="1", mon="2")
-        assert len(m.requests) == 0
+        assert len(m.requests) == 1  # only the connect-time /api/system/info call
 
 
 # -- modify_schedule with day-of-week fields --
@@ -759,6 +784,7 @@ async def test_add_schedule_invalid_day_flag_rejected() -> None:
 async def test_modify_schedule_with_day_fields() -> None:
     """Verify modify_schedule merges individual day fields."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/schedule/get?page=1",
             payload=_SCHEDULE_GET_RESPONSE,
@@ -785,10 +811,11 @@ async def test_modify_schedule_with_day_fields() -> None:
 async def test_modify_schedule_invalid_day_flag_rejected() -> None:
     """Verify modify_schedule rejects invalid day flag values."""
     with aioresponses() as m:
+        register_default_info(m)
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="'0' or '1'"):
                 await device.modify_schedule(id="1001", sat="bad")
-        assert len(m.requests) == 0
+        assert len(m.requests) == 1  # only the connect-time /api/system/info call
 
 
 # -- Day flag empty-string normalization --
@@ -797,6 +824,7 @@ async def test_modify_schedule_invalid_day_flag_rejected() -> None:
 async def test_add_schedule_empty_day_flags_omitted() -> None:
     """Verify add_schedule normalizes empty day flags to None."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(f"{BASE_URL}/api/schedule/set", payload=_ADD_OK_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.add_schedule(
@@ -820,6 +848,7 @@ async def test_add_schedule_empty_day_flags_omitted() -> None:
 async def test_modify_schedule_empty_day_flags_omitted() -> None:
     """Verify modify_schedule normalizes empty day flags to None."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/schedule/get?page=1",
             payload=_SCHEDULE_GET_RESPONSE,
@@ -879,6 +908,7 @@ def test_expand_week_skipped_when_explicit_flags() -> None:
 async def test_add_schedule_week_auto_translates_day_flags() -> None:
     """Verify add_schedule with only week= sets day flags in payload."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(f"{BASE_URL}/api/schedule/set", payload=_ADD_OK_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.add_schedule(
@@ -908,6 +938,7 @@ async def test_add_schedule_week_auto_translates_day_flags() -> None:
 async def test_add_schedule_week_no_override_explicit_flags() -> None:
     """Verify week does not override explicitly provided day flags."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(f"{BASE_URL}/api/schedule/set", payload=_ADD_OK_RESPONSE)
         async with AkuvoxDevice("192.168.1.100") as device:
             await device.add_schedule(
@@ -934,6 +965,7 @@ async def test_add_schedule_week_no_override_explicit_flags() -> None:
 async def test_modify_schedule_week_auto_translates() -> None:
     """Verify modify_schedule with only week= sets day flags."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/schedule/get?page=1",
             payload=_SCHEDULE_GET_RESPONSE,

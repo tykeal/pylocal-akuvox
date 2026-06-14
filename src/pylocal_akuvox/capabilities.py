@@ -187,23 +187,59 @@ class DeviceCapabilities:
         translation in ``_http.py``. ``UNSUPPORTED`` always raises
         regardless of the ``allow_unknown`` flag.
 
-        Phase 1 raises message-only :class:`AkuvoxUnsupportedError`;
-        Phase 2 (T041 / T048) evolves the exception to carry structured
-        ``capability`` / ``device_class`` / ``reason`` kwargs.
+        Per ``contracts/unsupported-error.md`` §"Raise-site contract"
+        this raise populates the structured fields ``capability``,
+        ``device_class``, and ``reason`` on the resulting exception so
+        the integrator (and the closed-set
+        ``test_reason_taxonomy_closed`` audit) can observe which
+        capability gate fired and which three-valued status fired it.
         """
         status = self.status_of(capability)
         if status is CapabilityStatus.SUPPORTED:
             return
         if status is CapabilityStatus.UNSUPPORTED:
             msg = (
-                f"capability {capability.value} is not supported on {self.device_class}"
+                f"Device class {self.device_class} does not support {capability.value}"
             )
-            raise AkuvoxUnsupportedError(msg)
+            raise AkuvoxUnsupportedError(
+                msg,
+                capability=capability,
+                device_class=self.device_class,
+                reason="capability_missing",
+            )
         # status is UNKNOWN
         if allow_unknown:
             return
-        msg = f"capability {capability.value} has unknown status on {self.device_class}"
-        raise AkuvoxUnsupportedError(msg)
+        # Distinguish "device unrecognised" (no matrix entry, every
+        # capability is UNKNOWN) from "device recognised but this
+        # specific capability has UNKNOWN status". The discriminator
+        # is the presence of the ``device_not_in_matrix`` note that
+        # ``AkuvoxDevice.__aenter__`` writes on the conservative-empty
+        # fallback profile (see ``contracts/matrix-lookup.md``
+        # §"Connect-time integration").
+        if "device_not_in_matrix" in self.notes:
+            msg = (
+                f"Device {self.device_class} not in capability matrix; "
+                f"call device.probe_capabilities() to enumerate, or set "
+                f"device.attempt_unknown_capability=True to opt in"
+            )
+            raise AkuvoxUnsupportedError(
+                msg,
+                capability=capability,
+                device_class=self.device_class,
+                reason="device_unrecognized",
+            )
+        msg = (
+            f"Capability {capability.value} has unknown status on "
+            f"{self.device_class}; add a matrix entry or set "
+            f"device.attempt_unknown_capability=True to opt in"
+        )
+        raise AkuvoxUnsupportedError(
+            msg,
+            capability=capability,
+            device_class=self.device_class,
+            reason="capability_unknown",
+        )
 
     @property
     def supported_set(self) -> frozenset[Capability]:
@@ -369,4 +405,32 @@ __all__ = [
     "FieldAliases",
     "Provenance",
     "SchemaShape",
+    "lookup_capabilities",
 ]
+
+
+def lookup_capabilities(device_info: DeviceInfo) -> DeviceCapabilities | None:
+    """Return the first matching ``CAPABILITY_MATRIX`` entry, or ``None``.
+
+    Walks :data:`pylocal_akuvox.capability_matrix.CAPABILITY_MATRIX` in
+    declaration order (curated most-specific-first) and returns the
+    first ``DeviceCapabilities`` whose paired
+    :class:`DeviceClassPattern` matches ``device_info``. Returns
+    ``None`` for an unrecognised device — callers should fall back to
+    a conservative-empty profile and direct the integrator to
+    :meth:`AkuvoxDevice.probe_capabilities` (FR-013).
+
+    The :mod:`pylocal_akuvox.capability_matrix` module is imported
+    lazily inside the function body to avoid an import cycle: that
+    module imports the dataclasses defined here, so a top-level
+    import would form a cycle on first access.
+    """
+    # Lazy import to break the circular dependency between this
+    # module and ``capability_matrix`` (which imports our enums and
+    # dataclasses at module load).
+    from pylocal_akuvox.capability_matrix import CAPABILITY_MATRIX
+
+    for pattern, capabilities in CAPABILITY_MATRIX:
+        if pattern.matches(device_info):
+            return capabilities
+    return None

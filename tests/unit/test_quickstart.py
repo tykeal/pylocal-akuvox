@@ -12,6 +12,7 @@ from pylocal_akuvox import (
     AuthMethod,
 )
 from pylocal_akuvox.exceptions import AkuvoxValidationError
+from tests.unit._helpers import register_default_info
 
 _BASE = "http://192.168.1.100"
 
@@ -68,6 +69,7 @@ async def test_manage_users() -> None:
     ok = {"retcode": 1, "action": "add", "message": "OK", "data": {}}
 
     with aioresponses() as m:
+        register_default_info(m)
         m.post(f"{_BASE}/api/user/set", payload=ok)
         # list_users (no page param)
         m.get(f"{_BASE}/api/user/get", payload=user_page)
@@ -97,6 +99,7 @@ async def test_manage_users() -> None:
 async def test_trigger_relay() -> None:
     """SC-009: trigger relay with ≤1s confirmation."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{_BASE}/api/relay/trig",
             payload={
@@ -113,6 +116,7 @@ async def test_trigger_relay() -> None:
 async def test_get_status() -> None:
     """Retrieve device status."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{_BASE}/api/system/status",
             payload={
@@ -130,6 +134,7 @@ async def test_get_status() -> None:
 async def test_manage_schedules() -> None:
     """SC-010: schedule CRUD in ≤10 lines."""
     with aioresponses() as m:
+        register_default_info(m)
         # add_schedule
         m.post(
             f"{_BASE}/api/schedule/set",
@@ -181,6 +186,7 @@ async def test_manage_schedules() -> None:
 async def test_retrieve_logs() -> None:
     """SC-008: structured log retrieval."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{_BASE}/api/doorlog/get",
             payload={
@@ -265,13 +271,15 @@ async def test_auth_modes() -> None:
 
 async def test_error_handling_validation() -> None:
     """SC-002: validation errors raised for invalid input."""
-    async with AkuvoxDevice("192.168.1.100") as device:
-        with pytest.raises(AkuvoxValidationError, match="4.*8 digits"):
-            await device.add_user(
-                name="Bob",
-                user_id="2002",
-                private_pin="12ab",
-                web_relay="0",
-                schedule_relay="1001-1",
-                lift_floor_num="0",
-            )
+    with aioresponses() as m:
+        register_default_info(m)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxValidationError, match="4.*8 digits"):
+                await device.add_user(
+                    name="Bob",
+                    user_id="2002",
+                    private_pin="12ab",
+                    web_relay="0",
+                    schedule_relay="1001-1",
+                    lift_floor_num="0",
+                )

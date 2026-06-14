@@ -12,6 +12,7 @@ from pylocal_akuvox.exceptions import (
     AkuvoxParseError,
     AkuvoxValidationError,
 )
+from tests.unit._helpers import register_default_info
 
 BASE_URL = "http://192.168.1.100"
 
@@ -92,6 +93,7 @@ _DEVICE_ERROR_RESPONSE: dict[str, object] = {
 async def test_list_groups_populated() -> None:
     """Verify list_groups returns multiple Group objects."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/group/get",
             payload=_GROUP_GET_RESPONSE,
@@ -109,6 +111,7 @@ async def test_list_groups_populated() -> None:
 async def test_list_groups_empty() -> None:
     """Verify empty item list returns empty collection."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/group/get",
             payload=_GROUP_EMPTY_RESPONSE,
@@ -122,6 +125,7 @@ async def test_list_groups_empty() -> None:
 async def test_list_groups_paginated() -> None:
     """Verify page parameter is passed to request."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/group/get?page=2",
             payload=_GROUP_SINGLE_RESPONSE,
@@ -141,6 +145,7 @@ async def test_list_groups_malformed_missing_name_raises() -> None:
         "data": {"num": 1, "item": [{"ID": "1"}]},
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/group/get",
             payload=bad_response,
@@ -160,6 +165,7 @@ async def test_list_groups_non_list_item_returns_empty() -> None:
         "data": {"num": 0, "item": "not-a-list"},
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/group/get",
             payload=bad_response,
@@ -173,6 +179,7 @@ async def test_list_groups_non_list_item_returns_empty() -> None:
 async def test_list_groups_single() -> None:
     """Verify single group response parsed correctly."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/group/get",
             payload=_GROUP_SINGLE_RESPONSE,
@@ -190,6 +197,7 @@ async def test_list_groups_single() -> None:
 async def test_add_group_success() -> None:
     """Verify add_group sends correct envelope to /api/group/add."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/group/add",
             payload=_MUTATION_OK_RESPONSE,
@@ -206,23 +214,27 @@ async def test_add_group_success() -> None:
 @pytest.mark.asyncio
 async def test_add_group_empty_name_raises() -> None:
     """Verify empty name raises AkuvoxValidationError."""
-    async with AkuvoxDevice("192.168.1.100") as device:
-        with pytest.raises(
-            AkuvoxValidationError,
-            match="name is required",
-        ):
-            await device.add_group(name="")
+    with aioresponses() as m:
+        register_default_info(m)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(
+                AkuvoxValidationError,
+                match="name is required",
+            ):
+                await device.add_group(name="")
 
 
 @pytest.mark.asyncio
 async def test_add_group_none_name_raises() -> None:
     """Verify None name raises AkuvoxValidationError."""
-    async with AkuvoxDevice("192.168.1.100") as device:
-        with pytest.raises(
-            AkuvoxValidationError,
-            match="name is required",
-        ):
-            await device.add_group(name=None)  # type: ignore[arg-type]
+    with aioresponses() as m:
+        register_default_info(m)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(
+                AkuvoxValidationError,
+                match="name is required",
+            ):
+                await device.add_group(name=None)  # type: ignore[arg-type]
 
 
 # -- T015: modify_group tests --
@@ -232,6 +244,7 @@ async def test_add_group_none_name_raises() -> None:
 async def test_modify_group_success() -> None:
     """Verify modify_group sends ID+Name to /api/group/set."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/group/set",
             payload=_SET_OK_RESPONSE,
@@ -248,26 +261,30 @@ async def test_modify_group_success() -> None:
 @pytest.mark.asyncio
 async def test_modify_group_empty_name_raises() -> None:
     """Verify empty name raises AkuvoxValidationError."""
-    async with AkuvoxDevice("192.168.1.100") as device:
-        with pytest.raises(
-            AkuvoxValidationError,
-            match="name is required",
-        ):
-            await device.modify_group(id="1", name="")
+    with aioresponses() as m:
+        register_default_info(m)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(
+                AkuvoxValidationError,
+                match="name is required",
+            ):
+                await device.modify_group(id="1", name="")
 
 
 @pytest.mark.asyncio
 async def test_modify_group_none_name_raises() -> None:
     """Verify None name raises AkuvoxValidationError."""
-    async with AkuvoxDevice("192.168.1.100") as device:
-        with pytest.raises(
-            AkuvoxValidationError,
-            match="name is required",
-        ):
-            await device.modify_group(
-                id="1",
-                name=None,  # type: ignore[arg-type]
-            )
+    with aioresponses() as m:
+        register_default_info(m)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(
+                AkuvoxValidationError,
+                match="name is required",
+            ):
+                await device.modify_group(
+                    id="1",
+                    name=None,  # type: ignore[arg-type]
+                )
 
 
 # -- T019: delete_group tests --
@@ -277,6 +294,7 @@ async def test_modify_group_none_name_raises() -> None:
 async def test_delete_group_success() -> None:
     """Verify delete_group sends ID to /api/group/del."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/group/del",
             payload=_DEL_OK_RESPONSE,
@@ -300,6 +318,7 @@ async def test_delete_group_idempotent() -> None:
         "data": {"num": 1, "item": [{"ID": "999", "Ret": 0}]},
     }
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/group/del",
             payload=idempotent_response,
@@ -315,6 +334,7 @@ async def test_delete_group_idempotent() -> None:
 async def test_facade_list_groups_delegates() -> None:
     """Verify device.list_groups delegates to groups module."""
     with aioresponses() as m:
+        register_default_info(m)
         m.get(
             f"{BASE_URL}/api/group/get",
             payload=_GROUP_EMPTY_RESPONSE,
@@ -328,6 +348,7 @@ async def test_facade_list_groups_delegates() -> None:
 async def test_facade_add_group_delegates() -> None:
     """Verify device.add_group delegates to groups module."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/group/add",
             payload=_MUTATION_OK_RESPONSE,
@@ -340,6 +361,7 @@ async def test_facade_add_group_delegates() -> None:
 async def test_facade_modify_group_delegates() -> None:
     """Verify device.modify_group delegates to groups module."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/group/set",
             payload=_SET_OK_RESPONSE,
@@ -352,6 +374,7 @@ async def test_facade_modify_group_delegates() -> None:
 async def test_facade_delete_group_delegates() -> None:
     """Verify device.delete_group delegates to groups module."""
     with aioresponses() as m:
+        register_default_info(m)
         m.post(
             f"{BASE_URL}/api/group/del",
             payload=_DEL_OK_RESPONSE,
