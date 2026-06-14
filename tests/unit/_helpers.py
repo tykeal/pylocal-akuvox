@@ -22,6 +22,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from aiohttp.client import URL
+
 if TYPE_CHECKING:
     from aioresponses import aioresponses
 
@@ -91,5 +93,43 @@ def register_default_info(
 __all__ = [
     "BASE_URL",
     "DEFAULT_INFO_PAYLOAD",
+    "assert_only_connect_time_info",
     "register_default_info",
 ]
+
+
+def assert_only_connect_time_info(
+    m: aioresponses,
+    *,
+    base_url: str = BASE_URL,
+) -> None:
+    """Assert the request log contains exactly one connect-time info call.
+
+    ``aioresponses.requests`` is a ``Dict[(method, URL), List[RequestCall]]``,
+    so ``len(m.requests) == 1`` only proves that exactly one
+    distinct (method, URL) pair was touched — it does NOT prove
+    that pair was hit only once. A bug that issued
+    ``GET /api/system/info`` twice (e.g. ``__aenter__`` calling
+    discovery twice, or a service method accidentally re-issuing
+    the info call) would still pass that assertion.
+
+    This helper checks both halves:
+
+    * the only request key in the log is the connect-time
+      ``GET {base_url}/api/system/info``;
+    * that key was hit exactly once.
+
+    Used by gating tests that need to prove a capability check
+    short-circuited *before* any additional HTTP request was
+    issued (no relay-trigger call, no service request, no double
+    discovery).
+    """
+    key = ("GET", URL(f"{base_url}/api/system/info"))
+    keys = list(m.requests.keys())
+    assert keys == [key], (
+        f"expected only the connect-time info request; observed keys={keys}"
+    )
+    calls = m.requests[key]
+    assert len(calls) == 1, (
+        f"expected exactly one connect-time info call; observed {len(calls)}"
+    )

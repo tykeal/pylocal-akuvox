@@ -22,7 +22,7 @@ from pylocal_akuvox.exceptions import (
     AkuvoxUnsupportedError,
 )
 from pylocal_akuvox.models import DeviceInfo, DeviceStatus
-from tests.unit._helpers import register_default_info
+from tests.unit._helpers import assert_only_connect_time_info, register_default_info
 
 BASE_URL = "http://192.168.1.100"
 
@@ -714,7 +714,7 @@ async def test_connect_populates_capabilities(device_class: str) -> None:
             assert device.capabilities.provenance is not None
 
     # Exactly one GET to /api/system/info; ZERO list-endpoint requests.
-    assert len(m.requests) == 1
+    assert_only_connect_time_info(m)
     info_url_key = ("GET", aiohttp.client.URL(f"{BASE_URL}/api/system/info"))
     assert info_url_key in m.requests
 
@@ -769,7 +769,7 @@ async def test_unrecognised_device_installs_conservative_empty_profile() -> None
             }
 
     # Only the connect-time info call fired.
-    assert len(m.requests) == 1
+    assert_only_connect_time_info(m)
 
 
 # ---------------------------------------------------------------------------
@@ -843,7 +843,9 @@ async def test_unsupported_raises_before_request_x915s_add_contact() -> None:
 
     The connect-time ``GET /api/system/info`` is unavoidable; the
     capability gate prevents any *additional* request beyond that
-    discovery call (asserted via ``len(m.requests) == 1`` below).
+    discovery call (asserted via
+    :func:`assert_only_connect_time_info` below, which checks
+    both the request-key set and the per-key call count).
     """
     from pylocal_akuvox.capabilities import Capability
     from pylocal_akuvox.exceptions import AkuvoxUnsupportedError
@@ -859,7 +861,7 @@ async def test_unsupported_raises_before_request_x915s_add_contact() -> None:
         assert exc_info.value.reason == "capability_missing"
         assert exc_info.value.capability is Capability.CONTACT_ADD
         assert exc_info.value.device_class == "X915S"
-    assert len(m.requests) == 1  # only the connect-time info call
+    assert_only_connect_time_info(m)
 
 
 async def test_unsupported_raises_before_request_it83_relay_api() -> None:
@@ -878,7 +880,7 @@ async def test_unsupported_raises_before_request_it83_relay_api() -> None:
         assert exc_info.value.reason == "capability_missing"
         assert exc_info.value.capability is Capability.RELAY_TRIGGER_API
         assert exc_info.value.device_class == "IT83"
-    assert len(m.requests) == 1
+    assert_only_connect_time_info(m)
 
 
 async def test_unsupported_raises_before_request_it83_add_user() -> None:
@@ -902,7 +904,7 @@ async def test_unsupported_raises_before_request_it83_add_user() -> None:
         assert exc_info.value.reason == "capability_unknown"
         assert exc_info.value.capability is Capability.USER_ADD
         assert exc_info.value.device_class == "IT83"
-    assert len(m.requests) == 1
+    assert_only_connect_time_info(m)
 
 
 # ---------------------------------------------------------------------------
@@ -940,7 +942,7 @@ async def test_attempt_unknown_default_raises_for_unknown_capability() -> None:
                     lift_floor_num="0",
                 )
             assert exc_info.value.reason == "capability_unknown"
-    assert len(m.requests) == 1
+    assert_only_connect_time_info(m)
 
 
 async def test_attempt_unknown_true_lets_unknown_capability_through() -> None:
@@ -994,7 +996,7 @@ async def test_attempt_unknown_does_not_bypass_unsupported() -> None:
         assert exc_info.value.reason == "capability_missing"
         assert exc_info.value.capability is Capability.CONTACT_ADD
     # Only the connect-time info call.
-    assert len(m.requests) == 1
+    assert_only_connect_time_info(m)
 
 
 # --- Coverage: defensive paths ----------------------------------------------

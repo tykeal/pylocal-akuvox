@@ -21,7 +21,7 @@ from pylocal_akuvox.schedules import (
     validate_time,
     validate_week,
 )
-from tests.unit._helpers import register_default_info
+from tests.unit._helpers import assert_only_connect_time_info, register_default_info
 
 BASE_URL = "http://192.168.1.100"
 
@@ -328,7 +328,7 @@ async def test_add_schedule_invalid_type_rejected() -> None:
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="schedule_type"):
                 await device.add_schedule(schedule_type="9")
-        assert len(m.requests) == 1  # only the connect-time /api/system/info call
+        assert_only_connect_time_info(m)
 
 
 async def test_add_schedule_invalid_time_rejected() -> None:
@@ -338,7 +338,7 @@ async def test_add_schedule_invalid_time_rejected() -> None:
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="HH:MM"):
                 await device.add_schedule(schedule_type="1", time_start="9:00")
-        assert len(m.requests) == 1  # only the connect-time /api/system/info call
+        assert_only_connect_time_info(m)
 
 
 async def test_add_schedule_invalid_date_rejected() -> None:
@@ -348,7 +348,7 @@ async def test_add_schedule_invalid_date_rejected() -> None:
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="YYYYMMDD"):
                 await device.add_schedule(schedule_type="1", date_start="2026-01")
-        assert len(m.requests) == 1  # only the connect-time /api/system/info call
+        assert_only_connect_time_info(m)
 
 
 async def test_add_schedule_invalid_week_rejected() -> None:
@@ -358,7 +358,7 @@ async def test_add_schedule_invalid_week_rejected() -> None:
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="digits 0-6"):
                 await device.add_schedule(schedule_type="1", week="789")
-        assert len(m.requests) == 1  # only the connect-time /api/system/info call
+        assert_only_connect_time_info(m)
 
 
 async def test_add_schedule_invalid_daily_rejected() -> None:
@@ -368,7 +368,7 @@ async def test_add_schedule_invalid_daily_rejected() -> None:
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="HH:MM-HH:MM"):
                 await device.add_schedule(schedule_type="1", daily="bad")
-        assert len(m.requests) == 1  # only the connect-time /api/system/info call
+        assert_only_connect_time_info(m)
 
 
 async def test_add_schedule_with_dates() -> None:
@@ -546,7 +546,7 @@ async def test_modify_schedule_validates_type() -> None:
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="schedule_type"):
                 await device.modify_schedule(id="1001", schedule_type="9")
-        assert len(m.requests) == 1  # only the connect-time /api/system/info call
+        assert_only_connect_time_info(m)
 
 
 async def test_modify_schedule_paginates_to_find() -> None:
@@ -775,7 +775,7 @@ async def test_add_schedule_invalid_day_flag_rejected() -> None:
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="'0' or '1'"):
                 await device.add_schedule(schedule_type="1", mon="2")
-        assert len(m.requests) == 1  # only the connect-time /api/system/info call
+        assert_only_connect_time_info(m)
 
 
 # -- modify_schedule with day-of-week fields --
@@ -815,7 +815,7 @@ async def test_modify_schedule_invalid_day_flag_rejected() -> None:
         async with AkuvoxDevice("192.168.1.100") as device:
             with pytest.raises(AkuvoxValidationError, match="'0' or '1'"):
                 await device.modify_schedule(id="1001", sat="bad")
-        assert len(m.requests) == 1  # only the connect-time /api/system/info call
+        assert_only_connect_time_info(m)
 
 
 # -- Day flag empty-string normalization --

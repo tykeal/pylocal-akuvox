@@ -39,7 +39,11 @@ from pylocal_akuvox.exceptions import (
     AkuvoxUnsupportedError,
     AkuvoxValidationError,
 )
-from tests.unit._helpers import BASE_URL, register_default_info
+from tests.unit._helpers import (
+    BASE_URL,
+    assert_only_connect_time_info,
+    register_default_info,
+)
 
 _TRIG_OK = {"retcode": 1, "action": "trigRelay", "message": "OK", "data": {}}
 
@@ -155,7 +159,9 @@ async def test_it83_with_api_adapter_override_raises_capability_missing() -> Non
 
     No relay-trigger request is issued; the only HTTP call in the
     log is the unavoidable connect-time ``GET /api/system/info``
-    (asserted via ``len(m.requests) == 1`` below).
+    (asserted via :func:`assert_only_connect_time_info` below,
+    which checks both the request-key set and the per-key call
+    count).
     """
     with aioresponses() as m:
         register_default_info(m, payload=_IT83_INFO)
@@ -166,7 +172,7 @@ async def test_it83_with_api_adapter_override_raises_capability_missing() -> Non
         assert exc_info.value.capability is Capability.RELAY_TRIGGER_API
         assert exc_info.value.device_class == "IT83"
         # Only the connect-time /api/system/info call should be in the log.
-        assert len(m.requests) == 1
+        assert_only_connect_time_info(m)
 
 
 # --- X916 + adapter=FCGI → capability_unknown by default; opt-in proceeds -
@@ -181,7 +187,7 @@ async def test_x916_with_fcgi_adapter_default_raises_capability_unknown() -> Non
                 await device.trigger_relay(num=1, adapter=Capability.RELAY_TRIGGER_FCGI)
         assert exc_info.value.reason == "capability_unknown"
         assert exc_info.value.capability is Capability.RELAY_TRIGGER_FCGI
-        assert len(m.requests) == 1
+        assert_only_connect_time_info(m)
 
 
 async def test_x916_with_fcgi_adapter_and_attempt_unknown_dispatches() -> None:
@@ -218,7 +224,7 @@ async def test_fcgi_adapter_rejects_nonzero_extras(kwarg: str, value: int) -> No
                 kwargs: dict[str, Any] = {"num": 1, kwarg: value}
                 await device.trigger_relay(**kwargs)
         # No FCGI request was issued.
-        assert len(m.requests) == 1
+        assert_only_connect_time_info(m)
 
 
 # --- Unrecognised-device profile → capability_unknown ---------------------
@@ -248,7 +254,7 @@ async def test_unrecognised_device_trigger_relay_raises_capability_unknown() -> 
         # acceptable per matrix-lookup.md §"Connect-time integration"
         # note. Both indicate the same observable failure mode.
         assert exc_info.value.reason in {"capability_unknown", "device_unrecognized"}
-        assert len(m.requests) == 1
+        assert_only_connect_time_info(m)
 
 
 # --- adapter_missing simulation -----------------------------------------
@@ -274,7 +280,7 @@ async def test_adapter_missing_reason(monkeypatch: pytest.MonkeyPatch) -> None:
             with pytest.raises(AkuvoxUnsupportedError) as exc_info:
                 await device.trigger_relay(num=1)
         assert exc_info.value.reason == "adapter_missing"
-        assert len(m.requests) == 1
+        assert_only_connect_time_info(m)
 
 
 # --- FCGI adapter handles non-JSON success bodies and HTTP errors ----------
