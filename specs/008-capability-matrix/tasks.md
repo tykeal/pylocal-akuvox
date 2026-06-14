@@ -405,18 +405,18 @@ Then → T068–T071 (gates, sequential) → T072 (commit). Note T065 and T066 a
 
 ### Setup
 
-- [ ] T073 Create `docs/api/capabilities.rst` as a stub: SPDX comment header (per neighbouring `.rst` files), one-line title, placeholder for autodoc + matrix render directives (no content yet — content added by T079).
-- [ ] T074 [P] Create `tests/unit/test_docs_matrix_consistency.py` as a stub (SPDX, docstring, pytest import).
-- [ ] T075 [P] Create `tests/integration/` directory if not present; create `tests/integration/__init__.py` and `tests/integration/test_mvp_smoke.py` as stubs (SPDX, docstring, pytest + aioresponses imports).
+- [X] T073 Create `docs/api/capabilities.rst` as a stub: SPDX comment header (per neighbouring `.rst` files), one-line title, placeholder for autodoc + matrix render directives (no content yet — content added by T079).
+- [X] T074 [P] Create `tests/unit/test_docs_matrix_consistency.py` as a stub (SPDX, docstring, pytest import).
+- [X] T075 [P] Create `tests/integration/` directory if not present; create `tests/integration/__init__.py` and `tests/integration/test_mvp_smoke.py` as stubs (SPDX, docstring, pytest + aioresponses imports).
 
 ### TDD: Contract tests (red)
 
-- [ ] T076 [P] [US4] In `tests/unit/test_docs_matrix_consistency.py`, write the doc-vs-matrix consistency test per research.md Decision 11 (FR-018, SC-009):
+- [X] T076 [P] [US4] In `tests/unit/test_docs_matrix_consistency.py`, write the doc-vs-matrix consistency test per research.md Decision 11 (FR-018, SC-009):
   - Read `docs/api/capabilities.rst` as plain text.
   - For each entry's `pattern.model_prefix` in `CAPABILITY_MATRIX`, assert the prefix appears in the .rst body.
   - Conversely, assert that every model prefix mentioned as a heading in the .rst (collected by regex on `^X916|^X915S|^E18C|^IT83` heading lines) corresponds to an entry in `CAPABILITY_MATRIX`.
   - Pure-text scan (no sphinx parse) so the test does not require sphinx in CI.
-- [ ] T077 [US4] In `tests/integration/test_mvp_smoke.py`, write `test_mvp_against_it83` per research.md Decision 9 + quickstart step 11 (FR-019, SC-010):
+- [X] T077 [US4] In `tests/integration/test_mvp_smoke.py`, write `test_mvp_against_it83` per research.md Decision 9 + quickstart step 11 (FR-019, SC-010):
   - Mock all probe URLs for an IT83 device.
   - Mock `/fcgi/do?action=OpenDoor&relay=1` (success).
   - Run `examples/mvp_test.py`'s main flow under capsys; capture stdout.
@@ -424,14 +424,14 @@ Then → T068–T071 (gates, sequential) → T072 (commit). Note T065 and T066 a
   - Assert stdout contains the regex `^  SKIP: add_contact: status unknown on this device class \(IT83\)`.
   - Assert stdout contains the regex `^  OK:   trigger_relay`.
   - Assert the `aioresponses` request log contains the FCGI URL exactly once and zero requests to `/api/user/set` / `/api/contact/set`.
-- [ ] T078 [P] [US4] In `tests/integration/test_mvp_smoke.py`, write `test_mvp_against_x916`: against a mocked X916, every step is reported `OK:` with no `SKIP:` lines (regression check that the probe-then-skip path doesn't over-skip on supported devices).
+- [X] T078 [P] [US4] In `tests/integration/test_mvp_smoke.py`, write `test_mvp_against_x916`: against a mocked X916, every step is reported `OK:` with no `SKIP:` lines (regression check that the probe-then-skip path doesn't over-skip on supported devices).
 
 ### Implementation (green)
 
-- [ ] T079 [US4] Author `docs/api/capabilities.rst` per research.md Decision 11: `:autoclass:` directives for `pylocal_akuvox.Capability`, `pylocal_akuvox.CapabilityStatus`, `pylocal_akuvox.DeviceCapabilities`; a `.. capability-matrix::` custom directive (or inline-Python helper invoked at conf.py load) that imports `CAPABILITY_MATRIX` and emits a reST grid table; a "Contributing a new device class" section with the worked example referenced in `contracts/matrix-lookup.md` §"Adding a new entry" (covers FR-018, SC-007 demo). Headings include `X916`, `X915S`, `E18C`, `IT83` so T076 finds them. Makes T076 green.
-- [ ] T080 [US4] Update `docs/api/index.rst` to add `capabilities` to the toctree.
-- [ ] T081 [US4] Implement the `.. capability-matrix::` sphinx directive (Decision 11): a small Python class in `docs/_ext/capability_matrix.py` (or inline in `docs/conf.py`) that imports `pylocal_akuvox.capability_matrix.CAPABILITY_MATRIX` at build time and produces a reST grid table with one row per entry (model prefix, firmware band, supported / unsupported / unknown counts, provenance). Register the extension in `docs/conf.py`.
-- [ ] T082 [US4] Refactor `examples/mvp_test.py` per research.md Decision 9 (FR-019):
+- [X] T079 [US4] Author `docs/api/capabilities.rst` per research.md Decision 11: `:autoclass:` directives for `pylocal_akuvox.Capability`, `pylocal_akuvox.CapabilityStatus`, `pylocal_akuvox.DeviceCapabilities`; a `.. capability-matrix::` custom directive (or inline-Python helper invoked at conf.py load) that imports `CAPABILITY_MATRIX` and emits a reST grid table; a "Contributing a new device class" section with the worked example referenced in `contracts/matrix-lookup.md` §"Adding a new entry" (covers FR-018, SC-007 demo). Headings include `X916`, `X915S`, `E18C`, `IT83` so T076 finds them. Makes T076 green.
+- [X] T080 [US4] Update `docs/api/index.rst` to add `capabilities` to the toctree.
+- [X] T081 [US4] Implement the `.. capability-matrix::` sphinx directive (Decision 11): a small Python class in `docs/_ext/capability_matrix.py` (or inline in `docs/conf.py`) that imports `pylocal_akuvox.capability_matrix.CAPABILITY_MATRIX` at build time and produces a reST grid table with one row per entry (model prefix, firmware band, supported / unsupported / unknown counts, provenance). Register the extension in `docs/conf.py`.
+- [X] T082 [US4] Refactor `examples/mvp_test.py` per research.md Decision 9 (FR-019):
   - Call `await device.probe_capabilities()` once at startup, after `__aenter__` returns.
   - Define the `step(name, capability, fn)` helper that consults `device.capabilities.status_of(capability)` and prints `SKIP: {name}: not supported on this device class ({device_class})` for `UNSUPPORTED`, `SKIP: {name}: status unknown on this device class ({device_class}); add a matrix entry or set device.attempt_unknown_capability=True to opt in` for `UNKNOWN`, `OK:   {name}` after a successful `await fn()`, or `SKIP: {name}: {exc} (reason={exc.reason})` if `AkuvoxUnsupportedError` slipped through.
   - Wrap each existing demo step (list_users, add_user, list_contacts, add_contact, trigger_relay, etc.) through `step()` with the appropriate `Capability` member.
@@ -439,14 +439,14 @@ Then → T068–T071 (gates, sequential) → T072 (commit). Note T065 and T066 a
 
 ### Phase 4 verification gate
 
-- [ ] T083 [Gate] Run `uv run ruff check src/ tests/ examples/`, `uv run mypy src/ tests/ examples/`, `uv run interrogate src/ tests/ examples/`. All clean.
-- [ ] T084 [Gate] Run `uv run pytest tests/ -x -q`. All green (unit + integration). Coverage non-regression vs T070 (Phase 3 closing).
-- [ ] T085 [Gate] Run `uv run --extra docs sphinx-build -W -b html docs/ docs/_build/html`. Zero warnings (quickstart step 12). If this fails for purely environmental reasons (missing optional dep in CI sandbox) but T084 + T083 + T076 pass, do NOT block the PR — record the environmental failure in PR description per quickstart step 12 caveat.
-- [ ] T086 [Phase 4 Checkpoint] Walk `quickstart.md` steps 10, 11, 12 manually and confirm each produces the expected output. This independently verifies SC-009 (doc-vs-matrix consistency), SC-010 (mvp_test snapshot), and the sphinx smoke-build. Confirm spec US4 acceptance scenarios 1–3 are each covered by at least one test in T076–T078 or by direct doc inspection. Confirm Phase 1–3 quickstart steps 1–9 are still green.
+- [X] T083 [Gate] Run `uv run ruff check src/ tests/ examples/`, `uv run mypy src/ tests/ examples/`, `uv run interrogate src/ tests/ examples/`. All clean.
+- [X] T084 [Gate] Run `uv run pytest tests/ -x -q`. All green (unit + integration). Coverage non-regression vs T070 (Phase 3 closing).
+- [X] T085 [Gate] Run `uv run --extra docs sphinx-build -W -b html docs/ docs/_build/html`. Zero warnings (quickstart step 12). If this fails for purely environmental reasons (missing optional dep in CI sandbox) but T084 + T083 + T076 pass, do NOT block the PR — record the environmental failure in PR description per quickstart step 12 caveat.
+- [X] T086 [Phase 4 Checkpoint] Walk `quickstart.md` steps 10, 11, 12 manually and confirm each produces the expected output. This independently verifies SC-009 (doc-vs-matrix consistency), SC-010 (mvp_test snapshot), and the sphinx smoke-build. Confirm spec US4 acceptance scenarios 1–3 are each covered by at least one test in T076–T078 or by direct doc inspection. Confirm Phase 1–3 quickstart steps 1–9 are still green.
 
 ### Phase 4 task-list update (separate atomic commit in PR 4)
 
-- [ ] T087 [Phase 4 task list update] Mark T073–T086 complete in `specs/008-capability-matrix/tasks.md` as a SEPARATE atomic commit in PR 4 (`Docs(tasks): Mark Phase 4 tasks complete`). This commit is the LAST commit in PR 4 — same PR as the implementation commits, separate atomic commit per AGENTS.md §"Task List Updates Are Separate Commits". DO NOT open this as its own follow-up PR (PRs #126 / #131 retrospective).
+- [X] T087 [Phase 4 task list update] Mark T073–T086 complete in `specs/008-capability-matrix/tasks.md` as a SEPARATE atomic commit in PR 4 (`Docs(tasks): Mark Phase 4 tasks complete`). This commit is the LAST commit in PR 4 — same PR as the implementation commits, separate atomic commit per AGENTS.md §"Task List Updates Are Separate Commits". DO NOT open this as its own follow-up PR (PRs #126 / #131 retrospective).
 
 **Phase 4 dependencies**: T073–T075 (setup, parallel) → T076–T078 (red tests, parallel where files differ) → T079 (rst content, blocks T076 turning green) → T080 (toctree) → T081 (directive) → T082 (mvp refactor) → T083–T086 (gates, sequential) → T087 (commit).
 
