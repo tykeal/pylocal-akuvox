@@ -26,6 +26,8 @@ and log retrieval over the device's local HTTP API.
 - **SSL support** — including self-signed certificate handling
 - **Legacy TLS compatibility** — OpenSSL SECLEVEL relaxation for old devices
 - **Comprehensive error handling** — typed exception hierarchy
+- **Capability-aware API** — built-in device support matrix, safe probing,
+  and fail-fast unsupported-operation checks
 
 ## Installation
 
@@ -46,6 +48,47 @@ async def main():
 
 asyncio.run(main())
 ```
+
+## Capability-aware API
+
+Known device classes are matched against a built-in capability matrix when
+the connection opens. For unfamiliar devices, or after a firmware update, run
+the safe read-only probe and then act only on confirmed capabilities:
+
+```python
+import asyncio
+from pylocal_akuvox import AkuvoxDevice, Capability, CapabilityStatus
+
+async def main():
+    async with AkuvoxDevice("192.168.1.100") as device:
+        capabilities = await device.probe_capabilities()
+
+        user_add_status = capabilities.status_of(Capability.USER_ADD)
+        if user_add_status is CapabilityStatus.SUPPORTED:
+            await device.add_user(
+                name="Alice",
+                user_id="2001",
+                web_relay="0",
+                schedule_relay="1001-1",
+                lift_floor_num="0",
+                private_pin="1234",
+            )
+        else:
+            print("User creation is not confirmed for this device")
+
+asyncio.run(main())
+```
+
+The probe uses a deterministic, non-destructive read sequence. Operations
+whose status is `UNSUPPORTED` always fail fast. Operations whose status is
+`UNKNOWN` fail fast by default; set `device.attempt_unknown_capability = True`
+only when you intentionally want to try an unproven device-side operation.
+The effective profile is available as `device.capabilities` for the current
+connection.
+
+The examples below call service methods directly for brevity. They assume the
+relevant capability is `SUPPORTED`; for portable code, guard each operation
+with the probed or matrix profile as shown above.
 
 ### Manage Users and PINs
 
