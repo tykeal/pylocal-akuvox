@@ -27,6 +27,56 @@ Connect and Get Device Info
 
    asyncio.run(main())
 
+Probing capabilities
+--------------------
+
+When a connection opens, known device classes are matched against the
+built-in device support matrix. For an unfamiliar device, or after a
+firmware update, call :meth:`pylocal_akuvox.AkuvoxDevice.probe_capabilities`
+to run the deterministic, non-destructive read probe. The returned
+:class:`pylocal_akuvox.DeviceCapabilities` is also available as
+``device.capabilities`` for later calls on the same connection.
+
+Use the probe-then-act pattern so provisioning code only runs operations
+that are confirmed for the attached device:
+
+.. code-block:: python
+
+   import asyncio
+   from pylocal_akuvox import AkuvoxDevice, Capability, CapabilityStatus
+
+   async def main():
+       async with AkuvoxDevice("192.168.1.100") as device:
+           capabilities = await device.probe_capabilities()
+
+           user_add_status = capabilities.status_of(Capability.USER_ADD)
+           if user_add_status is CapabilityStatus.SUPPORTED:
+               await device.add_user(
+                   name="Alice",
+                   user_id="2001",
+                   web_relay="0",
+                   schedule_relay="1001-1",
+                   lift_floor_num="0",
+                   private_pin="1234",
+               )
+           else:
+               print("User creation is not confirmed for this device")
+
+   asyncio.run(main())
+
+``UNSUPPORTED`` operations always fail fast without a device request.
+``UNKNOWN`` operations fail fast by default; set
+``device.attempt_unknown_capability = True`` only when you intentionally
+want to try an unproven device-side operation. See
+:doc:`api/capabilities` for the live capability matrix.
+
+.. note::
+
+   The remaining examples call service methods directly for brevity.
+   They assume the relevant capability is ``SUPPORTED``; for portable
+   code, guard each operation with the probed or matrix profile as
+   shown above.
+
 Manage Users and PINs
 ---------------------
 
