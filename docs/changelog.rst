@@ -8,6 +8,33 @@ Changelog
 Unreleased
 ----------
 
+Breaking changes
+^^^^^^^^^^^^^^^^
+
+* The ``pylocal_akuvox.capabilities`` import subpath has been removed
+  (issue #140). ``import pylocal_akuvox.capabilities`` and
+  ``from pylocal_akuvox.capabilities import X`` now raise
+  ``ModuleNotFoundError``.
+
+* The following four symbols, formerly reachable via the dropped
+  subpath, are now formally internal and no longer publicly
+  importable: ``Provenance`` (in
+  ``pylocal_akuvox._capability_profile``), ``DeviceClassPattern`` and
+  ``lookup_capabilities`` (in ``pylocal_akuvox._capability_matching``),
+  and ``DEFAULT_USER_FIELD_ALIASES`` (in
+  ``pylocal_akuvox._capability_defaults``).
+
+* **Migration**: the five public symbols ``Capability``,
+  ``CapabilityStatus``, ``DeviceCapabilities``, ``FieldAliases``, and
+  ``SchemaShape`` remain re-exported unchanged from the top-level
+  ``pylocal_akuvox`` package. Consumers should use
+  ``from pylocal_akuvox import Capability, CapabilityStatus,
+  DeviceCapabilities, FieldAliases, SchemaShape``. No consumer-facing
+  public symbol has been renamed or removed.
+
+Added
+^^^^^
+
 * Initial release of pylocal-akuvox
 * Async-only Python library for Akuvox local HTTP API
 * Device connection and info retrieval
