@@ -570,10 +570,10 @@ async def test_probe_capabilities_default_resolves_to_5_seconds() -> None:
     """device.probe_capabilities() with no kwarg passes timeout=5.0 to helper."""
     from unittest.mock import AsyncMock, patch
 
-    from pylocal_akuvox.capabilities import (
+    from pylocal_akuvox._capability_profile import DeviceCapabilities
+    from pylocal_akuvox._capability_types import (
         Capability,
         CapabilityStatus,
-        DeviceCapabilities,
     )
 
     sentinel = DeviceCapabilities(
@@ -603,7 +603,7 @@ async def test_probe_capabilities_with_custom_timeout() -> None:
     """device.probe_capabilities(timeout=2.5) threads through to the helper."""
     from unittest.mock import AsyncMock, patch
 
-    from pylocal_akuvox.capabilities import DeviceCapabilities
+    from pylocal_akuvox._capability_profile import DeviceCapabilities
 
     sentinel = DeviceCapabilities(
         device_class="X916",
@@ -700,7 +700,7 @@ async def test_connect_populates_capabilities(device_class: str) -> None:
     only HTTP request that fires before the matrix is consulted, and
     no list-endpoint requests are issued during ``__aenter__``.
     """
-    from pylocal_akuvox.capabilities import lookup_capabilities
+    from pylocal_akuvox._capability_matching import lookup_capabilities
 
     payload = _CONNECT_DEVICE_PAYLOADS[device_class]
     data = payload["data"]
@@ -848,7 +848,7 @@ async def test_unsupported_raises_before_request_x915s_add_contact() -> None:
     :func:`assert_only_connect_time_info` below, which checks
     both the request-key set and the per-key call count).
     """
-    from pylocal_akuvox.capabilities import Capability
+    from pylocal_akuvox._capability_types import Capability
     from pylocal_akuvox.exceptions import AkuvoxUnsupportedError
 
     with aioresponses() as m:
@@ -867,7 +867,7 @@ async def test_unsupported_raises_before_request_x915s_add_contact() -> None:
 
 async def test_unsupported_raises_before_request_it83_relay_api() -> None:
     """IT83 trigger_relay(adapter=API) raises ``capability_missing``."""
-    from pylocal_akuvox.capabilities import Capability
+    from pylocal_akuvox._capability_types import Capability
     from pylocal_akuvox.exceptions import AkuvoxUnsupportedError
 
     with aioresponses() as m:
@@ -886,7 +886,7 @@ async def test_unsupported_raises_before_request_it83_relay_api() -> None:
 
 async def test_unsupported_raises_before_request_it83_add_user() -> None:
     """IT83 add_user raises ``capability_unknown`` (UNKNOWN status by default)."""
-    from pylocal_akuvox.capabilities import Capability
+    from pylocal_akuvox._capability_types import Capability
     from pylocal_akuvox.exceptions import AkuvoxUnsupportedError
 
     with aioresponses() as m:
@@ -982,7 +982,7 @@ async def test_attempt_unknown_true_lets_unknown_capability_through() -> None:
 
 async def test_attempt_unknown_does_not_bypass_unsupported() -> None:
     """Opt-in does NOT bypass confirmed UNSUPPORTED (X915S add_contact)."""
-    from pylocal_akuvox.capabilities import Capability
+    from pylocal_akuvox._capability_types import Capability
     from pylocal_akuvox.exceptions import AkuvoxUnsupportedError
 
     with aioresponses() as m:
@@ -1104,7 +1104,7 @@ async def test_trigger_relay_rejects_non_relay_adapter_override() -> None:
     such overrides at the public boundary with
     :class:`AkuvoxValidationError`.
     """
-    from pylocal_akuvox.capabilities import Capability
+    from pylocal_akuvox._capability_types import Capability
     from pylocal_akuvox.exceptions import AkuvoxValidationError
 
     with aioresponses() as m:

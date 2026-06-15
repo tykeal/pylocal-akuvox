@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pylocal_akuvox.capabilities import Capability
+    from pylocal_akuvox._capability_types import Capability
 
 
 class AkuvoxError(Exception):

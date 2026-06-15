@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import pytest
 
-from pylocal_akuvox.capabilities import DeviceClassPattern
+from pylocal_akuvox._capability_matching import DeviceClassPattern
 from pylocal_akuvox.models import DeviceInfo
 
 

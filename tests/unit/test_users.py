@@ -19,7 +19,10 @@ from pylocal_akuvox.users import validate_pin, validate_schedule_relay
 from tests.unit._helpers import register_default_info
 
 if TYPE_CHECKING:
-    from pylocal_akuvox.capabilities import Capability, CapabilityStatus
+    from pylocal_akuvox._capability_types import (
+        Capability,
+        CapabilityStatus,
+    )
 
 BASE_URL = "http://192.168.1.100"
 
@@ -841,7 +844,7 @@ def test_user_from_api_response_consults_capability_field_aliases() -> None:
     ``"Schedule-Relay"``, ``"Schedule"``). This proves the parser
     consults the supplied record, not a hardcoded fallback.
     """
-    from pylocal_akuvox.capabilities import (
+    from pylocal_akuvox._capability_profile import (
         DeviceCapabilities,
         FieldAliases,
     )
@@ -895,7 +898,7 @@ def test_user_from_api_response_capabilities_without_alias_key_falls_back() -> N
     :data:`DEFAULT_USER_FIELD_ALIASES` fallback — same chain as the
     no-capabilities path. Covers the fallback branch of T063.
     """
-    from pylocal_akuvox.capabilities import DeviceCapabilities
+    from pylocal_akuvox._capability_profile import DeviceCapabilities
     from pylocal_akuvox.models import User
 
     caps = DeviceCapabilities(
@@ -921,7 +924,7 @@ def test_user_from_api_response_alias_order_is_honoured() -> None:
     supplied order, not the hardcoded default which checks
     ``"ScheduleRelay"`` first.
     """
-    from pylocal_akuvox.capabilities import (
+    from pylocal_akuvox._capability_profile import (
         DeviceCapabilities,
         FieldAliases,
     )
@@ -961,8 +964,8 @@ async def test_add_user_service_function_field_aliases_kwarg() -> None:
     fully replaces them).
     """
     from pylocal_akuvox import users as users_svc
+    from pylocal_akuvox._capability_profile import FieldAliases
     from pylocal_akuvox._http import AkuvoxHttpClient
-    from pylocal_akuvox.capabilities import FieldAliases
 
     with aioresponses() as m:
         m.post(f"{BASE_URL}/api/user/set", payload=_SET_OK_RESPONSE)
@@ -998,8 +1001,8 @@ async def test_add_user_service_function_no_kwarg_byte_identical() -> None:
     import json
 
     from pylocal_akuvox import users as users_svc
+    from pylocal_akuvox._capability_defaults import DEFAULT_USER_FIELD_ALIASES
     from pylocal_akuvox._http import AkuvoxHttpClient
-    from pylocal_akuvox.capabilities import DEFAULT_USER_FIELD_ALIASES
 
     with aioresponses() as m:
         m.post(f"{BASE_URL}/api/user/set", payload=_SET_OK_RESPONSE, repeat=True)
@@ -1037,8 +1040,8 @@ async def test_modify_user_service_function_field_aliases_kwarg() -> None:
     (capability extraction lives on the wrapper layer per T064).
     """
     from pylocal_akuvox import users as users_svc
+    from pylocal_akuvox._capability_profile import FieldAliases
     from pylocal_akuvox._http import AkuvoxHttpClient
-    from pylocal_akuvox.capabilities import FieldAliases
 
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
@@ -1100,7 +1103,7 @@ async def test_list_users_threads_synthetic_alias_through_wrapper() -> None:
     the wrapper threads its capability record all the way through to
     ``User.from_api_response``.
     """
-    from pylocal_akuvox.capabilities import (
+    from pylocal_akuvox._capability_profile import (
         DeviceCapabilities,
         FieldAliases,
     )
@@ -1161,7 +1164,7 @@ async def test_list_users_threads_alias_order_through_wrapper() -> None:
     test fails unless the wrapper threads ``capabilities=`` all the
     way through to the parser.
     """
-    from pylocal_akuvox.capabilities import (
+    from pylocal_akuvox._capability_profile import (
         DeviceCapabilities,
         FieldAliases,
     )
@@ -1240,7 +1243,10 @@ def test_user_from_api_response_empty_read_aliases_falls_back_to_default() -> No
     capability data degrades gracefully instead of bricking the read
     path (Copilot review round 1, ``models/users.py``).
     """
-    from pylocal_akuvox.capabilities import DeviceCapabilities, FieldAliases
+    from pylocal_akuvox._capability_profile import (
+        DeviceCapabilities,
+        FieldAliases,
+    )
     from pylocal_akuvox.models import User
 
     caps = DeviceCapabilities(
@@ -1273,8 +1279,8 @@ async def test_add_user_service_function_empty_write_aliases_raises() -> None:
     review round 1, ``users.add_user``).
     """
     from pylocal_akuvox import users as users_svc
+    from pylocal_akuvox._capability_profile import FieldAliases
     from pylocal_akuvox._http import AkuvoxHttpClient
-    from pylocal_akuvox.capabilities import FieldAliases
 
     bad_aliases = FieldAliases(read=("ScheduleRelay",), write=())
 
@@ -1393,8 +1399,8 @@ async def test_modify_user_service_function_empty_write_aliases_raises() -> None
     (Copilot review round 1, ``users.modify_user``).
     """
     from pylocal_akuvox import users as users_svc
+    from pylocal_akuvox._capability_profile import FieldAliases
     from pylocal_akuvox._http import AkuvoxHttpClient
-    from pylocal_akuvox.capabilities import FieldAliases
 
     bad_aliases = FieldAliases(read=("ScheduleRelay",), write=())
 
@@ -1428,8 +1434,8 @@ async def test_modify_user_empty_read_aliases_strips_default_legacy_keys() -> No
     ``users._resolve_alias_lists``).
     """
     from pylocal_akuvox import users as users_svc
+    from pylocal_akuvox._capability_profile import FieldAliases
     from pylocal_akuvox._http import AkuvoxHttpClient
-    from pylocal_akuvox.capabilities import FieldAliases
 
     bad_aliases = FieldAliases(
         # Empty read tuple — would prevent ``Schedule`` from being

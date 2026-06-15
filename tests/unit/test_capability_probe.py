@@ -14,20 +14,18 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import pytest
 from aioresponses import aioresponses
 
-from pylocal_akuvox._http import AkuvoxHttpClient
-from pylocal_akuvox.capabilities import (
+from pylocal_akuvox._capability_types import (
     Capability,
     CapabilityStatus,
-    DeviceCapabilities,
-    FieldAliases,
     SchemaShape,
 )
+from pylocal_akuvox._http import AkuvoxHttpClient
 from pylocal_akuvox.capability_probe import probe_capabilities as _probe_helper
 from pylocal_akuvox.device import AkuvoxDevice
 from pylocal_akuvox.exceptions import (
@@ -36,6 +34,12 @@ from pylocal_akuvox.exceptions import (
     AkuvoxParseError,
     AkuvoxRequestError,
 )
+
+if TYPE_CHECKING:
+    from pylocal_akuvox._capability_profile import (
+        DeviceCapabilities,
+        FieldAliases,
+    )
 
 BASE_URL = "http://192.168.1.100"
 
@@ -1486,7 +1490,7 @@ async def test_merge_strips_device_not_in_matrix_note_from_conservative_empty() 
     """
     from types import MappingProxyType
 
-    from pylocal_akuvox.capabilities import DeviceCapabilities
+    from pylocal_akuvox._capability_profile import DeviceCapabilities
     from pylocal_akuvox.device import (
         _DEVICE_NOT_IN_MATRIX_NOTE,
         _merge_probe_with_matrix,

@@ -8,10 +8,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from pylocal_akuvox._capability_defaults import DEFAULT_USER_FIELD_ALIASES
 from pylocal_akuvox.exceptions import AkuvoxParseError
 
 if TYPE_CHECKING:
-    from pylocal_akuvox.capabilities import DeviceCapabilities
+    from pylocal_akuvox._capability_profile import DeviceCapabilities
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -45,17 +46,18 @@ class User:
         the schedule-relay field, walking each name in
         ``FieldAliases.read`` in declared order and using the first
         match. When omitted (or when the record has no
-        ``"schedule_relay"`` entry), the parser falls back to
-        :data:`pylocal_akuvox.capabilities.DEFAULT_USER_FIELD_ALIASES`,
-        which is byte-identical to the pre-refactor hardcoded chain
-        ``("ScheduleRelay", "Schedule-Relay", "Schedule")`` — preserves
-        FR-016 (no externally observable change for default callers).
-        """
-        # Lazy import to avoid a models→capabilities→models cycle:
-        # capabilities.py reads DeviceInfo from models, so importing it
-        # at module top would form a cycle on first access.
-        from pylocal_akuvox.capabilities import DEFAULT_USER_FIELD_ALIASES
+        ``"schedule_relay"`` entry), the parser falls back to the
+        canonical ``schedule_relay`` chain::
 
+            FieldAliases(
+                read=("ScheduleRelay", "Schedule-Relay", "Schedule"),
+                write=("ScheduleRelay", "Schedule-Relay"),
+            )
+
+        byte-identical to the pre-refactor hardcoded chain —
+        preserving FR-016 (no externally observable change for
+        default callers).
+        """
         aliases = DEFAULT_USER_FIELD_ALIASES
         if capabilities is not None:
             aliases = capabilities.field_aliases.get(

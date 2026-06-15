@@ -27,7 +27,7 @@ from docutils import nodes
 from docutils.parsers.rst import Directive
 from docutils.statemachine import StringList
 
-from pylocal_akuvox.capabilities import Capability, CapabilityStatus
+from pylocal_akuvox._capability_types import Capability, CapabilityStatus
 from pylocal_akuvox.capability_matrix import CAPABILITY_MATRIX
 
 if TYPE_CHECKING:

@@ -8,13 +8,13 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any
 
-from pylocal_akuvox.capabilities import DEFAULT_USER_FIELD_ALIASES
+from pylocal_akuvox._capability_defaults import DEFAULT_USER_FIELD_ALIASES
 from pylocal_akuvox.exceptions import AkuvoxValidationError
 from pylocal_akuvox.models import User
 
 if TYPE_CHECKING:
+    from pylocal_akuvox._capability_profile import DeviceCapabilities, FieldAliases
     from pylocal_akuvox._http import AkuvoxHttpClient
-    from pylocal_akuvox.capabilities import DeviceCapabilities, FieldAliases
 
 _PIN_PATTERN = re.compile(r"^[0-9]{4,8}$")
 _SCHEDULE_RELAY_PATTERN = re.compile(r"^[0-9]+-[0-9]+(,[0-9]+-[0-9]+)*,?$")
@@ -74,12 +74,19 @@ async def add_user(
     """Add a local user to the device.
 
     The primary relay schedule is emitted once per name in
-    ``field_aliases.write`` (defaulting to
-    :data:`pylocal_akuvox.capabilities.DEFAULT_USER_FIELD_ALIASES`
-    when ``field_aliases`` is ``None`` or omitted). The default write
-    list is ``("ScheduleRelay", "Schedule-Relay")``, byte-identical
-    to the pre-refactor hardcoded dual-write — so direct callers that
-    do not supply ``field_aliases`` see no observable change (FR-016).
+    ``field_aliases.write``, defaulting to the canonical
+    ``schedule_relay`` fallback chain when ``field_aliases`` is
+    ``None`` or omitted::
+
+        FieldAliases(
+            read=("ScheduleRelay", "Schedule-Relay", "Schedule"),
+            write=("ScheduleRelay", "Schedule-Relay"),
+        )
+
+    The default write list is ``("ScheduleRelay", "Schedule-Relay")``,
+    byte-identical to the pre-refactor hardcoded dual-write — so direct
+    callers that do not supply ``field_aliases`` see no observable
+    change (FR-016).
 
     Service-module functions stay capability-unaware: this function
     does **not** consult any global capability matrix or
@@ -149,9 +156,15 @@ async def list_users(
     ``capabilities`` is threaded to each
     :meth:`User.from_api_response` call so the parser can consult
     per-device-class field aliases (FR-014). The default ``None``
-    falls through to the parser's
-    :data:`pylocal_akuvox.capabilities.DEFAULT_USER_FIELD_ALIASES`
-    chain, preserving byte-identical behaviour for direct callers
+    falls through to the parser's canonical ``schedule_relay``
+    fallback chain::
+
+        FieldAliases(
+            read=("ScheduleRelay", "Schedule-Relay", "Schedule"),
+            write=("ScheduleRelay", "Schedule-Relay"),
+        )
+
+    preserving byte-identical behaviour for direct callers
     (FR-016 / SC-008).
     """
     params: dict[str, Any] = {}
@@ -278,10 +291,16 @@ async def modify_user(
     operations, so this fetches the current record and merges
     changes. Primary schedule fields are the compatibility exception:
     when supplied, the schedule is emitted under each name in
-    ``field_aliases.write`` (defaulting to
-    :data:`pylocal_akuvox.capabilities.DEFAULT_USER_FIELD_ALIASES`,
+    ``field_aliases.write``, defaulting to the canonical
+    ``schedule_relay`` fallback chain::
+
+        FieldAliases(
+            read=("ScheduleRelay", "Schedule-Relay", "Schedule"),
+            write=("ScheduleRelay", "Schedule-Relay"),
+        )
+
     which mirrors today's hardcoded
-    ``("ScheduleRelay", "Schedule-Relay")`` dual-write). On both
+    ``("ScheduleRelay", "Schedule-Relay")`` dual-write. On both
     the set and the unset paths, every name in the **read+write
     union** is first stripped from the merged record (so a stale
     read-only alias such as ``Schedule`` returned by X915S current
