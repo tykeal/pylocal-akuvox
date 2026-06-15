@@ -60,16 +60,11 @@ _LIB_VERSION = _library_version()
 _OBSERVED_AT = "2026-06-13"
 
 
-# --- IT83 indoor monitor (community-reporter, issue #122 / #130) ----------
-#
-# IT83 supports relay trigger ONLY via /fcgi/do?action=OpenDoor; the
-# /api/relay/* endpoints return "No handlers for this request"
-# (UNSUPPORTED). All other capabilities are UNKNOWN — the community
-# reporter did not exercise user/contact/schedule/group writes.
 _IT83_83_30_10_4 = DeviceCapabilities(
     device_class="IT83",
     firmware_version="83.30.10.4",
     capabilities={
+        # Issue #122: IT83 supports relay only via FCGI OpenDoor.
         Capability.RELAY_TRIGGER_API: CapabilityStatus.UNSUPPORTED,
         Capability.RELAY_TRIGGER_FCGI: CapabilityStatus.SUPPORTED,
         Capability.RELAY_STATUS: CapabilityStatus.UNSUPPORTED,
@@ -91,13 +86,6 @@ _IT83_83_30_10_4 = DeviceCapabilities(
     ),
 )
 
-# --- X915S current firmware (door-phone, issue #121 evidence) -------------
-#
-# Door-phone shape, but `add_contact` is confirmed-UNSUPPORTED on this
-# variant per issue #121's "unsupported action" envelope observation;
-# `modify_contact` / `delete_contact` were not specifically exercised
-# and remain UNKNOWN per FR-003. ``schema_shapes["contact"]`` records
-# APARTMENT_BOOK so the contact parser uses the apartment-book shape.
 _X915S_CURRENT = DeviceCapabilities(
     device_class="X915S",
     firmware_version="2915.30.10.114",
@@ -115,6 +103,7 @@ _X915S_CURRENT = DeviceCapabilities(
         Capability.GROUP_MODIFY: CapabilityStatus.SUPPORTED,
         Capability.GROUP_DELETE: CapabilityStatus.SUPPORTED,
         Capability.CONTACT_LIST: CapabilityStatus.SUPPORTED,
+        # Issue #121: apartment-book contact writes are intentionally deferred.
         Capability.CONTACT_ADD: CapabilityStatus.UNSUPPORTED,
         Capability.RELAY_TRIGGER_API: CapabilityStatus.SUPPORTED,
         Capability.RELAY_STATUS: CapabilityStatus.SUPPORTED,
@@ -147,7 +136,6 @@ _X915S_CURRENT = DeviceCapabilities(
     ),
 )
 
-# --- E18C current firmware (door-phone) -----------------------------------
 _E18C_CURRENT = DeviceCapabilities(
     device_class="E18C",
     firmware_version="18.30.11.21",
@@ -189,7 +177,6 @@ _E18C_CURRENT = DeviceCapabilities(
     ),
 )
 
-# --- X916 baseline (door-phone) -------------------------------------------
 _X916_BASELINE = DeviceCapabilities(
     device_class="X916",
     firmware_version="916.30.10.114",

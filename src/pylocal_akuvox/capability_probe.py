@@ -385,7 +385,6 @@ async def probe_capabilities(
             from which a :class:`DeviceInfo` cannot be constructed).
 
     """
-    # --- Step 1: /api/system/info ---------------------------------------
     status, body = await http._request_raw(  # noqa: SLF001
         "GET", "/api/system/info", timeout=timeout
     )
@@ -417,22 +416,11 @@ async def probe_capabilities(
     schema_shapes: dict[str, SchemaShape] = {}
     notes: dict[str, str] = {}
 
-    # --- Step 2: /api/system/status (health probe; no capability) ------
-    # Note: this endpoint returns a payload containing wall-clock fields
-    # (``SystemTime``, ``UpTime``). Recording the raw body would break
-    # the SC-002 idempotence contract — two consecutive probes against
-    # the same unchanged device would produce non-equal
-    # ``DeviceCapabilities`` because the timestamps drift. Instead,
-    # collapse the response to a stable summary: ``"ok"`` for a healthy
-    # 2xx + ``retcode == 0``, ``f"http_{status}"`` for any other HTTP
-    # status, ``"unparsable"`` if the 2xx body is not valid JSON, and
-    # ``"retcode_<n>"`` for a 2xx envelope with a non-zero retcode.
     status2, body2 = await http._request_raw(  # noqa: SLF001
         "GET", "/api/system/status", timeout=timeout
     )
     notes["system_status"] = _summarise_system_status(status2, body2)
 
-    # --- Steps 3-9: read endpoints with capability markers --------------
     for slug, path, capability in _LATER_STEPS:
         step_status, step_body = await http._request_raw(  # noqa: SLF001
             "GET", path, timeout=timeout
