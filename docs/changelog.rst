@@ -32,6 +32,23 @@ Breaking changes
   DeviceCapabilities, FieldAliases, SchemaShape``. No consumer-facing
   public symbol has been renamed or removed.
 
+* The ``pylocal_akuvox.capability_probe`` import subpath has been
+  removed (issue #141). ``import pylocal_akuvox.capability_probe`` and
+  ``from pylocal_akuvox.capability_probe import probe_capabilities``
+  now raise ``ModuleNotFoundError``.
+
+* **Migration**: continue calling
+  ``AkuvoxDevice.probe_capabilities()`` — the documented public method
+  on :class:`pylocal_akuvox.AkuvoxDevice` is unchanged and remains the
+  consumer-facing handle for the capability probe. No consumer-facing
+  public symbol has been renamed or removed. White-box callers (test
+  suites, internal tooling) that previously imported helpers from the
+  dropped subpath should switch to the new owning underscore modules:
+  ``pylocal_akuvox._probe_outcomes``, ``pylocal_akuvox._probe_classifiers``,
+  ``pylocal_akuvox._probe_parsers``, and ``pylocal_akuvox._capability_probe``.
+
+  Refs #141.
+
 Added
 ^^^^^
 

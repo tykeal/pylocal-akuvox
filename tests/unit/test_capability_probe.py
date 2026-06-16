@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for the capability probe in ``pylocal_akuvox.capability_probe``.
+"""Tests for the capability probe (capability profile runtime side).
 
 Covers tasks T014, T015, T015a, T016, T024 and T025 from
 ``specs/008-capability-matrix/tasks.md``. The contracts driving these
@@ -20,13 +20,13 @@ import aiohttp
 import pytest
 from aioresponses import aioresponses
 
+from pylocal_akuvox._capability_probe import probe_capabilities as _probe_helper
 from pylocal_akuvox._capability_types import (
     Capability,
     CapabilityStatus,
     SchemaShape,
 )
 from pylocal_akuvox._http import AkuvoxHttpClient
-from pylocal_akuvox.capability_probe import probe_capabilities as _probe_helper
 from pylocal_akuvox.device import AkuvoxDevice
 from pylocal_akuvox.exceptions import (
     AkuvoxAuthenticationError,
@@ -671,7 +671,7 @@ def test_step_1_payload_rejects_bool_retcode() -> None:
     The probe explicitly rejects it for consistency with
     :func:`_summarise_system_status` step-2 handling.
     """
-    from pylocal_akuvox.capability_probe import _step_1_payload
+    from pylocal_akuvox._probe_parsers import _step_1_payload
 
     with pytest.raises(AkuvoxParseError):
         _step_1_payload('{"retcode": true, "data": {}}')
@@ -736,7 +736,8 @@ async def test_probe_step_4_empty_item_list_no_shape_entry() -> None:
 
 def test_classify_response_non_json_body_returns_indeterminate() -> None:
     """200 + non-JSON body falls through to INDETERMINATE."""
-    from pylocal_akuvox.capability_probe import _classify_response, _ProbeOutcome
+    from pylocal_akuvox._probe_classifiers import _classify_response
+    from pylocal_akuvox._probe_outcomes import _ProbeOutcome
 
     assert _classify_response(200, "<html>notjson</html>") is (
         _ProbeOutcome.INDETERMINATE
@@ -745,7 +746,8 @@ def test_classify_response_non_json_body_returns_indeterminate() -> None:
 
 def test_classify_response_negative_retcode_no_marker_returns_indeterminate() -> None:
     """200 + retcode=-1 + no recognised marker → INDETERMINATE."""
-    from pylocal_akuvox.capability_probe import _classify_response, _ProbeOutcome
+    from pylocal_akuvox._probe_classifiers import _classify_response
+    from pylocal_akuvox._probe_outcomes import _ProbeOutcome
 
     body = '{"retcode": -1, "message": "something else"}'
     assert _classify_response(200, body) is _ProbeOutcome.INDETERMINATE
@@ -753,7 +755,8 @@ def test_classify_response_negative_retcode_no_marker_returns_indeterminate() ->
 
 def test_classify_response_message_field_not_a_string() -> None:
     """200 + non-string message field doesn't crash; treated as no marker."""
-    from pylocal_akuvox.capability_probe import _classify_response, _ProbeOutcome
+    from pylocal_akuvox._probe_classifiers import _classify_response
+    from pylocal_akuvox._probe_outcomes import _ProbeOutcome
 
     body = '{"retcode": -1, "message": 42}'
     # message coerced to "" by _extract_message; body has no recognised
@@ -763,14 +766,15 @@ def test_classify_response_message_field_not_a_string() -> None:
 
 def test_classify_response_payload_is_list_returns_indeterminate() -> None:
     """200 + JSON list (not dict) → INDETERMINATE."""
-    from pylocal_akuvox.capability_probe import _classify_response, _ProbeOutcome
+    from pylocal_akuvox._probe_classifiers import _classify_response
+    from pylocal_akuvox._probe_outcomes import _ProbeOutcome
 
     assert _classify_response(200, "[1, 2, 3]") is _ProbeOutcome.INDETERMINATE
 
 
 def test_record_user_aliases_tolerates_non_json_body() -> None:
     """Non-JSON body silently leaves the aliases dict unchanged."""
-    from pylocal_akuvox.capability_probe import _record_user_aliases
+    from pylocal_akuvox._probe_parsers import _record_user_aliases
 
     aliases: dict[str, FieldAliases] = {}
     _record_user_aliases(aliases, "<html>")
@@ -779,7 +783,7 @@ def test_record_user_aliases_tolerates_non_json_body() -> None:
 
 def test_record_user_aliases_tolerates_non_dict_payload() -> None:
     """JSON list payload silently leaves the aliases dict unchanged."""
-    from pylocal_akuvox.capability_probe import _record_user_aliases
+    from pylocal_akuvox._probe_parsers import _record_user_aliases
 
     aliases: dict[str, FieldAliases] = {}
     _record_user_aliases(aliases, "[]")
@@ -788,7 +792,7 @@ def test_record_user_aliases_tolerates_non_dict_payload() -> None:
 
 def test_record_user_aliases_tolerates_non_dict_data_field() -> None:
     """data field that is not a dict is silently ignored."""
-    from pylocal_akuvox.capability_probe import _record_user_aliases
+    from pylocal_akuvox._probe_parsers import _record_user_aliases
 
     aliases: dict[str, FieldAliases] = {}
     _record_user_aliases(aliases, '{"data": "not-a-dict"}')
@@ -797,7 +801,7 @@ def test_record_user_aliases_tolerates_non_dict_data_field() -> None:
 
 def test_record_user_aliases_tolerates_non_list_item_field() -> None:
     """Item field that is not a list is silently ignored."""
-    from pylocal_akuvox.capability_probe import _record_user_aliases
+    from pylocal_akuvox._probe_parsers import _record_user_aliases
 
     aliases: dict[str, FieldAliases] = {}
     _record_user_aliases(aliases, '{"data": {"Item": "not-a-list"}}')
@@ -806,7 +810,7 @@ def test_record_user_aliases_tolerates_non_list_item_field() -> None:
 
 def test_record_user_aliases_skips_non_dict_items() -> None:
     """Non-dict entries inside Item list are skipped without raising."""
-    from pylocal_akuvox.capability_probe import _record_user_aliases
+    from pylocal_akuvox._probe_parsers import _record_user_aliases
 
     aliases: dict[str, FieldAliases] = {}
     body = json.dumps({"data": {"Item": [None, 42, {"Schedule": "1"}]}})
@@ -817,7 +821,7 @@ def test_record_user_aliases_skips_non_dict_items() -> None:
 
 def test_record_contact_shape_tolerates_non_json_body() -> None:
     """Non-JSON body silently leaves the shapes dict unchanged."""
-    from pylocal_akuvox.capability_probe import _record_contact_shape
+    from pylocal_akuvox._probe_parsers import _record_contact_shape
 
     shapes: dict[str, SchemaShape] = {}
     _record_contact_shape(shapes, "<html>")
@@ -826,7 +830,7 @@ def test_record_contact_shape_tolerates_non_json_body() -> None:
 
 def test_record_contact_shape_tolerates_non_dict_payload() -> None:
     """JSON list payload silently leaves the shapes dict unchanged."""
-    from pylocal_akuvox.capability_probe import _record_contact_shape
+    from pylocal_akuvox._probe_parsers import _record_contact_shape
 
     shapes: dict[str, SchemaShape] = {}
     _record_contact_shape(shapes, "[]")
@@ -835,7 +839,7 @@ def test_record_contact_shape_tolerates_non_dict_payload() -> None:
 
 def test_record_contact_shape_tolerates_non_dict_data_field() -> None:
     """data field that is not a dict is silently ignored."""
-    from pylocal_akuvox.capability_probe import _record_contact_shape
+    from pylocal_akuvox._probe_parsers import _record_contact_shape
 
     shapes: dict[str, SchemaShape] = {}
     _record_contact_shape(shapes, '{"data": "not-a-dict"}')
@@ -844,7 +848,7 @@ def test_record_contact_shape_tolerates_non_dict_data_field() -> None:
 
 def test_record_contact_shape_tolerates_non_dict_first_item() -> None:
     """First Item entry that is not a dict is silently ignored."""
-    from pylocal_akuvox.capability_probe import _record_contact_shape
+    from pylocal_akuvox._probe_parsers import _record_contact_shape
 
     shapes: dict[str, SchemaShape] = {}
     body = json.dumps({"data": {"Item": [None, {"Name": "x"}]}})
@@ -863,7 +867,7 @@ def test_record_contact_shape_tolerates_non_dict_first_item() -> None:
 
 def test_extract_items_returns_pascal_case_item_list() -> None:
     """Standard PascalCase ``Item`` container yields the underlying list."""
-    from pylocal_akuvox.capability_probe import _extract_items
+    from pylocal_akuvox._probe_parsers import _extract_items
 
     body = json.dumps({"data": {"Item": [{"Name": "a"}, {"Name": "b"}]}})
     items = _extract_items(body)
@@ -872,7 +876,7 @@ def test_extract_items_returns_pascal_case_item_list() -> None:
 
 def test_extract_items_returns_lowercase_item_list() -> None:
     """Lowercase ``item`` container is recognised (real-firmware shape)."""
-    from pylocal_akuvox.capability_probe import _extract_items
+    from pylocal_akuvox._probe_parsers import _extract_items
 
     body = json.dumps({"data": {"item": [{"Name": "a"}]}})
     items = _extract_items(body)
@@ -881,7 +885,7 @@ def test_extract_items_returns_lowercase_item_list() -> None:
 
 def test_extract_items_prefers_pascal_case_when_both_present() -> None:
     """If both ``Item`` and ``item`` are present, ``Item`` wins (deterministic)."""
-    from pylocal_akuvox.capability_probe import _extract_items
+    from pylocal_akuvox._probe_parsers import _extract_items
 
     body = json.dumps({"data": {"Item": [{"k": "pascal"}], "item": [{"k": "lower"}]}})
     items = _extract_items(body)
@@ -890,35 +894,35 @@ def test_extract_items_prefers_pascal_case_when_both_present() -> None:
 
 def test_extract_items_returns_none_for_non_json_body() -> None:
     """Non-JSON body returns ``None`` (sentinel for "skip recording")."""
-    from pylocal_akuvox.capability_probe import _extract_items
+    from pylocal_akuvox._probe_parsers import _extract_items
 
     assert _extract_items("<html>not-json</html>") is None
 
 
 def test_extract_items_returns_none_for_non_dict_payload() -> None:
     """JSON list at the top level returns ``None``."""
-    from pylocal_akuvox.capability_probe import _extract_items
+    from pylocal_akuvox._probe_parsers import _extract_items
 
     assert _extract_items("[1, 2, 3]") is None
 
 
 def test_extract_items_returns_none_for_non_dict_data_field() -> None:
     """``data`` present but not a dict returns ``None``."""
-    from pylocal_akuvox.capability_probe import _extract_items
+    from pylocal_akuvox._probe_parsers import _extract_items
 
     assert _extract_items('{"data": "not-a-dict"}') is None
 
 
 def test_extract_items_returns_none_when_no_item_key() -> None:
     """``data`` present and a dict but no ``Item``/``item`` key returns ``None``."""
-    from pylocal_akuvox.capability_probe import _extract_items
+    from pylocal_akuvox._probe_parsers import _extract_items
 
     assert _extract_items('{"data": {"other": []}}') is None
 
 
 def test_extract_items_returns_none_when_item_value_is_not_list() -> None:
     """``data.Item`` present but not a list returns ``None`` (defensive)."""
-    from pylocal_akuvox.capability_probe import _extract_items
+    from pylocal_akuvox._probe_parsers import _extract_items
 
     assert _extract_items('{"data": {"Item": "not-a-list"}}') is None
     assert _extract_items('{"data": {"item": {"a": 1}}}') is None
@@ -926,7 +930,7 @@ def test_extract_items_returns_none_when_item_value_is_not_list() -> None:
 
 def test_record_user_aliases_accepts_lowercase_item_key() -> None:
     """End-to-end: ``data.item`` (lowercase) populates field_aliases."""
-    from pylocal_akuvox.capability_probe import _record_user_aliases
+    from pylocal_akuvox._probe_parsers import _record_user_aliases
 
     aliases: dict[str, FieldAliases] = {}
     body = json.dumps({"data": {"item": [{"ScheduleRelay": "1"}]}})
@@ -937,7 +941,7 @@ def test_record_user_aliases_accepts_lowercase_item_key() -> None:
 
 def test_record_user_schema_keys_accepts_lowercase_item_key() -> None:
     """End-to-end: ``data.item`` (lowercase) populates schema-observed-keys."""
-    from pylocal_akuvox.capability_probe import _record_user_schema_keys
+    from pylocal_akuvox._probe_parsers import _record_user_schema_keys
 
     notes: dict[str, str] = {}
     body = json.dumps({"data": {"item": [{"Building": "1", "Room": "101"}]}})
@@ -947,7 +951,7 @@ def test_record_user_schema_keys_accepts_lowercase_item_key() -> None:
 
 def test_record_contact_shape_accepts_lowercase_item_key() -> None:
     """End-to-end: ``data.item`` (lowercase) populates schema_shapes."""
-    from pylocal_akuvox.capability_probe import _record_contact_shape
+    from pylocal_akuvox._probe_parsers import _record_contact_shape
 
     shapes: dict[str, SchemaShape] = {}
     body = json.dumps({"data": {"item": [{"APTName": "Apt 1"}]}})
@@ -962,7 +966,7 @@ def test_record_contact_shape_classifies_door_phone_when_only_building() -> None
     them too. Only APTName / APTNum should classify as APARTMENT_BOOK
     (see :func:`_record_contact_shape` docstring).
     """
-    from pylocal_akuvox.capability_probe import _record_contact_shape
+    from pylocal_akuvox._probe_parsers import _record_contact_shape
 
     shapes: dict[str, SchemaShape] = {}
     body = json.dumps(
@@ -974,7 +978,7 @@ def test_record_contact_shape_classifies_door_phone_when_only_building() -> None
 
 def test_record_contact_shape_classifies_apt_book_when_aptnum_present() -> None:
     """``APTNum`` (without APTName) is sufficient evidence of apartment-book."""
-    from pylocal_akuvox.capability_probe import _record_contact_shape
+    from pylocal_akuvox._probe_parsers import _record_contact_shape
 
     shapes: dict[str, SchemaShape] = {}
     body = json.dumps({"data": {"Item": [{"APTNum": "101"}]}})
@@ -991,7 +995,7 @@ def test_record_contact_shape_classifies_apt_book_when_aptnum_present() -> None:
 
 def test_summarise_system_status_returns_ok_for_healthy_envelope() -> None:
     """200 + retcode 0 → ``"ok"`` regardless of any time-varying data fields."""
-    from pylocal_akuvox.capability_probe import _summarise_system_status
+    from pylocal_akuvox._probe_classifiers import _summarise_system_status
 
     body_with_drifting_time = json.dumps(
         {
@@ -1005,7 +1009,7 @@ def test_summarise_system_status_returns_ok_for_healthy_envelope() -> None:
 
 def test_summarise_system_status_returns_retcode_token_for_nonzero() -> None:
     """200 with retcode != 0 → ``"retcode_<n>"`` (no marker matched)."""
-    from pylocal_akuvox.capability_probe import _summarise_system_status
+    from pylocal_akuvox._probe_classifiers import _summarise_system_status
 
     body = json.dumps({"retcode": -5, "message": "bad"})
     assert _summarise_system_status(200, body) == "retcode_-5"
@@ -1013,14 +1017,14 @@ def test_summarise_system_status_returns_retcode_token_for_nonzero() -> None:
 
 def test_summarise_system_status_returns_unparsable_for_invalid_json() -> None:
     """200 + invalid JSON → ``"unparsable"``."""
-    from pylocal_akuvox.capability_probe import _summarise_system_status
+    from pylocal_akuvox._probe_classifiers import _summarise_system_status
 
     assert _summarise_system_status(200, "<html>not-json</html>") == "unparsable"
 
 
 def test_summarise_system_status_returns_unparsable_for_non_dict_payload() -> None:
     """200 + JSON list (not dict) → ``"unparsable"``."""
-    from pylocal_akuvox.capability_probe import _summarise_system_status
+    from pylocal_akuvox._probe_classifiers import _summarise_system_status
 
     assert _summarise_system_status(200, "[1, 2, 3]") == "unparsable"
 
@@ -1033,7 +1037,7 @@ def test_summarise_system_status_returns_unparsable_for_missing_retcode() -> Non
     field. Also covers the related case where ``retcode`` is present
     but a non-int (e.g. string) — same idempotent ``"unparsable"`` token.
     """
-    from pylocal_akuvox.capability_probe import _summarise_system_status
+    from pylocal_akuvox._probe_classifiers import _summarise_system_status
 
     # retcode missing entirely
     assert _summarise_system_status(200, '{"data": {"status": "up"}}') == "unparsable"
@@ -1045,7 +1049,7 @@ def test_summarise_system_status_returns_unparsable_for_missing_retcode() -> Non
 
 def test_summarise_system_status_returns_http_token_for_non_2xx() -> None:
     """Non-2xx status → ``f"http_{status}"`` regardless of body content."""
-    from pylocal_akuvox.capability_probe import _summarise_system_status
+    from pylocal_akuvox._probe_classifiers import _summarise_system_status
 
     assert _summarise_system_status(500, "Internal Server Error") == "http_500"
     assert _summarise_system_status(404, '{"retcode": 0}') == "http_404"
@@ -1119,7 +1123,7 @@ async def test_probe_is_idempotent_across_time_varying_system_status() -> None:
 
 def test_record_user_schema_keys_records_observed_keys_sorted() -> None:
     """Items carrying Building/Room/EffectiveType → sorted comma-joined note."""
-    from pylocal_akuvox.capability_probe import _record_user_schema_keys
+    from pylocal_akuvox._probe_parsers import _record_user_schema_keys
 
     notes: dict[str, str] = {}
     body = json.dumps(
@@ -1139,7 +1143,7 @@ def test_record_user_schema_keys_records_observed_keys_sorted() -> None:
 
 def test_record_user_schema_keys_writes_nothing_when_no_candidate_present() -> None:
     """User items with none of the candidate keys → notes untouched."""
-    from pylocal_akuvox.capability_probe import _record_user_schema_keys
+    from pylocal_akuvox._probe_parsers import _record_user_schema_keys
 
     notes: dict[str, str] = {}
     body = json.dumps({"data": {"Item": [{"ID": "1", "Name": "alice"}]}})
@@ -1149,7 +1153,7 @@ def test_record_user_schema_keys_writes_nothing_when_no_candidate_present() -> N
 
 def test_record_user_schema_keys_tolerates_non_json_body() -> None:
     """Non-JSON body silently leaves the notes dict unchanged."""
-    from pylocal_akuvox.capability_probe import _record_user_schema_keys
+    from pylocal_akuvox._probe_parsers import _record_user_schema_keys
 
     notes: dict[str, str] = {}
     _record_user_schema_keys(notes, "<html>")
@@ -1158,7 +1162,7 @@ def test_record_user_schema_keys_tolerates_non_json_body() -> None:
 
 def test_record_user_schema_keys_tolerates_non_dict_payload() -> None:
     """JSON list payload silently leaves the notes dict unchanged."""
-    from pylocal_akuvox.capability_probe import _record_user_schema_keys
+    from pylocal_akuvox._probe_parsers import _record_user_schema_keys
 
     notes: dict[str, str] = {}
     _record_user_schema_keys(notes, "[]")
@@ -1167,7 +1171,7 @@ def test_record_user_schema_keys_tolerates_non_dict_payload() -> None:
 
 def test_record_user_schema_keys_tolerates_non_dict_data_field() -> None:
     """data field that is not a dict is silently ignored."""
-    from pylocal_akuvox.capability_probe import _record_user_schema_keys
+    from pylocal_akuvox._probe_parsers import _record_user_schema_keys
 
     notes: dict[str, str] = {}
     _record_user_schema_keys(notes, '{"data": "not-a-dict"}')
@@ -1176,7 +1180,7 @@ def test_record_user_schema_keys_tolerates_non_dict_data_field() -> None:
 
 def test_record_user_schema_keys_tolerates_non_list_item_field() -> None:
     """Item field that is not a list is silently ignored."""
-    from pylocal_akuvox.capability_probe import _record_user_schema_keys
+    from pylocal_akuvox._probe_parsers import _record_user_schema_keys
 
     notes: dict[str, str] = {}
     _record_user_schema_keys(notes, '{"data": {"Item": "not-a-list"}}')
@@ -1185,7 +1189,7 @@ def test_record_user_schema_keys_tolerates_non_list_item_field() -> None:
 
 def test_record_user_schema_keys_skips_non_dict_items() -> None:
     """Non-dict entries inside Item list are skipped without raising."""
-    from pylocal_akuvox.capability_probe import _record_user_schema_keys
+    from pylocal_akuvox._probe_parsers import _record_user_schema_keys
 
     notes: dict[str, str] = {}
     body = json.dumps({"data": {"Item": [None, 42, {"Building": "A"}]}})

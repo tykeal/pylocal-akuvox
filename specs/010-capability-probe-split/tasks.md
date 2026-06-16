@@ -72,7 +72,7 @@ Single Python package: `src/pylocal_akuvox/`, `tests/unit/`,
 validation gates can compare numerically, and prepare the working tree
 for the implementation branch.
 
-- [ ] T001 Capture pre-refactor baseline metrics on `main` at the
+- [x] T001 Capture pre-refactor baseline metrics on `main` at the
   current head: (a) test count from
   `uv run pytest tests/ --collect-only -q | tail -1`; (b) branch
   coverage by running `uv run pytest tests/` and reading the
@@ -92,7 +92,7 @@ for the implementation branch.
   the implementation PR description so SC-001, FR-006, and FR-004
   have explicit before/after comparisons. Covers FR-006 baseline +
   SC-001 baseline + FR-004 baseline.
-- [ ] T002 Create the implementation worktree on a fresh branch off
+- [x] T002 Create the implementation worktree on a fresh branch off
   `main`:
   `git worktree add ../pylocal-akuvox-010 -b 010-capability-probe-split main`.
   All subsequent edits in Phases 2–8 happen in that worktree. The
@@ -101,7 +101,7 @@ for the implementation branch.
   later; the tasks PR (this file) similarly ships on its own
   `docs/010-capability-probe-tasks` branch; the implementation
   branch above is the FOURTH and final 010-related branch.
-- [ ] T003 Spot-check FR-009 / FR-010: run
+- [x] T003 Spot-check FR-009 / FR-010: run
   `grep -nE 'pylocal_akuvox\.capability_probe' README.md docs/quickstart.rst examples/mvp_test.py docs/_ext/capability_matrix.py` and
   confirm zero matches. The spec attests this is true on `main`
   (per `research.md` Decision 7); this task records the verification
@@ -124,7 +124,7 @@ commit is therefore green at every CI gate; the "red phase" only ever
 exists in the implementer's working tree during authoring. **This task
 does NOT create the new module files** — those come in Phase 3.
 
-- [ ] T004 Extend `tests/unit/test_capability_module_layout.py` —
+- [x] T004 Extend `tests/unit/test_capability_module_layout.py` —
   the existing ~89-line file added by spec 009 (verify with
   `wc -l` against `main` at refresh time; the file is short and
   may have drifted ±1–2 lines from intermediate housekeeping
@@ -209,7 +209,7 @@ Therefore: T005 (`_probe_outcomes`) MUST go first; T006
 (`_probe_parsers`, no sibling dependency) can run **in parallel**
 once T005 is staged; T008 (`_capability_probe`) runs last.
 
-- [ ] T005 Create `src/pylocal_akuvox/_probe_outcomes.py` per
+- [x] T005 Create `src/pylocal_akuvox/_probe_outcomes.py` per
   `contracts/probe-outcomes.md` and `plan.md` §"New module 1:
   `src/pylocal_akuvox/_probe_outcomes.py`". SPDX header pair; module
   docstring naming spec `010-capability-probe-split` and the single
@@ -229,7 +229,7 @@ once T005 is staged; T008 (`_capability_probe`) runs last.
   four symbols listed in `_probe_outcomes`), FR-012 (no first-party
   imports — leaf module), and the
   `contracts/probe-outcomes.md` Public Surface clause.
-- [ ] T006 [P] Create `src/pylocal_akuvox/_probe_classifiers.py` per
+- [x] T006 [P] Create `src/pylocal_akuvox/_probe_classifiers.py` per
   `contracts/probe-classifiers.md` and `plan.md` §"New module 2:
   `src/pylocal_akuvox/_probe_classifiers.py`". SPDX header pair;
   module docstring naming the single concern ("pure response
@@ -249,7 +249,7 @@ once T005 is staged; T008 (`_capability_probe`) runs last.
   FR-012 (absolute first-party imports, no sibling cycle —
   `_probe_classifiers` does NOT import from `_probe_parsers`), and
   `contracts/probe-classifiers.md`.
-- [ ] T007 [P] Create `src/pylocal_akuvox/_probe_parsers.py` per
+- [x] T007 [P] Create `src/pylocal_akuvox/_probe_parsers.py` per
   `contracts/probe-parsers.md` and `plan.md` §"New module 3:
   `src/pylocal_akuvox/_probe_parsers.py`". SPDX header pair; module
   docstring naming the single concern ("response payload parsers
@@ -270,7 +270,7 @@ once T005 is staged; T008 (`_capability_probe`) runs last.
   FR-012 (absolute first-party imports, no sibling cycle —
   `_probe_parsers` does NOT import from `_probe_classifiers` or
   `_probe_outcomes`), and `contracts/probe-parsers.md`.
-- [ ] T008 Create `src/pylocal_akuvox/_capability_probe.py` per
+- [x] T008 Create `src/pylocal_akuvox/_capability_probe.py` per
   `contracts/capability-probe.md` and `plan.md` §"New module 4:
   `src/pylocal_akuvox/_capability_probe.py`". SPDX header pair;
   module docstring naming the single concern ("orchestration of the
@@ -317,7 +317,7 @@ underscore module. `capability_probe.py` still exists (deletion is
 T011), so the package continues to import cleanly through both
 paths during this transitional state.
 
-- [ ] T009 Rewrite `src/pylocal_akuvox/device.py` line 22 (single
+- [x] T009 Rewrite `src/pylocal_akuvox/device.py` line 22 (single
   import line). **Before**:
   `from pylocal_akuvox.capability_probe import probe_capabilities as _probe_capabilities`.
   **After**:
@@ -355,7 +355,7 @@ matches across `src/`, `tests/`, and `docs/` are gone (1 from T009 +
 T011 handles the deletion. The package continues to import cleanly
 through both old and new paths until T011.
 
-- [ ] T010 Rewrite `tests/unit/test_capability_probe.py` — 41
+- [x] T010 Rewrite `tests/unit/test_capability_probe.py` — 41
   import-line rewrites (1 static top-of-file at line 29 + 40
   in-test deferred imports) plus the line-4 module docstring fix
   per FR-013. All edits in one task because they all live in the
@@ -437,7 +437,7 @@ is unused. Delete it. After this task, T004's layout test goes green:
 all four new probe-side assertions now pass. The implementation is
 now complete in source-code terms.
 
-- [ ] T011 Delete `src/pylocal_akuvox/capability_probe.py`
+- [x] T011 Delete `src/pylocal_akuvox/capability_probe.py`
   (`git rm src/pylocal_akuvox/capability_probe.py`). Re-run T004's
   layout test:
   `uv run pytest tests/unit/test_capability_module_layout.py -v` —
@@ -465,13 +465,13 @@ but the implementer is encouraged to run them in series so output
 streams stay readable. Genuine `[P]` candidates are explicitly
 flagged.
 
-- [ ] T012 **Unit tests gate** — run `uv run pytest tests/ -x -q`.
+- [x] T012 **Unit tests gate** — run `uv run pytest tests/ -x -q`.
   Pass criterion: exit 0; all tests pass; the four new probe-side
   test functions in `test_capability_module_layout.py` (T004) are
   picked up automatically by `tests/unit/` discovery; the rewritten
   `test_capability_probe.py` (T010) passes with imports resolving
   through the new underscore modules. Covers SC-001.
-- [ ] T013 **Branch coverage gate** — run
+- [x] T013 **Branch coverage gate** — run
   `uv run pytest --cov=pylocal_akuvox --cov-branch --cov-report=term-missing tests/`.
   Pass criterion: 100% branch coverage maintained on `pylocal_akuvox`
   (matches T001 baseline). No new uncovered branches. The four new
@@ -479,17 +479,17 @@ flagged.
   exercised those entities through `capability_probe.py` now
   exercises them through the underscore modules — the rewritten
   test imports in T010 ensure this. Covers SC-001 + FR-006.
-- [ ] T014 **Lint gate** — run `uv run ruff check src/ tests/`.
+- [x] T014 **Lint gate** — run `uv run ruff check src/ tests/`.
   Pass criterion: exit 0; zero warnings. The four new modules'
   imports must be ordered (stdlib → first-party, alphabetical
   within each group) per project ruff/isort config. Covers
   constitution §I.
-- [ ] T015 **Type-check gate** — run `uv run mypy src/`. Pass
+- [x] T015 **Type-check gate** — run `uv run mypy src/`. Pass
   criterion: exit 0; zero errors (mypy strict per project config).
   The relocation does not alter any function signature or
   dataclass field type, so no new mypy errors are expected.
   Covers constitution §I + spec User Story 1 acceptance scenario.
-- [ ] T016 **Pre-commit (full) gate** — run
+- [x] T016 **Pre-commit (full) gate** — run
   `git add -A && pre-commit run --all-files`. The leading
   `git add -A` is **mandatory**: the project's aislop hook is
   configured with `pass_filenames: false` and operates on the
@@ -503,7 +503,7 @@ flagged.
   the four new modules. This is the load-bearing pre-commit check;
   T017–T019 are belt-and-suspenders. Covers SC-001 + SC-002
   (per-module size limit) + constitution §V (no `--no-verify`).
-- [ ] T017 [P] **Aislop new-module size scan (explicit)** — run
+- [x] T017 [P] **Aislop new-module size scan (explicit)** — run
   `uv run aislop scan --include 'src/pylocal_akuvox/_probe_outcomes.py,src/pylocal_akuvox/_probe_classifiers.py,src/pylocal_akuvox/_probe_parsers.py,src/pylocal_akuvox/_capability_probe.py'`.
   Pass criterion: NO `complexity/file-too-large` warnings on any
   of the four new modules; each is under 400 lines. **Note**
@@ -515,14 +515,14 @@ flagged.
   per-module verification of FR-004 and SC-002 (does not depend
   on staging state). The `[P]` marker reflects that this scan is
   read-only and fully independent of T016's pre-commit run.
-- [ ] T018 [P] **Aislop project-wide scan** — run
+- [x] T018 [P] **Aislop project-wide scan** — run
   `uv run aislop scan`. Pass criterion: `capability_probe.py` no
   longer appears in the `complexity/file-too-large` list (it has
   been deleted in T011). `device.py` will still be flagged —
   that is issue #142, out of scope per spec §"Out of Scope".
   `capabilities.py` is already gone (shipped under spec 009 / PR
   #148). Covers SC-002 at project level.
-- [ ] T019 [P] **Doc build gate** — run
+- [x] T019 [P] **Doc build gate** — run
   `cd docs && uv run sphinx-build -W -b html . _build/html`. The
   `-W` flag treats warnings as errors. Pass criterion: exit 0;
   confirms the rewritten `device.py` import (T009) works at
@@ -533,21 +533,21 @@ flagged.
   this Phase 7 run, the changelog bullet has not yet been added
   (lives in the Phase 9 commit), so this gate verifies only the
   source-code import resolution. Covers FR-010 + SC-007.
-- [ ] T020 **Subpath removal smoke test (import form)** — run
+- [x] T020 **Subpath removal smoke test (import form)** — run
   `uv run python -c "import pylocal_akuvox.capability_probe"`.
   Pass criterion: exits non-zero with
   `ModuleNotFoundError: No module named 'pylocal_akuvox.capability_probe'`.
   Covers SC-003 + FR-002.
-- [ ] T021 **Subpath removal smoke test (from form)** — run
+- [x] T021 **Subpath removal smoke test (from form)** — run
   `uv run python -c "from pylocal_akuvox.capability_probe import probe_capabilities"`.
   Pass criterion: exits non-zero with
   `ModuleNotFoundError: No module named 'pylocal_akuvox.capability_probe'`.
   Covers SC-003 + FR-003.
-- [ ] T022 **Public probe smoke test** — run
+- [x] T022 **Public probe smoke test** — run
   `uv run python -c "import pylocal_akuvox; assert callable(pylocal_akuvox.AkuvoxDevice.probe_capabilities); print('ok')"`.
   Pass criterion: exits 0; prints `ok`. Covers SC-004 + FR-001 +
   spec User Story 1 acceptance scenario.
-- [ ] T023 **Internal underscore-module smoke tests** — run the
+- [x] T023 **Internal underscore-module smoke tests** — run the
   four `uv run python -c "from pylocal_akuvox._probe_… import …; print('ok')"`
   invocations from `quickstart.md` Step 6:
   `from pylocal_akuvox._probe_outcomes import _ProbeOutcome`,
@@ -557,12 +557,12 @@ flagged.
   Pass criterion: all four print `ok` and exit 0. Belt-and-suspenders
   for FR-005 at the symbol level, complementing T004 assertion 3's
   module-level pin.
-- [ ] T024 **Original file gone smoke test** — run
+- [x] T024 **Original file gone smoke test** — run
   `test ! -f src/pylocal_akuvox/capability_probe.py && echo deleted`.
   Pass criterion: prints `deleted` and exits 0 (the file is
   absent — the desired post-split state). Non-zero exit if the
   file still exists (refactor incomplete). Covers SC-008.
-- [ ] T025 **Pre-PR import-form sanity grep (FR-013 hard
+- [x] T025 **Pre-PR import-form sanity grep (FR-013 hard
   requirement)** — run
   `grep -rnE "from pylocal_akuvox.capability_probe|import pylocal_akuvox.capability_probe" src/ tests/ docs/ README.md examples/`
   (`-E` selects extended regex so `|` is the alternation operator
@@ -579,7 +579,7 @@ flagged.
   removal) + the user's hard requirement "Pre-PR
   `grep -rn 'from pylocal_akuvox.capability_probe' src/ tests/
   docs/` returns ZERO hits post-refactor".
-- [ ] T026 **FR-013 stale-phrase consumer sweep (single
+- [x] T026 **FR-013 stale-phrase consumer sweep (single
   dedicated task)** — run
   `grep -rnE "defined here|this module|lazy import|cycle|dataclass|capability_probe" src/pylocal_akuvox/_probe_outcomes.py src/pylocal_akuvox/_probe_classifiers.py src/pylocal_akuvox/_probe_parsers.py src/pylocal_akuvox/_capability_probe.py src/pylocal_akuvox/device.py tests/unit/test_capability_probe.py`.
   Pass criterion: each surviving match must be reviewed manually:
@@ -605,7 +605,7 @@ flagged.
   code) + the user's hard requirement "Pre-PR sweep for stale
   phrases … in CONSUMING code (not just moved code) — single
   dedicated task".
-- [ ] T027 **FR-014 inline RST literal hygiene scan** — for every
+- [x] T027 **FR-014 inline RST literal hygiene scan** — for every
   file touched by the refactor (the four new modules, `device.py`,
   `tests/unit/test_capability_probe.py`,
   `tests/unit/test_capability_module_layout.py`, and — once Phase
@@ -637,7 +637,7 @@ flagged.
   009 item 2) + the user's hard requirement "Inline RST
   `` `` … `` literals containing newlines: search for them in
   ALL touched files, convert to indented `::` blocks".
-- [ ] T028 **FR-009 / FR-010 Sphinx role / data reference sweep**
+- [x] T028 **FR-009 / FR-010 Sphinx role / data reference sweep**
   (carry-forward retro item) — run
   `grep -rnE ':mod:\`pylocal_akuvox\.capability_probe\`|:func:\`pylocal_akuvox\.capability_probe\.|:data:\`pylocal_akuvox\.capability_probe\.' docs/ src/ tests/ README.md`.
   Pass criterion: zero matches. The pre-spec sweep (`research.md`
@@ -656,7 +656,7 @@ extension + deletion of `capability_probe.py`) as ONE atomic commit.
 The `!` marker in the subject is the load-bearing FR-007 requirement
 and triggers the breaking-change announcement chain.
 
-- [ ] T029 Stage every file changed in Phases 2–6 with `git add`:
+- [x] T029 Stage every file changed in Phases 2–6 with `git add`:
   the four new underscore modules (T005–T008), the rewritten
   `src/pylocal_akuvox/device.py` (T009), the rewritten
   `tests/unit/test_capability_probe.py` (T010 — imports + line-4
@@ -676,7 +676,7 @@ and triggers the breaking-change announcement chain.
   exists from spec 009. Confirm with
   `git diff --staged --name-only | wc -l` returning `8`. **The changelog edit is NOT included here** — it lives in
   Phase 9's `Docs(changelog)` commit.
-- [ ] T030 Commit the staged tree as the **atomic implementation
+- [x] T030 Commit the staged tree as the **atomic implementation
   commit** with subject **exactly**
   `Refactor(probe)!: Split into submodules` (39 chars; verify with
   `echo -n "Refactor(probe)!: Split into submodules" | wc -c` →
@@ -739,7 +739,7 @@ and AGENTS.md §"Atomic Commits", the changelog edit is logically
 distinct from the source-code change, so it gets its own commit
 even though it ships in the same PR.
 
-- [ ] T031 Edit `docs/changelog.rst` Unreleased section: add a
+- [x] T031 Edit `docs/changelog.rst` Unreleased section: add a
   "Breaking changes" subsection (RST sub-heading) **at the same
   RST nesting depth as the existing 009-spec "Breaking changes"
   subsection** — level: `^^^^^^^^^^^^^^^^` underline (16 carets,
@@ -775,7 +775,7 @@ even though it ships in the same PR.
   top-level "Added" / "Changed" / "Fixed" / "Removed" subsection.
   Covers FR-008 + spec User Story 2 acceptance scenario #3 +
   the user's hard requirement on RST sectioning depth.
-- [ ] T032 Stage `docs/changelog.rst` and commit as a SEPARATE
+- [x] T032 Stage `docs/changelog.rst` and commit as a SEPARATE
   atomic commit with subject **exactly**
   `Docs(changelog): Announce 010-probe split` (41 chars; verify
   with `echo -n "Docs(changelog): Announce 010-probe split" | wc -c`
@@ -810,7 +810,7 @@ The actual `gh pr merge` action happens AFTER T035 in the unnumbered
 ends with three commits on the PR branch and all review threads
 resolved.
 
-- [ ] T033 Push the branch
+- [x] T033 Push the branch
   (`git push -u origin 010-capability-probe-split`) and open the
   PR with `gh pr create --base main`. PR title MUST match the
   implementation commit subject **exactly**
@@ -836,7 +836,7 @@ resolved.
   `Refactor(probe)!` commit and the `Docs(changelog)` commit.
   T035 below adds a third (the task-list flip) before the
   post-task merge action.
-- [ ] T034 Run the Copilot review loop:
+- [x] T034 Run the Copilot review loop:
   `gh copilot-review --wait --wait-timeout 20min <PR>`. **Note**:
   `copilot-review` is a local `gh` extension / alias used by this
   project's maintainers to drive the GitHub Copilot PR-reviewer
@@ -891,7 +891,7 @@ resolved.
 
 ## Phase 11: Polish — task-list flip (final commit)
 
-- [ ] T035 In the implementation worktree (after T034's review
+- [x] T035 In the implementation worktree (after T034's review
   loop closes and all review threads are resolved), edit
   `specs/010-capability-probe-split/tasks.md`: flip every
   `- [ ]` to `- [x]` for every task T001 through T035 (this

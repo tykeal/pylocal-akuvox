@@ -10,6 +10,7 @@ import contextlib
 from typing import TYPE_CHECKING, Any
 
 from pylocal_akuvox._capability_matching import lookup_capabilities
+from pylocal_akuvox._capability_probe import probe_capabilities as _probe_capabilities
 from pylocal_akuvox._capability_profile import DeviceCapabilities
 from pylocal_akuvox._capability_types import Capability, CapabilityStatus
 from pylocal_akuvox._http import AkuvoxHttpClient
@@ -19,7 +20,6 @@ from pylocal_akuvox.capability_adapters import (
     RELAY_TRIGGER_PREFERENCE,
     RelayTriggerArgs,
 )
-from pylocal_akuvox.capability_probe import probe_capabilities as _probe_capabilities
 from pylocal_akuvox.exceptions import (
     AkuvoxConnectionError,
     AkuvoxUnsupportedError,
