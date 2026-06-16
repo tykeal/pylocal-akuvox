@@ -5,11 +5,15 @@
 
 This module owns the ``CAPABILITY_MATRIX`` constant — the curated
 list of ``(DeviceClassPattern, DeviceCapabilities)`` entries that
-:func:`pylocal_akuvox.capabilities.lookup_capabilities` consults
+:func:`pylocal_akuvox._capability_matching.lookup_capabilities` consults
 at connect time. ``lookup_capabilities`` itself lives in
-``capabilities.py`` and lazy-imports this module to avoid an import
-cycle with :mod:`pylocal_akuvox.capability_adapters` (which itself
-imports from :mod:`pylocal_akuvox.capabilities`).
+:mod:`pylocal_akuvox._capability_matching` and lazy-imports this
+module's ``CAPABILITY_MATRIX`` constant inside its function body to
+break the import cycle that would otherwise form between the two
+modules: this module imports ``DeviceClassPattern`` from
+``_capability_matching`` at module load, so a corresponding top-level
+import of ``CAPABILITY_MATRIX`` from ``_capability_matching``'s
+direction would close the loop.
 
 The module also defines a small ``_library_version`` helper plus
 the ``_LIB_VERSION`` and ``_OBSERVED_AT`` sentinels that every
@@ -32,14 +36,16 @@ from __future__ import annotations
 
 import importlib.metadata
 
-from pylocal_akuvox.capabilities import (
-    DEFAULT_USER_FIELD_ALIASES,
-    Capability,
-    CapabilityStatus,
+from pylocal_akuvox._capability_defaults import DEFAULT_USER_FIELD_ALIASES
+from pylocal_akuvox._capability_matching import DeviceClassPattern
+from pylocal_akuvox._capability_profile import (
     DeviceCapabilities,
-    DeviceClassPattern,
     FieldAliases,
     Provenance,
+)
+from pylocal_akuvox._capability_types import (
+    Capability,
+    CapabilityStatus,
     SchemaShape,
 )
 

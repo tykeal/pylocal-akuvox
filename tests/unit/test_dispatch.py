@@ -34,7 +34,7 @@ import pytest
 from aioresponses import aioresponses
 
 from pylocal_akuvox import AkuvoxDevice
-from pylocal_akuvox.capabilities import Capability
+from pylocal_akuvox._capability_types import Capability
 from pylocal_akuvox.exceptions import (
     AkuvoxUnsupportedError,
     AkuvoxValidationError,

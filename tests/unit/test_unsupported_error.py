@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from pylocal_akuvox.capabilities import Capability
+from pylocal_akuvox._capability_types import Capability
 from pylocal_akuvox.exceptions import AkuvoxError, AkuvoxUnsupportedError
 
 

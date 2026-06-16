@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from pylocal_akuvox.capabilities import Capability
+from pylocal_akuvox._capability_types import Capability
 from pylocal_akuvox.exceptions import (
     AkuvoxAuthenticationError,
     AkuvoxDeviceError,

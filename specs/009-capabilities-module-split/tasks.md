@@ -67,7 +67,7 @@ Single Python package: `src/pylocal_akuvox/`, `tests/unit/`,
 validation gates can compare numerically, and prepare the working tree
 for the implementation branch.
 
-- [ ] T001 Capture pre-refactor baseline metrics on `main` at the
+- [x] T001 Capture pre-refactor baseline metrics on `main` at the
   current head: (a) test count from `uv run pytest tests/ --collect-only -q | tail -1`;
   (b) branch coverage by running `uv run pytest tests/` and reading
   the generated repo-root `coverage.xml`
@@ -82,7 +82,7 @@ for the implementation branch.
   numbers in the implementation PR description so SC-001, FR-006, and
   FR-004 have explicit before/after comparisons. Covers FR-006 baseline
   + SC-001 baseline + FR-004 baseline.
-- [ ] T002 Create the implementation worktree on a fresh branch off
+- [x] T002 Create the implementation worktree on a fresh branch off
   `main`:
   `git worktree add ../pylocal-akuvox-009 -b 009-capabilities-module-split main`.
   All subsequent edits in Phases 2–8 happen in that worktree. The
@@ -90,7 +90,7 @@ for the implementation branch.
   their own `docs/009-…` branch and have already merged; the
   implementation branch above is the FOURTH and final 009-related
   branch.
-- [ ] T003 Spot-check FR-009: run
+- [x] T003 Spot-check FR-009: run
   `grep -nE 'pylocal_akuvox\.capabilities' README.md` and confirm
   zero matches. The spec already attests this is true on `main`; this
   task records the verification in the implementer's local notes so
@@ -110,7 +110,7 @@ gate; the "red phase" only ever exists in the implementer's working
 tree during authoring. **This task does NOT create the new module
 files** — those come in Phase 3.
 
-- [ ] T004 Create `tests/unit/test_capability_module_layout.py` with
+- [x] T004 Create `tests/unit/test_capability_module_layout.py` with
   SPDX header pair, module docstring naming spec
   `009-capabilities-module-split`, and **all five assertions** verbatim
   from `plan.md` §"Subpath-Removal Verification Plan":
@@ -174,7 +174,7 @@ The four modules form a strict dependency chain
 order**. None of T005–T008 can be parallelised; each module's imports
 must resolve against the already-staged earlier modules.
 
-- [ ] T005 Create `src/pylocal_akuvox/_capability_types.py` per
+- [x] T005 Create `src/pylocal_akuvox/_capability_types.py` per
   `contracts/capability-types.md` and `plan.md` §"New module 1". SPDX
   header pair; module docstring naming spec
   `009-capabilities-module-split` and the single concern ("foundational
@@ -189,7 +189,7 @@ must resolve against the already-staged earlier modules.
   prints `ok`. Covers FR-004 (this module ≤120 lines), FR-005 (the
   three types listed in `_capability_types`), and the
   `contracts/capability-types.md` Public Surface clause.
-- [ ] T006 Create `src/pylocal_akuvox/_capability_profile.py` per
+- [x] T006 Create `src/pylocal_akuvox/_capability_profile.py` per
   `contracts/capability-profile.md` and `plan.md` §"New module 2". SPDX
   header pair; module docstring naming the single concern (capability
   profile dataclasses: `FieldAliases`, `Provenance`,
@@ -212,7 +212,7 @@ must resolve against the already-staged earlier modules.
   `pylocal_akuvox.exceptions` only imports `Capability` under
   `TYPE_CHECKING` (currently `exceptions.py:11`) — if not, the import
   added here would form a runtime cycle.
-- [ ] T007 Create `src/pylocal_akuvox/_capability_matching.py` per
+- [x] T007 Create `src/pylocal_akuvox/_capability_matching.py` per
   `contracts/capability-matching.md` and `plan.md` §"New module 3". SPDX
   header pair; module docstring naming the single concern (firmware
   band parsing + device-class pattern matching + matrix dispatch).
@@ -240,7 +240,7 @@ must resolve against the already-staged earlier modules.
   Covers FR-004 (≤210 lines), FR-005 (`DeviceClassPattern`,
   `lookup_capabilities` from `_capability_matching`), and
   `contracts/capability-matching.md`.
-- [ ] T008 Create `src/pylocal_akuvox/_capability_defaults.py` per
+- [x] T008 Create `src/pylocal_akuvox/_capability_defaults.py` per
   `contracts/capability-defaults.md` and `plan.md` §"New module 4". SPDX
   header pair; module docstring naming the single concern (default
   user field-alias constant). Imports: `from __future__ import
@@ -267,7 +267,7 @@ the old path also still work). This is the load-bearing safety net of
 the refactor: at the end of Phase 4, the package imports cleanly via
 two paths (old + new), making the rest of the migration mechanical.
 
-- [ ] T009 In `src/pylocal_akuvox/__init__.py` line 9, replace the
+- [x] T009 In `src/pylocal_akuvox/__init__.py` line 9, replace the
   single `from pylocal_akuvox.capabilities import (Capability,
   CapabilityStatus, DeviceCapabilities, FieldAliases, SchemaShape)`
   block with two blocks ordered alphabetically by module name (matches
@@ -282,7 +282,7 @@ two paths (old + new), making the rest of the migration mechanical.
   (round-trip via top-level) now PASSES; Assertion 1 (subpath gone)
   still FAILS because `capabilities.py` is still present. Covers
   FR-001.
-- [ ] T010 Run a smoke import check after T009:
+- [x] T010 Run a smoke import check after T009:
   `uv run python -c "from pylocal_akuvox import Capability, CapabilityStatus, DeviceCapabilities, FieldAliases, SchemaShape; print('ok')"` —
   this is the SC-004 verification command and MUST print `ok` cleanly.
   Then run `uv run python -c "import pylocal_akuvox.capabilities; print('still here')"` —
@@ -310,7 +310,7 @@ to confirm nothing has regressed (because `capabilities.py` still
 exists, both old and new import paths resolve, so partial migration
 states all stay green). The full pytest gate runs in Phase 9 T032.
 
-- [ ] T011 Rewrite `src/pylocal_akuvox/capability_matrix.py`. Replace
+- [x] T011 Rewrite `src/pylocal_akuvox/capability_matrix.py`. Replace
   the line-35 block `from pylocal_akuvox.capabilities import (…)` with
   three blocks ordered alphabetically by underscore-module name:
   `_capability_matching` for `DeviceClassPattern`;
@@ -321,17 +321,17 @@ states all stay green). The full pytest gate runs in Phase 9 T032.
   use the underscore path (e.g. `:mod:\`pylocal_akuvox._capability_types\``).
   Internal-only file, so the underscore path is appropriate.
   Covers FR-005 (consumer-side) + FR-006.
-- [ ] T012 Rewrite `src/pylocal_akuvox/capability_probe.py`. Replace
+- [x] T012 Rewrite `src/pylocal_akuvox/capability_probe.py`. Replace
   the line-30 `from pylocal_akuvox.capabilities import (…)` block per
   the symbol→module table — split into `_capability_types` and
   `_capability_profile` blocks ordered alphabetically by module name.
   No docstring cross-references in this file per
   `research.md` Decision 7 audit. Covers FR-005 + FR-006.
-- [ ] T013 Rewrite `src/pylocal_akuvox/capability_adapters.py`.
+- [x] T013 Rewrite `src/pylocal_akuvox/capability_adapters.py`.
   Replace line-22 `from pylocal_akuvox.capabilities import Capability`
   with `from pylocal_akuvox._capability_types import Capability`.
   Single-line edit. Covers FR-005 + FR-006.
-- [ ] T014 Rewrite `src/pylocal_akuvox/device.py` — five sites in one
+- [x] T014 Rewrite `src/pylocal_akuvox/device.py` — five sites in one
   task because they all live in the same file:
   (i) line 13 top-level block split per symbol→module table;
   (ii) line 333 deferred `from pylocal_akuvox.capabilities import DEFAULT_USER_FIELD_ALIASES`
@@ -343,7 +343,7 @@ states all stay green). The full pytest gate runs in Phase 9 T032.
   Note: line numbers cited from `main` at SHA `fe461d7` — re-run
   `grep -n 'from pylocal_akuvox.capabilities' src/pylocal_akuvox/device.py`
   before editing to refresh against current state. Covers FR-005 + FR-006.
-- [ ] T015 Rewrite `src/pylocal_akuvox/users.py` — two import sites
+- [x] T015 Rewrite `src/pylocal_akuvox/users.py` — two import sites
   plus three docstring sites:
   (i) line 11
   `from pylocal_akuvox.capabilities import DEFAULT_USER_FIELD_ALIASES`
@@ -363,7 +363,7 @@ states all stay green). The full pytest gate runs in Phase 9 T032.
   ``FieldAliases(read=(...), write=(...))``"). Do NOT leak the
   `_capability_defaults` underscore path into user-facing rendered
   docs. Covers FR-005 + FR-006 + FR-009.
-- [ ] T016 Rewrite `src/pylocal_akuvox/contacts.py` — two sites:
+- [x] T016 Rewrite `src/pylocal_akuvox/contacts.py` — two sites:
   (i) line 19
   `from pylocal_akuvox.capabilities import SchemaShape`
   → `from pylocal_akuvox._capability_types import SchemaShape`;
@@ -371,14 +371,14 @@ states all stay green). The full pytest gate runs in Phase 9 T032.
   `from pylocal_akuvox.capabilities import DeviceCapabilities`
   → `from pylocal_akuvox._capability_profile import DeviceCapabilities`.
   Covers FR-005 + FR-006.
-- [ ] T017 Rewrite `src/pylocal_akuvox/exceptions.py` — single site at
+- [x] T017 Rewrite `src/pylocal_akuvox/exceptions.py` — single site at
   line 11 (`TYPE_CHECKING` block):
   `from pylocal_akuvox.capabilities import Capability`
   → `from pylocal_akuvox._capability_types import Capability`.
   This rewrite does NOT introduce a runtime cycle because the import
   remains under `TYPE_CHECKING:` (verified pre-edit). Covers FR-005 +
   FR-006.
-- [ ] T018 Rewrite `src/pylocal_akuvox/models/users.py` — two import
+- [x] T018 Rewrite `src/pylocal_akuvox/models/users.py` — two import
   sites plus one docstring site:
   (i) line 14 `TYPE_CHECKING` block
   `from pylocal_akuvox.capabilities import DeviceCapabilities`
@@ -392,7 +392,7 @@ states all stay green). The full pytest gate runs in Phase 9 T032.
   inline (same prose-replacement pattern as users.py lines 78/153/282
   in T015 — consult `_capability_defaults.py` for the canonical
   literal). Covers FR-005 + FR-006 + FR-009.
-- [ ] T019 Rewrite `src/pylocal_akuvox/models/contacts.py` — two
+- [x] T019 Rewrite `src/pylocal_akuvox/models/contacts.py` — two
   sites: (i) line 14 `TYPE_CHECKING` block
   `from pylocal_akuvox.capabilities import DeviceCapabilities`
   → `from pylocal_akuvox._capability_profile import DeviceCapabilities`;
@@ -405,7 +405,7 @@ states all stay green). The full pytest gate runs in Phase 9 T032.
 
 ## Phase 6: Migration — Sphinx extension
 
-- [ ] T020 Rewrite `docs/_ext/capability_matrix.py` line 30:
+- [x] T020 Rewrite `docs/_ext/capability_matrix.py` line 30:
   `from pylocal_akuvox.capabilities import Capability, CapabilityStatus`
   → `from pylocal_akuvox._capability_types import Capability, CapabilityStatus`.
   Per FR-010, the underscore path is appropriate here because this is
@@ -426,7 +426,7 @@ verifying the public surface use top-level
 `from pylocal_akuvox import …`. **No test assertion semantics change**
 — only the import lines flip.
 
-- [ ] T021 Rewrite `tests/unit/test_capabilities.py`. Site at line 22
+- [x] T021 Rewrite `tests/unit/test_capabilities.py`. Site at line 22
   (single block) splits per symbol→module table across
   `_capability_types`, `_capability_profile`, `_capability_matching`,
   and `_capability_defaults`. Module docstring at line 4 mentions
@@ -435,15 +435,15 @@ verifying the public surface use top-level
   capability profile types in
   ``pylocal_akuvox._capability_types`` and
   ``pylocal_akuvox._capability_profile``"). Covers FR-006.
-- [ ] T022 Rewrite `tests/unit/test_pattern.py`. Single site at line
+- [x] T022 Rewrite `tests/unit/test_pattern.py`. Single site at line
   25: `from pylocal_akuvox.capabilities import DeviceClassPattern`
   → `from pylocal_akuvox._capability_matching import DeviceClassPattern`.
   Covers FR-006 + spec US3 acceptance scenario #2.
-- [ ] T023 Rewrite `tests/unit/test_dispatch.py`. Single site at line
+- [x] T023 Rewrite `tests/unit/test_dispatch.py`. Single site at line
   37: `from pylocal_akuvox.capabilities import Capability`
   → `from pylocal_akuvox._capability_types import Capability`.
   Covers FR-006.
-- [ ] T024 Rewrite `tests/unit/test_users.py` — 13 sites total
+- [x] T024 Rewrite `tests/unit/test_users.py` — 13 sites total
   (lines 22, 844, 898, 924, 965, 1002, 1041, 1103, 1164, 1243, 1277,
   1397, 1432). Most are inline-in-test deferred imports. For each
   site, split per symbol→module table:
@@ -453,34 +453,34 @@ verifying the public surface use top-level
   numbers are from `main` at SHA `fe461d7` — refresh with
   `grep -n 'from pylocal_akuvox.capabilities' tests/unit/test_users.py`
   before editing. Covers FR-006.
-- [ ] T025 Rewrite `tests/unit/test_contacts.py` — 10 sites total
+- [x] T025 Rewrite `tests/unit/test_contacts.py` — 10 sites total
   (lines 22, 554, 589, 615, 646, 677, 699, 720, 789, 855). Split per
   symbol→module table; mostly
   `SchemaShape`/`Capability`/`CapabilityStatus` → `_capability_types`,
   `DeviceCapabilities` → `_capability_profile`. Refresh line numbers
   with grep before editing. Covers FR-006.
-- [ ] T026 Rewrite `tests/unit/test_device.py` — 8 sites total (lines
+- [x] T026 Rewrite `tests/unit/test_device.py` — 8 sites total (lines
   573, 606, 703, 851, 870, 889, 985, 1107). Split per symbol→module
   table; line 703 includes `lookup_capabilities` →
   `_capability_matching`. Refresh line numbers with grep before
   editing. Covers FR-006.
-- [ ] T027 Rewrite `tests/unit/test_matrix.py` — 2 sites (lines 26,
+- [x] T027 Rewrite `tests/unit/test_matrix.py` — 2 sites (lines 26,
   241). Split each per symbol→module table — covers
   `DeviceClassPattern` (`_capability_matching`),
   `Provenance`/`DeviceCapabilities`/`FieldAliases`
   (`_capability_profile`),
   `Capability`/`CapabilityStatus` (`_capability_types`).
   Covers FR-006 + spec US3 acceptance scenario #2.
-- [ ] T028 Rewrite `tests/unit/test_unsupported_error.py`. Single site
+- [x] T028 Rewrite `tests/unit/test_unsupported_error.py`. Single site
   at line 28: `from pylocal_akuvox.capabilities import Capability`
   → `from pylocal_akuvox._capability_types import Capability`.
   Covers FR-006.
-- [ ] T029 Rewrite `tests/unit/test_capability_probe.py` — 2 sites
+- [x] T029 Rewrite `tests/unit/test_capability_probe.py` — 2 sites
   (lines 24, 1489). Split per symbol→module table —
   `Capability`/`CapabilityStatus` → `_capability_types`;
   `DeviceCapabilities` → `_capability_profile`. Refresh line numbers
   with grep before editing. Covers FR-006.
-- [ ] T030 Sanity gate: after T021–T029, run
+- [x] T030 Sanity gate: after T021–T029, run
   `grep -RnE '^[[:space:]]*from pylocal_akuvox\.capabilities' tests/ src/ docs/` —
   the leading `^[[:space:]]*` anchor matches active import
   statements ONLY (top-level OR indented) and EXCLUDES string-form
@@ -507,7 +507,7 @@ this task, the layout test (T004) goes green: Assertion 1 now passes
 Assertions 2–5 already passed at the end of Phase 4. The implementation
 is now complete in source-code terms.
 
-- [ ] T031 Delete `src/pylocal_akuvox/capabilities.py`
+- [x] T031 Delete `src/pylocal_akuvox/capabilities.py`
   (`git rm src/pylocal_akuvox/capabilities.py`). Re-run T004's layout
   test:
   `uv run pytest tests/unit/test_capability_module_layout.py -v` —
@@ -532,11 +532,11 @@ the staged tree (read-only) so are technically parallel-safe, but the
 implementer is encouraged to run them in series so output streams stay
 readable.
 
-- [ ] T032 **Unit tests gate** — run `uv run pytest tests/ -x -q`.
+- [x] T032 **Unit tests gate** — run `uv run pytest tests/ -x -q`.
   Pass criterion: exit 0; all tests pass; the new
   `test_capability_module_layout.py` is included automatically by
   `tests/unit/` discovery (5 new test functions). Covers SC-001.
-- [ ] T033 **Branch coverage gate** — run
+- [x] T033 **Branch coverage gate** — run
   `uv run pytest --cov=pylocal_akuvox --cov-branch --cov-report=term-missing tests/`.
   Pass criterion: 100% branch coverage maintained on `pylocal_akuvox`
   (matches T001 baseline). No new uncovered branches. The four new
@@ -544,16 +544,16 @@ readable.
   exercised those entities through `capabilities.py` now exercises
   them through the underscore modules — the rewritten test imports in
   Phase 7 ensure this. Covers SC-001 + FR-006.
-- [ ] T034 **Lint gate** — run `uv run ruff check src/ tests/`. Pass
+- [x] T034 **Lint gate** — run `uv run ruff check src/ tests/`. Pass
   criterion: exit 0; zero warnings. The four new modules' imports
   must be ordered (stdlib → first-party) per project ruff/isort
   config. Covers constitution §I.
-- [ ] T035 **Type-check gate** — run `uv run mypy src/`. Pass
+- [x] T035 **Type-check gate** — run `uv run mypy src/`. Pass
   criterion: exit 0; zero errors (mypy strict per project config).
   The relocation does not alter any function signature or dataclass
   field type, so no new mypy errors are expected. Covers constitution
   §I + spec US1 acceptance scenario #2.
-- [ ] T036 **Pre-commit (full) gate** — run
+- [x] T036 **Pre-commit (full) gate** — run
   `git add -A && pre-commit run --all-files`. The leading
   `git add -A` is **mandatory**: the project's aislop hook is
   configured with `pass_filenames: false` and operates on the staged
@@ -571,32 +571,32 @@ readable.
   This is the load-bearing pre-commit check; T037–T038 are
   belt-and-suspenders. Covers SC-001 + SC-002 (per-module size
   limit) + constitution §V (no `--no-verify`).
-- [ ] T037 [P] **Aislop new-module size scan (explicit)** — run
+- [x] T037 [P] **Aislop new-module size scan (explicit)** — run
   `uv run aislop scan src/pylocal_akuvox/_capability_types.py src/pylocal_akuvox/_capability_profile.py src/pylocal_akuvox/_capability_matching.py src/pylocal_akuvox/_capability_defaults.py`.
   Pass criterion: NO `complexity/file-too-large` warnings on any of
   the four new modules; each is under 400 lines. This is the explicit
   per-module verification of FR-004 and SC-002 (does not depend on
   staging state). The `[P]` marker reflects that this scan is
   read-only and fully independent of T036's pre-commit run.
-- [ ] T038 [P] **Aislop project-wide scan** — run
+- [x] T038 [P] **Aislop project-wide scan** — run
   `uv run aislop scan`. Pass criterion: `capabilities.py` no longer
   appears in the `complexity/file-too-large` list (it has been
   deleted in T031). `device.py` and `capability_probe.py` will still
   be flagged — those are issues #142 and #141 respectively, out of
   scope per spec §"Out of Scope". Covers SC-002 at project level.
-- [ ] T039 [P] **Doc build gate** — run
+- [x] T039 [P] **Doc build gate** — run
   `cd docs && uv run sphinx-build -W -b html . _build/html`. The
   `-W` flag treats warnings as errors. Pass criterion: exit 0;
   confirms the rewritten `docs/_ext/capability_matrix.py` import (T020)
   works at autodoc time, and that no rewritten docstring (T015 / T018
   user-facing rewrites) introduced a malformed RST reference. Covers
   FR-010 + FR-006 + FR-009.
-- [ ] T040 **Subpath removal smoke test** — run
+- [x] T040 **Subpath removal smoke test** — run
   `uv run python -c "import pylocal_akuvox.capabilities"`. Pass
   criterion: exits non-zero with
   `ModuleNotFoundError: No module named 'pylocal_akuvox.capabilities'`.
   Covers SC-003 + FR-002.
-- [ ] T041 **Top-level imports smoke test** — run
+- [x] T041 **Top-level imports smoke test** — run
   `uv run python -c "from pylocal_akuvox import Capability, CapabilityStatus, DeviceCapabilities, FieldAliases, SchemaShape; print('ok')"`.
   Pass criterion: exits 0; prints `ok`. Covers SC-004 + FR-001.
 
@@ -609,7 +609,7 @@ readable.
 deletion of `capabilities.py`) as ONE atomic commit. The `!` marker
 in the subject is the load-bearing FR-007 requirement.
 
-- [ ] T042 Stage every file changed in Phases 2–8 with `git add`:
+- [x] T042 Stage every file changed in Phases 2–8 with `git add`:
   the four new underscore modules, the rewritten `__init__.py`, the
   9 rewritten production sources (T011–T019),
   `docs/_ext/capability_matrix.py` (T020), the 9 rewritten test files
@@ -621,7 +621,7 @@ in the subject is the load-bearing FR-007 requirement.
   (`capabilities.py`) + **20 modified** (`__init__.py` + 9 src
   consumers + 1 sphinx + 9 tests). Confirm with
   `git diff --staged --name-only | wc -l` returning `26`.
-- [ ] T043 Commit the staged tree as the **atomic implementation
+- [x] T043 Commit the staged tree as the **atomic implementation
   commit** with subject **exactly**
   `Refactor(capabilities)!: Split into submodules` (46 chars; verify
   with `echo -n "Refactor(capabilities)!: Split into submodules" |
@@ -664,7 +664,7 @@ and AGENTS.md §"Atomic Commits", the changelog edit is logically
 distinct from the source-code change, so it gets its own commit
 even though it ships in the same PR.
 
-- [ ] T044 Edit `docs/changelog.rst` Unreleased section: add a
+- [x] T044 Edit `docs/changelog.rst` Unreleased section: add a
   "Breaking changes" subsection (RST sub-heading using the project's
   existing changelog conventions — match style of any prior breaking
   change entries in this file, or use a `^^^^^^^^^^^^^^^^` underline
@@ -683,7 +683,7 @@ even though it ships in the same PR.
     has been renamed or removed.
   - **The issue reference**: `Refs #140`.
   Covers FR-008 + spec US2 acceptance scenario #3.
-- [ ] T045 Stage `docs/changelog.rst` and commit as a SEPARATE atomic
+- [x] T045 Stage `docs/changelog.rst` and commit as a SEPARATE atomic
   commit with subject **exactly**
   `Docs(changelog): Announce 009-capabilities split` (48 chars).
   Use `git commit -s` (DCO mandatory) with a `Co-Authored-By:`
@@ -710,7 +710,7 @@ actual `gh pr merge` action happens AFTER T048 in the unnumbered
 "After T048 — Merge & cleanup" prose section below — this phase ends
 with three commits on the PR branch and all review threads resolved.
 
-- [ ] T046 Push the branch
+- [x] T046 Push the branch
   (`git push -u origin 009-capabilities-module-split`) and open the
   PR with `gh pr create --base main`. PR title MUST match the
   implementation commit subject **exactly**
@@ -729,7 +729,7 @@ with three commits on the PR branch and all review threads resolved.
   `Refactor(capabilities)!` commit and the `Docs(changelog)` commit.
   T048 below adds a third (the task-list flip) before the post-task
   merge action.
-- [ ] T047 Run the Copilot review loop:
+- [x] T047 Run the Copilot review loop:
   `gh copilot-review --wait --wait-timeout 20min <PR>`. **Note**:
   `copilot-review` is a local `gh` extension / alias used by this
   project's maintainers to drive the GitHub Copilot PR-reviewer
@@ -757,7 +757,7 @@ with three commits on the PR branch and all review threads resolved.
   fix-ups, those are squashed into the appropriate commit
   (`git rebase -i` and `fixup` the right commit; the PR remains a
   clean 2-commit shape before T048 adds the third).
-- [ ] T048 In the implementation worktree (after T047's review loop
+- [x] T048 In the implementation worktree (after T047's review loop
   closes and all review threads are resolved), edit
   `specs/009-capabilities-module-split/tasks.md`: flip every
   `- [ ]` to `- [x]` for every task T001 through T048 (this task

@@ -1,14 +1,17 @@
 # SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for the capability profile types in ``pylocal_akuvox.capabilities``.
+"""Tests for the capability profile types.
 
-Covers tasks T009-T013 and T028a from
-``specs/008-capability-matrix/tasks.md``: the static type surface
-(``Capability`` / ``CapabilityStatus`` / ``FieldAliases`` /
-``SchemaShape`` / ``Provenance``), the ``DeviceCapabilities`` shape
-and gating, and the ``DeviceClassPattern`` matcher with all three
-firmware-band forms (glob / floor / exact).
+Covers the static type surface in
+``pylocal_akuvox._capability_types`` (``Capability`` /
+``CapabilityStatus`` / ``SchemaShape``) and
+``pylocal_akuvox._capability_profile`` (``FieldAliases`` /
+``Provenance`` / ``DeviceCapabilities``), the ``DeviceCapabilities``
+shape and gating, and the ``DeviceClassPattern`` matcher with all
+three firmware-band forms (glob / floor / exact). Originally targeted
+the unified ``pylocal_akuvox.capabilities`` module before spec
+009 split it into the four sibling underscore modules.
 
 See also ``contracts/probe-api.md`` and ``contracts/matrix-lookup.md``.
 """
@@ -19,13 +22,15 @@ from types import MappingProxyType
 
 import pytest
 
-from pylocal_akuvox.capabilities import (
-    Capability,
-    CapabilityStatus,
+from pylocal_akuvox._capability_matching import DeviceClassPattern
+from pylocal_akuvox._capability_profile import (
     DeviceCapabilities,
-    DeviceClassPattern,
     FieldAliases,
     Provenance,
+)
+from pylocal_akuvox._capability_types import (
+    Capability,
+    CapabilityStatus,
     SchemaShape,
 )
 from pylocal_akuvox.exceptions import AkuvoxUnsupportedError

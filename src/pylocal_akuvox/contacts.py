@@ -16,13 +16,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from pylocal_akuvox.capabilities import SchemaShape
+from pylocal_akuvox._capability_types import SchemaShape
 from pylocal_akuvox.exceptions import AkuvoxValidationError
 from pylocal_akuvox.models import Contact
 
 if TYPE_CHECKING:
+    from pylocal_akuvox._capability_profile import DeviceCapabilities
     from pylocal_akuvox._http import AkuvoxHttpClient
-    from pylocal_akuvox.capabilities import DeviceCapabilities
 
 
 _APARTMENT_BOOK_WRITE_DEFERRAL_MSG = (

@@ -9,13 +9,10 @@ import asyncio
 import contextlib
 from typing import TYPE_CHECKING, Any
 
+from pylocal_akuvox._capability_matching import lookup_capabilities
+from pylocal_akuvox._capability_profile import DeviceCapabilities
+from pylocal_akuvox._capability_types import Capability, CapabilityStatus
 from pylocal_akuvox._http import AkuvoxHttpClient
-from pylocal_akuvox.capabilities import (
-    Capability,
-    CapabilityStatus,
-    DeviceCapabilities,
-    lookup_capabilities,
-)
 from pylocal_akuvox.capability_adapters import (
     CAPABILITY_TO_VARIANT,
     RELAY_TRIGGER_ADAPTERS,
@@ -330,7 +327,7 @@ class AkuvoxDevice:
             allow_unknown=self.attempt_unknown_capability,
         )
         from pylocal_akuvox import users
-        from pylocal_akuvox.capabilities import DEFAULT_USER_FIELD_ALIASES
+        from pylocal_akuvox._capability_defaults import DEFAULT_USER_FIELD_ALIASES
 
         # ``_require_capabilities`` returns the same cached
         # ``DeviceCapabilities`` instance every call; second call is
@@ -382,7 +379,7 @@ class AkuvoxDevice:
             allow_unknown=self.attempt_unknown_capability,
         )
         from pylocal_akuvox import users
-        from pylocal_akuvox.capabilities import DEFAULT_USER_FIELD_ALIASES
+        from pylocal_akuvox._capability_defaults import DEFAULT_USER_FIELD_ALIASES
 
         caps = self._require_capabilities()
         field_aliases = caps.field_aliases.get(
@@ -799,7 +796,7 @@ class AkuvoxDevice:
             allow_unknown=self.attempt_unknown_capability,
         )
         from pylocal_akuvox import contacts
-        from pylocal_akuvox.capabilities import SchemaShape
+        from pylocal_akuvox._capability_types import SchemaShape
 
         caps = self._require_capabilities()
         shape = caps.schema_shapes.get("contact", SchemaShape.DOOR_PHONE)
@@ -825,7 +822,7 @@ class AkuvoxDevice:
             allow_unknown=self.attempt_unknown_capability,
         )
         from pylocal_akuvox import contacts
-        from pylocal_akuvox.capabilities import SchemaShape
+        from pylocal_akuvox._capability_types import SchemaShape
 
         caps = self._require_capabilities()
         shape = caps.schema_shapes.get("contact", SchemaShape.DOOR_PHONE)

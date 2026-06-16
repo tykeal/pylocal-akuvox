@@ -23,11 +23,11 @@ from __future__ import annotations
 
 import pytest
 
-from pylocal_akuvox.capabilities import (
+from pylocal_akuvox._capability_matching import lookup_capabilities
+from pylocal_akuvox._capability_types import (
     Capability,
     CapabilityStatus,
     SchemaShape,
-    lookup_capabilities,
 )
 from pylocal_akuvox.capability_matrix import CAPABILITY_MATRIX
 from pylocal_akuvox.models import DeviceInfo
@@ -238,12 +238,12 @@ def test_add_hypothetical_entry() -> None:
     matrix-independent so it cannot regress on production-matrix
     changes).
     """
-    from pylocal_akuvox.capabilities import (
+    from pylocal_akuvox._capability_matching import DeviceClassPattern
+    from pylocal_akuvox._capability_profile import (
         DeviceCapabilities,
-        DeviceClassPattern,
         FieldAliases,
-        SchemaShape,
     )
+    from pylocal_akuvox._capability_types import SchemaShape
     from pylocal_akuvox.models import Contact, User
 
     pattern = DeviceClassPattern(model_prefix="HYPOTHETICAL", firmware_band="999.0.0.*")

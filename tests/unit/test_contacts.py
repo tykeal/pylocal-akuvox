@@ -19,7 +19,10 @@ from pylocal_akuvox.exceptions import (
 from tests.unit._helpers import register_default_info
 
 if TYPE_CHECKING:
-    from pylocal_akuvox.capabilities import Capability, CapabilityStatus
+    from pylocal_akuvox._capability_types import (
+        Capability,
+        CapabilityStatus,
+    )
 
 BASE_URL = "http://192.168.1.100"
 
@@ -551,10 +554,8 @@ def test_contact_from_api_response_apartment_book_no_id() -> None:
     without raising. Asserts the apartment-book branch is reached
     and returns a usable :class:`Contact`.
     """
-    from pylocal_akuvox.capabilities import (
-        DeviceCapabilities,
-        SchemaShape,
-    )
+    from pylocal_akuvox._capability_profile import DeviceCapabilities
+    from pylocal_akuvox._capability_types import SchemaShape
     from pylocal_akuvox.models import Contact
 
     caps = DeviceCapabilities(
@@ -586,10 +587,8 @@ def test_contact_from_api_response_door_phone_explicit_shape() -> None:
     explicitly ``DOOR_PHONE`` produces the same ``Contact`` instance
     as the no-capabilities default — locks FR-016.
     """
-    from pylocal_akuvox.capabilities import (
-        DeviceCapabilities,
-        SchemaShape,
-    )
+    from pylocal_akuvox._capability_profile import DeviceCapabilities
+    from pylocal_akuvox._capability_types import SchemaShape
     from pylocal_akuvox.models import Contact
 
     caps = DeviceCapabilities(
@@ -612,7 +611,7 @@ def test_contact_from_api_response_capabilities_without_shape_key_falls_back() -
     apartment-book branch can never be reached when the matrix entry
     forgot to populate ``schema_shapes["contact"]``.
     """
-    from pylocal_akuvox.capabilities import DeviceCapabilities
+    from pylocal_akuvox._capability_profile import DeviceCapabilities
     from pylocal_akuvox.models import Contact
 
     caps = DeviceCapabilities(
@@ -642,8 +641,8 @@ async def test_add_contact_service_function_default_shape_byte_identical() -> No
     import json
 
     from pylocal_akuvox import contacts as contacts_svc
+    from pylocal_akuvox._capability_types import SchemaShape
     from pylocal_akuvox._http import AkuvoxHttpClient
-    from pylocal_akuvox.capabilities import SchemaShape
 
     with aioresponses() as m:
         m.post(
@@ -673,8 +672,8 @@ async def test_add_contact_service_function_apartment_book_raises() -> None:
     ``Landline`` so an integrator can pivot.
     """
     from pylocal_akuvox import contacts as contacts_svc
+    from pylocal_akuvox._capability_types import SchemaShape
     from pylocal_akuvox._http import AkuvoxHttpClient
-    from pylocal_akuvox.capabilities import SchemaShape
 
     with aioresponses() as m:
         # No HTTP mock needed — service function raises before the
@@ -695,8 +694,8 @@ async def test_modify_contact_service_function_apartment_book_raises() -> None:
     no-request guarantee.
     """
     from pylocal_akuvox import contacts as contacts_svc
+    from pylocal_akuvox._capability_types import SchemaShape
     from pylocal_akuvox._http import AkuvoxHttpClient
-    from pylocal_akuvox.capabilities import SchemaShape
 
     with aioresponses() as m:
         async with AkuvoxHttpClient("192.168.1.100") as http:
@@ -716,8 +715,8 @@ async def test_modify_contact_service_function_door_phone_byte_identical() -> No
     import json
 
     from pylocal_akuvox import contacts as contacts_svc
+    from pylocal_akuvox._capability_types import SchemaShape
     from pylocal_akuvox._http import AkuvoxHttpClient
-    from pylocal_akuvox.capabilities import SchemaShape
 
     with aioresponses() as m:
         m.get(
@@ -786,10 +785,8 @@ async def test_list_contacts_threads_apartment_book_through_wrapper() -> None:
     """
     from unittest.mock import patch
 
-    from pylocal_akuvox.capabilities import (
-        DeviceCapabilities,
-        SchemaShape,
-    )
+    from pylocal_akuvox._capability_profile import DeviceCapabilities
+    from pylocal_akuvox._capability_types import SchemaShape
     from pylocal_akuvox.models import Contact
 
     custom_caps = DeviceCapabilities(
@@ -852,7 +849,7 @@ async def test_list_contacts_default_door_phone_byte_identical() -> None:
     parses contacts byte-identically to the pre-refactor behaviour —
     door-phone path, ``Name`` required, ``ID`` optional.
     """
-    from pylocal_akuvox.capabilities import DeviceCapabilities
+    from pylocal_akuvox._capability_profile import DeviceCapabilities
 
     custom_caps = DeviceCapabilities(
         device_class="X916",

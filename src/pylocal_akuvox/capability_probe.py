@@ -27,11 +27,13 @@ import enum
 import json
 from typing import TYPE_CHECKING, Any
 
-from pylocal_akuvox.capabilities import (
-    Capability,
-    CapabilityStatus,
+from pylocal_akuvox._capability_profile import (
     DeviceCapabilities,
     FieldAliases,
+)
+from pylocal_akuvox._capability_types import (
+    Capability,
+    CapabilityStatus,
     SchemaShape,
 )
 from pylocal_akuvox.exceptions import (

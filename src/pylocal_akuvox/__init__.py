@@ -5,14 +5,16 @@
 
 import importlib.metadata
 
-from pylocal_akuvox.auth import AuthConfig, AuthMethod
-from pylocal_akuvox.capabilities import (
-    Capability,
-    CapabilityStatus,
+from pylocal_akuvox._capability_profile import (
     DeviceCapabilities,
     FieldAliases,
+)
+from pylocal_akuvox._capability_types import (
+    Capability,
+    CapabilityStatus,
     SchemaShape,
 )
+from pylocal_akuvox.auth import AuthConfig, AuthMethod
 from pylocal_akuvox.device import AkuvoxDevice
 from pylocal_akuvox.exceptions import (
     AkuvoxAuthenticationError,

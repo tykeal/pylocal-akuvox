@@ -8,10 +8,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from pylocal_akuvox._capability_types import SchemaShape
 from pylocal_akuvox.exceptions import AkuvoxParseError
 
 if TYPE_CHECKING:
-    from pylocal_akuvox.capabilities import DeviceCapabilities
+    from pylocal_akuvox._capability_profile import DeviceCapabilities
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -56,10 +57,6 @@ class Contact:
         with no ``"contact"`` schema-shape entry) falls back to the
         door-phone path — preserving FR-016 for legacy callers.
         """
-        # Lazy import: models is imported by capabilities (via
-        # DeviceInfo) so top-level import would cycle.
-        from pylocal_akuvox.capabilities import SchemaShape
-
         shape = SchemaShape.DOOR_PHONE
         if capabilities is not None:
             shape = capabilities.schema_shapes.get("contact", SchemaShape.DOOR_PHONE)
