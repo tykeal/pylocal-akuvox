@@ -1,16 +1,19 @@
 # SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
 # SPDX-License-Identifier: Apache-2.0
 
-"""Layout assertions for spec ``009-capabilities-module-split``.
+"""Layout assertions for specs 009-capabilities-module-split + 010-probe-split.
 
-These tests pin the post-refactor module shape so the change cannot be
+These tests pin the post-refactor module shape so the changes cannot be
 silently undone:
 
-* The legacy ``pylocal_akuvox.capabilities`` subpath must be gone
+* The legacy ``pylocal_akuvox.capabilities`` and
+  ``pylocal_akuvox.capability_probe`` subpaths must be gone
   (``ModuleNotFoundError`` on both bare-import and from-import forms).
-* The four new underscore-prefixed sibling modules must be importable
-  via :func:`importlib.import_module` (proves the split is real and
-  not a behaviour-equivalent shim).
+* The four new capability-side underscore-prefixed sibling modules
+  (spec 009) and the four new probe-side underscore-prefixed sibling
+  modules (spec 010) must be importable via
+  :func:`importlib.import_module` (proves the splits are real and
+  not behaviour-equivalent shims).
 * The five public symbols re-exported from the top-level package must
   resolve via identity to the corresponding members of the new
   underscore modules (proves the top-level re-export traces through
@@ -18,6 +21,9 @@ silently undone:
 * The five public symbol names must be present in
   :data:`pylocal_akuvox.__all__` (belt-and-suspenders against an
   accidental ``__all__`` edit).
+* ``AkuvoxDevice.probe_capabilities`` remains the public consumer-
+  facing handle for the capability probe (presence pin only — the
+  behaviour suite lives in ``test_capability_probe.py``).
 """
 
 from __future__ import annotations
@@ -87,3 +93,58 @@ def test_capability_symbols_in_top_level_all() -> None:
         assert name in pylocal_akuvox.__all__, (
             f"{name!r} missing from pylocal_akuvox.__all__"
         )
+
+
+def test_capability_probe_subpath_is_gone() -> None:
+    """``import pylocal_akuvox.capability_probe`` must raise ``ModuleNotFoundError``.
+
+    Per spec 010-capability-probe-split FR-002: the
+    ``pylocal_akuvox.capability_probe`` module path is removed entirely
+    post-split. No shim, no package — just a clean
+    ``ModuleNotFoundError``. The migration path lives in
+    ``docs/changelog.rst`` Unreleased "Breaking changes" subsection:
+    consumers continue to call ``AkuvoxDevice.probe_capabilities()``.
+    """
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("pylocal_akuvox.capability_probe")
+
+
+def test_capability_probe_subpath_from_import_is_gone() -> None:
+    """``from pylocal_akuvox.capability_probe import probe_capabilities`` must raise.
+
+    Uses ``exec()`` for the same reason as
+    :func:`test_capabilities_subpath_from_import_is_gone`: a static
+    ``from`` import at module top level would be evaluated at
+    pytest-collection time, outside the ``pytest.raises`` context, and
+    would itself raise ``ModuleNotFoundError`` post-split, preventing
+    the test module from loading. ``ModuleNotFoundError`` is required
+    specifically (not the wider ``ImportError`` superclass) so a
+    hypothetical partial-shim regression — e.g. a re-resurrected
+    ``pylocal_akuvox.capability_probe`` module that loads but no
+    longer exports ``probe_capabilities`` — would raise the bare
+    ``ImportError`` and fail this test loudly rather than slip through.
+    Covers spec 010 FR-003.
+    """
+    with pytest.raises(ModuleNotFoundError):
+        exec("from pylocal_akuvox.capability_probe import probe_capabilities")  # noqa: S102
+
+
+def test_probe_underscore_modules_importable() -> None:
+    """Each of the four new probe-side underscore modules must import cleanly."""
+    for name in (
+        "pylocal_akuvox._probe_outcomes",
+        "pylocal_akuvox._probe_classifiers",
+        "pylocal_akuvox._probe_parsers",
+        "pylocal_akuvox._capability_probe",
+    ):
+        importlib.import_module(name)
+
+
+def test_probe_capabilities_reachable_via_device() -> None:
+    """``AkuvoxDevice.probe_capabilities`` remains the public consumer handle.
+
+    Presence pin only — the behaviour suite lives in
+    ``test_capability_probe.py``. Covers spec 010 FR-001 + User
+    Story 1 acceptance scenario.
+    """
+    assert callable(pylocal_akuvox.AkuvoxDevice.probe_capabilities)
