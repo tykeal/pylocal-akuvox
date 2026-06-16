@@ -85,7 +85,7 @@ implementation, because live source is canonical if line numbers drift.
 **Purpose**: Pin the non-breaking public import path before extracting source
 code; helper-module layout assertions are added incrementally as helpers land.
 
-- [ ] T001 Extend `tests/unit/test_capability_module_layout.py` with the
+- [x] T001 Extend `tests/unit/test_capability_module_layout.py` with the
   device-layout TDD assertions.
 
   - **Goal**: Add structural tests for spec 011 before any source extraction.
@@ -118,7 +118,7 @@ code; helper-module layout assertions are added incrementally as helpers land.
     - No assertion uses `pytest.raises(ModuleNotFoundError)` for
       `pylocal_akuvox.device`.
 
-- [ ] T002 Capture implementation baselines on `main` before the source split.
+- [x] T002 Capture implementation baselines on `main` before the source split.
 
   - **Goal**: Record comparison numbers for the implementation PR body.
   - **Files touched**: none.
@@ -143,7 +143,7 @@ code; helper-module layout assertions are added incrementally as helpers land.
 **Purpose**: Move profile shaping and probe/matrix merge logic into a leaf
 helper module while preserving compatibility imports from `device.py`.
 
-- [ ] T003 Create `src/pylocal_akuvox/_device_profiles.py`.
+- [x] T003 Create `src/pylocal_akuvox/_device_profiles.py`.
 
   - **Goal**: Establish the profile helper module with the exact live-source
     profile helpers.
@@ -166,7 +166,7 @@ helper module while preserving compatibility imports from `device.py`.
     - `uv run python -m py_compile src/pylocal_akuvox/_device_profiles.py`
       passes.
 
-- [ ] T004 Wire `device.py` to `_device_profiles.py` and remove duplicate
+- [x] T004 Wire `device.py` to `_device_profiles.py` and remove duplicate
   profile bodies.
 
   - **Goal**: Make `device.py` call the extracted profile helpers while keeping
@@ -195,7 +195,7 @@ helper module while preserving compatibility imports from `device.py`.
 **Purpose**: Isolate lifecycle, cached info/status, capability-requirement, and
 shared domain-helper context logic.
 
-- [ ] T005 Create `src/pylocal_akuvox/_device_runtime.py`.
+- [x] T005 Create `src/pylocal_akuvox/_device_runtime.py`.
 
   - **Goal**: Provide the internal runtime helpers and common domain context.
   - **Files touched**: create `src/pylocal_akuvox/_device_runtime.py`.
@@ -230,7 +230,7 @@ shared domain-helper context logic.
     - `uv run python -m py_compile src/pylocal_akuvox/_device_runtime.py`
       passes.
 
-- [ ] T006 Update runtime methods in `device.py` to delegate to
+- [x] T006 Update runtime methods in `device.py` to delegate to
   `_device_runtime.py`.
 
   - **Goal**: Replace lifecycle and runtime method bodies with thin wrappers.
@@ -266,7 +266,7 @@ shared domain-helper context logic.
 **Purpose**: Move user CRUD wrappers behind `_DeviceContext` while preserving
 capability gates and field-alias fallback behavior.
 
-- [ ] T007 Create `src/pylocal_akuvox/_device_users.py`.
+- [x] T007 Create `src/pylocal_akuvox/_device_users.py`.
 
   - **Goal**: Own user CRUD helper functions.
   - **Files touched**: create `src/pylocal_akuvox/_device_users.py`.
@@ -292,7 +292,7 @@ capability gates and field-alias fallback behavior.
       `device.py` so field-alias parsing remains capability-aware.
     - `uv run python -m py_compile src/pylocal_akuvox/_device_users.py` passes.
 
-- [ ] T008 Update user wrappers in `device.py`.
+- [x] T008 Update user wrappers in `device.py`.
 
   - **Goal**: Make public user methods thin wrappers around `_device_users`.
   - **Files touched**: `src/pylocal_akuvox/device.py`.
@@ -320,7 +320,7 @@ capability gates and field-alias fallback behavior.
 **Purpose**: Move relay validation, adapter dispatch, resolver errors, and
 relay-status delegation together.
 
-- [ ] T009 Create `src/pylocal_akuvox/_device_relays.py`.
+- [x] T009 Create `src/pylocal_akuvox/_device_relays.py`.
 
   - **Goal**: Own relay trigger adapter selection and relay status helpers.
   - **Files touched**: create `src/pylocal_akuvox/_device_relays.py`.
@@ -347,7 +347,7 @@ relay-status delegation together.
       remain unchanged.
     - `uv run python -m py_compile src/pylocal_akuvox/_device_relays.py` passes.
 
-- [ ] T010 Update relay wrappers and private compatibility methods in
+- [x] T010 Update relay wrappers and private compatibility methods in
   `device.py`.
 
   - **Goal**: Delegate relay logic while keeping private resolver methods
@@ -377,7 +377,7 @@ relay-status delegation together.
 
 **Purpose**: Move schedule and group access-management wrappers.
 
-- [ ] T011 Create `src/pylocal_akuvox/_device_access.py`.
+- [x] T011 Create `src/pylocal_akuvox/_device_access.py`.
 
   - **Goal**: Own schedule and group delegation helpers.
   - **Files touched**: create `src/pylocal_akuvox/_device_access.py`.
@@ -403,7 +403,7 @@ relay-status delegation together.
     - `uv run python -m py_compile src/pylocal_akuvox/_device_access.py`
       passes.
 
-- [ ] T012 Update schedule/group wrappers in `device.py`.
+- [x] T012 Update schedule/group wrappers in `device.py`.
 
   - **Goal**: Delegate access-management public methods to `_device_access`.
   - **Files touched**: `src/pylocal_akuvox/device.py`.
@@ -429,7 +429,7 @@ relay-status delegation together.
 
 **Purpose**: Move contact wrappers and contact schema-shape selection.
 
-- [ ] T013 Create `src/pylocal_akuvox/_device_contacts.py`.
+- [x] T013 Create `src/pylocal_akuvox/_device_contacts.py`.
 
   - **Goal**: Own contact list/add/modify/delete helpers.
   - **Files touched**: create `src/pylocal_akuvox/_device_contacts.py`.
@@ -456,7 +456,7 @@ relay-status delegation together.
     - `uv run python -m py_compile src/pylocal_akuvox/_device_contacts.py`
       passes.
 
-- [ ] T014 Update contact wrappers in `device.py`.
+- [x] T014 Update contact wrappers in `device.py`.
 
   - **Goal**: Delegate contact public methods to `_device_contacts`.
   - **Files touched**: `src/pylocal_akuvox/device.py`.
@@ -480,7 +480,7 @@ relay-status delegation together.
 
 **Purpose**: Move device configuration and log wrappers into one focused helper.
 
-- [ ] T015 Create `src/pylocal_akuvox/_device_config_logs.py`.
+- [x] T015 Create `src/pylocal_akuvox/_device_config_logs.py`.
 
   - **Goal**: Own config get/set and door/call log delegation helpers.
   - **Files touched**: create `src/pylocal_akuvox/_device_config_logs.py`.
@@ -502,7 +502,7 @@ relay-status delegation together.
     - `uv run python -m py_compile src/pylocal_akuvox/_device_config_logs.py`
       passes.
 
-- [ ] T016 Update config/log wrappers in `device.py`.
+- [x] T016 Update config/log wrappers in `device.py`.
 
   - **Goal**: Delegate config and log public methods to `_device_config_logs`.
   - **Files touched**: `src/pylocal_akuvox/device.py`.
@@ -526,7 +526,7 @@ relay-status delegation together.
 **Purpose**: Ensure the public class remains in `device.py` while the file drops
 under the 400-line aislop limit.
 
-- [ ] T017 Trim `device.py` to the retained facade shape.
+- [x] T017 Trim `device.py` to the retained facade shape.
 
   - **Goal**: Remove duplicate extraction residue and keep only public wrappers,
     constructor/property state, and deliberate compatibility aliases.
@@ -566,7 +566,7 @@ under the 400-line aislop limit.
     - No public behavior changes, modulo automatic ruff/isort import-block
       reordering and ruff format whitespace normalization.
 
-- [ ] T018 Run targeted facade and layout validation after slimming.
+- [x] T018 Run targeted facade and layout validation after slimming.
 
   - **Goal**: Prove the retained public import path and line-count assertions are
     green.
@@ -585,7 +585,7 @@ under the 400-line aislop limit.
 **Purpose**: Run the whole-tree gates, document the non-breaking changelog, and
 prepare the implementation PR for review.
 
-- [ ] T019 Run the targeted domain regression matrix.
+- [x] T019 Run the targeted domain regression matrix.
 
   - **Goal**: Exercise every extracted domain helper through existing behavior
     tests before full-suite validation.
@@ -595,7 +595,7 @@ prepare the implementation PR for review.
   - **Acceptance criteria**: Exit 0; test assertions are not weakened to fit the
     extraction.
 
-- [ ] T020 Run MVP smoke regression tests.
+- [x] T020 Run MVP smoke regression tests.
 
   - **Goal**: Confirm examples and smoke coverage remain importable after the
     internal split.
@@ -603,7 +603,7 @@ prepare the implementation PR for review.
   - **Command**: `uv run pytest tests/unit/test_mvp_test.py tests/integration/test_mvp_smoke.py -q`
   - **Acceptance criteria**: Exit 0.
 
-- [ ] T021 Run full tests and branch coverage gate.
+- [x] T021 Run full tests and branch coverage gate.
 
   - **Goal**: Preserve the current suite size and 100% branch coverage.
   - **Files touched**: none.
@@ -613,7 +613,7 @@ prepare the implementation PR for review.
   - **Acceptance criteria**: Full suite passes, at least 680 tests are collected,
     and branch coverage remains 100%.
 
-- [ ] T022 Run lint and type-check gates.
+- [x] T022 Run lint and type-check gates.
 
   - **Goal**: Catch stale imports from the extraction and strict typing issues.
   - **Files touched**: none.
@@ -623,7 +623,7 @@ prepare the implementation PR for review.
   - **Acceptance criteria**: Both commands exit 0; no F401 stale imports from
     copied task lists or redundant compatibility exports.
 
-- [ ] T023 Run full pre-commit after staging the implementation files.
+- [x] T023 Run full pre-commit after staging the implementation files.
 
   - **Goal**: Let the repository hooks enforce REUSE, ruff, mypy, interrogate,
     aislop, and pytest coverage before commit.
@@ -633,7 +633,7 @@ prepare the implementation PR for review.
     stage the modifications and re-run. Do not use `git reset` after hook
     failures.
 
-- [ ] T024 Run explicit affected-module aislop scan with comma-separated
+- [x] T024 Run explicit affected-module aislop scan with comma-separated
   `--include`.
 
   - **Goal**: Prove the retained facade and every new helper module are under
@@ -646,7 +646,7 @@ prepare the implementation PR for review.
     because scan output must be reviewed. The comma-separated `--include` form is
     mandatory; do not pass affected files as positional arguments.
 
-- [ ] T025 Add the non-breaking changelog bullet and run the closing pre-PR
+- [x] T025 Add the non-breaking changelog bullet and run the closing pre-PR
   sweep.
 
   - **Goal**: Document issue #142 as a routine internal refactor and complete the
