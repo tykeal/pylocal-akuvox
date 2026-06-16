@@ -5,68 +5,57 @@
 
 from __future__ import annotations
 
-import asyncio
-import contextlib
 from typing import TYPE_CHECKING, Any
 
-from pylocal_akuvox._capability_matching import lookup_capabilities
+from pylocal_akuvox import (
+    _device_access,
+    _device_config_logs,
+    _device_contacts,
+    _device_relays,
+    _device_users,
+)
 from pylocal_akuvox._capability_probe import probe_capabilities as _probe_capabilities
-from pylocal_akuvox._capability_profile import DeviceCapabilities
-from pylocal_akuvox._capability_types import Capability, CapabilityStatus
+from pylocal_akuvox._device_profiles import (
+    _DEVICE_NOT_IN_MATRIX_NOTE,
+    _merge_probe_with_matrix,
+)
+from pylocal_akuvox._device_runtime import (
+    enter_device,
+    exit_device,
+    make_context,
+    require_capabilities,
+)
+from pylocal_akuvox._device_runtime import (
+    get_info as _runtime_get_info,
+)
+from pylocal_akuvox._device_runtime import (
+    get_status as _runtime_get_status,
+)
 from pylocal_akuvox._http import AkuvoxHttpClient
-from pylocal_akuvox.capability_adapters import (
-    CAPABILITY_TO_VARIANT,
-    RELAY_TRIGGER_ADAPTERS,
-    RELAY_TRIGGER_PREFERENCE,
-    RelayTriggerArgs,
-)
-from pylocal_akuvox.exceptions import (
-    AkuvoxConnectionError,
-    AkuvoxUnsupportedError,
-    AkuvoxValidationError,
-)
-from pylocal_akuvox.models import DeviceInfo, DeviceStatus
 
 if TYPE_CHECKING:
+    from pylocal_akuvox._capability_profile import DeviceCapabilities
+    from pylocal_akuvox._capability_types import Capability
+    from pylocal_akuvox._device_runtime import _DeviceContext
     from pylocal_akuvox.auth import AuthConfig
     from pylocal_akuvox.models import (
         AccessSchedule,
         CallLogEntry,
         Contact,
         DeviceConfig,
+        DeviceInfo,
+        DeviceStatus,
         DoorLogEntry,
         Group,
         User,
     )
 
 
-_DEVICE_NOT_IN_MATRIX_NOTE = (
-    "Device not in capability matrix. Call "
-    "device.probe_capabilities() to enumerate, or set "
-    "device.attempt_unknown_capability=True to opt in to "
-    "unknown-status operations."
-)
-
-
-def _conservative_empty_profile(info: DeviceInfo) -> DeviceCapabilities:
-    """Build the FR-013 fallback profile for an unrecognised device.
-
-    Every capability resolves to ``UNKNOWN`` (the empty
-    ``capabilities`` mapping defaults via
-    :meth:`DeviceCapabilities.status_of`). The
-    ``device_not_in_matrix`` note is the discriminator that
-    :meth:`DeviceCapabilities.require` uses to raise
-    ``reason="device_unrecognized"`` rather than the more specific
-    ``reason="capability_unknown"``.
-    """
-    return DeviceCapabilities(
-        device_class=info.model,
-        firmware_version=info.firmware_version,
-        capabilities={},
-        field_aliases={},
-        schema_shapes={},
-        notes={"device_not_in_matrix": _DEVICE_NOT_IN_MATRIX_NOTE},
-    )
+__all__ = [
+    "AkuvoxDevice",
+    "_DEVICE_NOT_IN_MATRIX_NOTE",
+    "_merge_probe_with_matrix",
+]
 
 
 class AkuvoxDevice:
@@ -82,17 +71,7 @@ class AkuvoxDevice:
         verify_ssl: bool = True,
         request_delay: float = 0.25,
     ) -> None:
-        """Initialize the device connection parameters.
-
-        Args:
-            host: Device host name or IP address.
-            auth: Optional authentication configuration.
-            timeout: Total request timeout in seconds.
-            use_ssl: Whether to use HTTPS for requests.
-            verify_ssl: Whether to verify TLS certificates.
-            request_delay: Delay in seconds after each successful request.
-
-        """
+        """Initialize the device connection parameters."""
         self._http = AkuvoxHttpClient(
             host=host,
             auth=auth,
@@ -102,102 +81,32 @@ class AkuvoxDevice:
             request_delay=request_delay,
         )
         self._capabilities: DeviceCapabilities | None = None
-        # Populated once by ``__aenter__`` from ``/api/system/info``.
-        # ``get_info()`` returns this cached value on subsequent calls so
-        # the device-info request observed at the ``async with`` boundary
-        # is the only one that hits the network for static identification
-        # data — see ``contracts/matrix-lookup.md`` §"Connect-time
-        # integration".
         self._info: DeviceInfo | None = None
-        # Per FR-021 (`spec.md`): integrator opt-in for ``UNKNOWN``
-        # status capabilities. ``False`` (the default) makes the
-        # per-method gate raise ``AkuvoxUnsupportedError(
-        # reason="capability_unknown")`` for any UNKNOWN capability.
-        # ``True`` lets the call through; the runtime envelope-level
-        # classifier in ``_http.py`` then either succeeds or surfaces
-        # the device's verbatim error. This setting NEVER bypasses
-        # confirmed-``UNSUPPORTED`` capabilities.
         self.attempt_unknown_capability: bool = False
 
     @property
     def capabilities(self) -> DeviceCapabilities | None:
-        """Return the effective capability profile for this connection.
-
-        ``None`` until a profile is established. The profile is
-        populated:
-
-        1. By :meth:`__aenter__` from the curated
-           :data:`pylocal_akuvox.capability_matrix.CAPABILITY_MATRIX`
-           (or the conservative-empty fallback for unrecognised
-           devices) — Phase 2.
-        2. Optionally replaced by an explicit
-           :meth:`probe_capabilities` call, which merges probe
-           observations on top of the matrix-derived profile per
-           ``contracts/probe-api.md`` §"Edge cases" item 7.
-        """
+        """Return the effective capability profile for this connection."""
         return self._capabilities
+
+    def _context(self) -> _DeviceContext:
+        """Build the helper context from current facade state."""
+        return make_context(
+            self._http,
+            self._capabilities,
+            allow_unknown=self.attempt_unknown_capability,
+        )
 
     def _require_capabilities(self) -> DeviceCapabilities:
-        """Return ``self._capabilities`` or raise if unestablished.
-
-        Defensive helper for the per-method gate. ``__aenter__``
-        always sets ``self._capabilities`` (matrix entry or
-        conservative-empty fallback) before any service call can run,
-        so a ``None`` here means the integrator is calling a service
-        method without ever entering the async context manager — a
-        lifecycle / usage error, not a capability-taxonomy condition.
-
-        Raises :class:`AkuvoxConnectionError` to mirror the behaviour
-        of :meth:`get_info` and the rest of the public surface when
-        the underlying HTTP session is not open. The structured
-        ``AkuvoxUnsupportedError`` taxonomy is reserved for genuine
-        capability outcomes (``device_unrecognized``,
-        ``capability_missing``, ``capability_unknown``,
-        ``adapter_missing``, ``envelope_unsupported``); collapsing a
-        lifecycle error into ``device_unrecognized`` would conflate
-        "no matrix entry matched" with "context manager never
-        entered".
-        """
-        if self._capabilities is None:
-            msg = (
-                "Device capabilities have not been initialised; "
-                "use ``async with AkuvoxDevice(...) as device`` to "
-                "enter the context manager before calling service "
-                "methods"
-            )
-            raise AkuvoxConnectionError(msg)
-        return self._capabilities
+        """Return established capabilities or raise the legacy lifecycle error."""
+        return require_capabilities(self._capabilities)
 
     async def probe_capabilities(
-        self, *, timeout: float | None = None
+        self,
+        *,
+        timeout: float | None = None,
     ) -> DeviceCapabilities:
-        """Run a non-destructive capability probe against the connected device.
-
-        Args:
-            timeout: Per-request probe timeout in seconds. ``None``
-                resolves to the documented default of ``5.0`` per
-                ``contracts/probe-api.md`` §"Public surface".
-
-        Returns:
-            A new :class:`DeviceCapabilities` populated from observed
-            responses. Replaces this connection's effective profile.
-            If a matrix-derived profile already exists (from
-            :meth:`__aenter__`), the probe result is merged on top
-            using the 9-cell merge table from
-            ``contracts/probe-api.md`` §"Edge cases" item 7: probe
-            ``SUPPORTED`` / ``UNSUPPORTED`` always wins; probe
-            ``UNKNOWN`` never regresses a matrix-confirmed
-            ``SUPPORTED`` / ``UNSUPPORTED``.
-
-        Raises:
-            AkuvoxAuthenticationError: HTTP 401 on step 1.
-            AkuvoxRequestError: HTTP 403 on step 1.
-            AkuvoxConnectionError: Transport-level failure or HTTP
-                5xx / non-401/403 4xx on step 1.
-            AkuvoxParseError: Step 1 returned an unparsable
-                ``/api/system/info`` payload.
-
-        """
+        """Run a non-destructive capability probe against the connected device."""
         resolved_timeout = 5.0 if timeout is None else timeout
         probe_result = await _probe_capabilities(self._http, timeout=resolved_timeout)
         merged = _merge_probe_with_matrix(self._capabilities, probe_result)
@@ -205,51 +114,8 @@ class AkuvoxDevice:
         return merged
 
     async def __aenter__(self) -> AkuvoxDevice:
-        """Open the underlying HTTP session and populate capabilities.
-
-        Per ``contracts/matrix-lookup.md`` §"Connect-time integration",
-        immediately after ``_http.__aenter__()`` we issue the existing
-        ``/api/system/info`` call and look up the device's curated
-        matrix entry. If the matrix has no entry for this
-        (model, firmware) tuple, we install the conservative-empty
-        FR-013 fallback profile that fails fast for every capability
-        with ``reason="device_unrecognized"``.
-
-        ``get_info()`` errors propagate (auth, parse, connection) so
-        the integrator sees them at the ``async with`` boundary; the
-        context manager has not "succeeded" if the device was not
-        reachable for capability discovery. When discovery raises,
-        we close the HTTP session we just opened (``__aexit__`` is
-        not invoked for an aborting ``__aenter__``) before
-        re-raising so the underlying aiohttp connector is not
-        leaked. The close itself is wrapped in
-        :func:`asyncio.shield` and the broad
-        ``BaseException`` suppress so a ``CancelledError`` mid-
-        teardown (Python 3.13: ``CancelledError`` inherits
-        ``BaseException``) cannot skip the cached-state reset and
-        leak the connector.
-        """
-        await self._http.__aenter__()
-        try:
-            info = await self.get_info()
-            self._info = info
-            profile = lookup_capabilities(info)
-            if profile is None:
-                profile = _conservative_empty_profile(info)
-            self._capabilities = profile
-        except BaseException:
-            # Discovery failed — tear down the HTTP session we just
-            # opened. ``__aexit__`` will not run because ``__aenter__``
-            # aborted, so without this the aiohttp session/connector
-            # would leak. Shield the close from cancellation and
-            # suppress any error (including ``BaseException``
-            # subclasses such as ``CancelledError``) so the cached-
-            # state reset and the ``raise`` below always run.
-            with contextlib.suppress(BaseException):
-                await asyncio.shield(self._http.__aexit__(None, None, None))
-            self._info = None
-            self._capabilities = None
-            raise
+        """Open the underlying HTTP session and populate capabilities."""
+        await enter_device(self)
         return self
 
     async def __aexit__(
@@ -258,57 +124,16 @@ class AkuvoxDevice:
         exc_val: BaseException | None,
         exc_tb: object,
     ) -> None:
-        """Close the underlying HTTP session and clear cached state.
-
-        Resets ``self._info`` and ``self._capabilities`` to ``None``
-        so the lifecycle semantics promised by ``get_info()``
-        ("cached … for the duration of a connection") hold across
-        re-entry. A subsequent ``async with`` will re-issue
-        ``/api/system/info`` and re-resolve the matrix entry,
-        ensuring that capability checks gate on fresh data rather
-        than on a stale snapshot from a prior connection.
-
-        Capability-gated wrappers will also fail fast via
-        :meth:`_require_capabilities` if they are (incorrectly)
-        called after exit instead of producing a confusing
-        ``aiohttp`` connection error from the closed transport.
-        """
-        try:
-            await self._http.__aexit__(exc_type, exc_val, exc_tb)
-        finally:
-            self._info = None
-            self._capabilities = None
+        """Close the underlying HTTP session and clear cached state."""
+        await exit_device(self, exc_type, exc_val, exc_tb)
 
     async def get_info(self) -> DeviceInfo:
-        """Retrieve device identification data.
-
-        Not capability-gated: ``KEY_DISCOVERY`` is the prerequisite
-        for matrix lookup itself, so gating it would create a
-        chicken-and-egg loop. See ``data-model.md`` §"Explicit
-        out-of-scope" and the ``test_every_public_device_method_has
-        _capability_gate`` introspection audit's
-        ``_INFRA_OUT_OF_SCOPE`` set.
-
-        After ``__aenter__`` runs successfully, this method returns
-        the cached :class:`DeviceInfo` from the connect-time discovery
-        call rather than re-fetching. Device identification data
-        (model, firmware, MAC) is static for the duration of a
-        connection, so caching avoids a redundant round-trip while
-        preserving the public surface.
-        """
-        if self._info is not None:
-            return self._info
-        data = await self._http.get("/api/system/info")
-        return DeviceInfo.from_api_response(data)
+        """Retrieve device identification data."""
+        return await _runtime_get_info(self._http, self._info)
 
     async def get_status(self) -> DeviceStatus:
-        """Retrieve device operational status.
-
-        Not capability-gated: this endpoint is part of the universal
-        connect-time discovery surface (see ``get_info``).
-        """
-        data = await self._http.get("/api/system/status")
-        return DeviceStatus.from_api_response(data)
+        """Retrieve device operational status."""
+        return await _runtime_get_status(self._http)
 
     async def add_user(
         self,
@@ -322,23 +147,8 @@ class AkuvoxDevice:
         card_code: str | None = None,
     ) -> None:
         """Add a local user to the device."""
-        self._require_capabilities().require(
-            Capability.USER_ADD,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import users
-        from pylocal_akuvox._capability_defaults import DEFAULT_USER_FIELD_ALIASES
-
-        # ``_require_capabilities`` returns the same cached
-        # ``DeviceCapabilities`` instance every call; second call is
-        # cheap and lets us extract the alias mapping without poking
-        # at the still-Optional ``self._capabilities`` attribute.
-        caps = self._require_capabilities()
-        field_aliases = caps.field_aliases.get(
-            "schedule_relay", DEFAULT_USER_FIELD_ALIASES
-        )
-        await users.add_user(
-            self._http,
+        await _device_users.add_user(
+            self._context(),
             name=name,
             user_id=user_id,
             web_relay=web_relay,
@@ -346,20 +156,11 @@ class AkuvoxDevice:
             lift_floor_num=lift_floor_num,
             private_pin=private_pin,
             card_code=card_code,
-            field_aliases=field_aliases,
         )
 
     async def list_users(self, *, page: int | None = None) -> list[User]:
         """List users from the device."""
-        self._require_capabilities().require(
-            Capability.USER_LIST,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import users
-
-        return await users.list_users(
-            self._http, page=page, capabilities=self._require_capabilities()
-        )
+        return await _device_users.list_users(self._context(), page=page)
 
     async def modify_user(
         self,
@@ -374,19 +175,8 @@ class AkuvoxDevice:
         lift_floor_num: str | None = None,
     ) -> None:
         """Modify an existing user on the device."""
-        self._require_capabilities().require(
-            Capability.USER_MODIFY,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import users
-        from pylocal_akuvox._capability_defaults import DEFAULT_USER_FIELD_ALIASES
-
-        caps = self._require_capabilities()
-        field_aliases = caps.field_aliases.get(
-            "schedule_relay", DEFAULT_USER_FIELD_ALIASES
-        )
-        await users.modify_user(
-            self._http,
+        await _device_users.modify_user(
+            self._context(),
             id=id,
             name=name,
             user_id=user_id,
@@ -395,18 +185,11 @@ class AkuvoxDevice:
             web_relay=web_relay,
             schedule_relay=schedule_relay,
             lift_floor_num=lift_floor_num,
-            field_aliases=field_aliases,
         )
 
     async def delete_user(self, *, id: str) -> None:
         """Delete a user from the device."""
-        self._require_capabilities().require(
-            Capability.USER_DELETE,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import users
-
-        await users.delete_user(self._http, id=id)
+        await _device_users.delete_user(self._context(), id=id)
 
     async def trigger_relay(
         self,
@@ -417,194 +200,43 @@ class AkuvoxDevice:
         delay: int = 0,
         adapter: Capability | None = None,
     ) -> None:
-        """Trigger a relay to unlock a door or gate.
-
-        Adapter-gated (NOT via :meth:`DeviceCapabilities.require`):
-        the gate is the ``RELAY_TRIGGER_ADAPTERS`` registry scan
-        below. Device classes whose API variant returned
-        "No handlers for this request" (IT83 indoor monitors, per
-        issue #122) are dispatched to the FCGI variant; door phones
-        (X916 / X915S / E18C) are dispatched to the API variant.
-
-        This is the documented exception in the introspection audit
-        (``_ADAPTER_GATED = {"trigger_relay"}``). See
-        ``contracts/adapter-dispatch.md`` §"Dispatch order".
-
-        Args:
-            num: Relay number (positive integer).
-            mode: 0 = Auto Close (default), 1 = Manual. Honoured by
-                the API variant only — the FCGI variant rejects
-                non-zero values with :class:`AkuvoxValidationError`.
-            level: 0 = NO-COM (default), 1 = NC-COM. Same caveat.
-            delay: Close delay in seconds (0-65535). Same caveat.
-            adapter: Optional caller override pinning a specific
-                variant (e.g. ``Capability.RELAY_TRIGGER_FCGI``).
-                Must be ``SUPPORTED`` on the device — or ``UNKNOWN``
-                with :attr:`attempt_unknown_capability` set — or the
-                call raises :class:`AkuvoxUnsupportedError`.
-
-        """
-        # Local validation BEFORE adapter dispatch so callers see the
-        # validation error regardless of the device class. This
-        # mirrors the existing ``relay.trigger_relay`` validation
-        # (see ``relay.py``); the adapter functions also re-validate
-        # the FCGI-specific subset.
-        from pylocal_akuvox.relay import _validate_relay_trigger_args
-
-        _validate_relay_trigger_args(num=num, mode=mode, level=level, delay=delay)
-
-        args = RelayTriggerArgs(num=num, mode=mode, level=level, delay=delay)
-        caps = self._require_capabilities()
-
-        if adapter is not None:
-            chosen = self._resolve_override_adapter(caps, adapter)
-        else:
-            chosen = self._resolve_default_adapter(caps)
-
-        variant = CAPABILITY_TO_VARIANT[chosen]
-        fn = RELAY_TRIGGER_ADAPTERS.get((chosen, variant))
-        if fn is None:
-            msg = f"No adapter registered for {chosen.value} on {caps.device_class}"
-            raise AkuvoxUnsupportedError(
-                msg,
-                capability=chosen,
-                device_class=caps.device_class,
-                reason="adapter_missing",
-            )
-        await fn(self._http, args)
+        """Trigger a relay to unlock a door or gate."""
+        await _device_relays.trigger_relay(
+            self._context(),
+            num=num,
+            mode=mode,
+            level=level,
+            delay=delay,
+            adapter=adapter,
+        )
 
     def _resolve_override_adapter(
-        self, caps: DeviceCapabilities, adapter: Capability
+        self,
+        caps: DeviceCapabilities,
+        adapter: Capability,
     ) -> Capability:
-        """Resolve a caller-supplied ``adapter=`` override to a chosen capability.
-
-        Per ``contracts/adapter-dispatch.md`` §"Dispatch order" step
-        1: an explicit override picks the requested variant unless
-        the device confirms it ``UNSUPPORTED`` (always raises) or
-        ``UNKNOWN`` without the integrator opt-in (raises unless
-        ``attempt_unknown_capability=True``).
-
-        The override must be one of the relay-trigger variants
-        registered in :data:`RELAY_TRIGGER_PREFERENCE`. Passing an
-        unrelated :class:`Capability` (e.g. ``Capability.USER_ADD``)
-        is a programming error and raises
-        :class:`AkuvoxValidationError` rather than leaking a
-        ``KeyError`` from the internal variant mapping.
-        """
-        if adapter not in RELAY_TRIGGER_PREFERENCE:
-            allowed = ", ".join(c.value for c in RELAY_TRIGGER_PREFERENCE)
-            msg = (
-                f"adapter override {adapter.value!r} is not a relay-trigger "
-                f"variant; allowed values: {allowed}"
-            )
-            raise AkuvoxValidationError(msg)
-        status = caps.status_of(adapter)
-        if status is CapabilityStatus.UNSUPPORTED:
-            msg = (
-                f"Adapter {adapter.value} requested but device "
-                f"{caps.device_class} confirmed does not support it"
-            )
-            raise AkuvoxUnsupportedError(
-                msg,
-                capability=adapter,
-                device_class=caps.device_class,
-                reason="capability_missing",
-            )
-        if status is CapabilityStatus.UNKNOWN and not self.attempt_unknown_capability:
-            msg = (
-                f"Adapter {adapter.value} requested but its status is "
-                f"unknown on {caps.device_class}; add a matrix entry "
-                f"or set device.attempt_unknown_capability=True"
-            )
-            raise AkuvoxUnsupportedError(
-                msg,
-                capability=adapter,
-                device_class=caps.device_class,
-                reason="capability_unknown",
-            )
-        return adapter
+        """Resolve a caller-supplied ``adapter=`` override."""
+        return _device_relays.resolve_override_adapter(
+            caps,
+            adapter,
+            allow_unknown=self.attempt_unknown_capability,
+        )
 
     def _resolve_default_adapter(self, caps: DeviceCapabilities) -> Capability:
-        """Walk the preference list and pick the first ``SUPPORTED`` variant.
-
-        Per ``contracts/adapter-dispatch.md`` §"Dispatch order" step
-        2: ``UNKNOWN`` does NOT auto-promote — the wrong variant
-        firing or failing to fire a relay is the exact UX failure the
-        three-valued model is written to prevent. If no variant is
-        ``SUPPORTED`` we raise either ``capability_unknown`` (at
-        least one variant has UNKNOWN status) or
-        ``capability_missing`` (every variant is UNSUPPORTED).
-        """
-        for candidate in RELAY_TRIGGER_PREFERENCE:
-            if caps.status_of(candidate) is CapabilityStatus.SUPPORTED:
-                return candidate
-
-        # Pick the most-specific capability to attach to the raised
-        # error: if at least one variant is UNKNOWN we report the
-        # first UNKNOWN one (matching reason="capability_unknown"),
-        # otherwise every variant is UNSUPPORTED and we fall back to
-        # the first preference (the "primary" variant for the
-        # device class) so the error still carries a stable
-        # capability field for callers that key off it.
-        first_unknown: Capability | None = next(
-            (
-                c
-                for c in RELAY_TRIGGER_PREFERENCE
-                if caps.status_of(c) is CapabilityStatus.UNKNOWN
-            ),
-            None,
-        )
-        if first_unknown is not None:
-            reason = "capability_unknown"
-            reported = first_unknown
-            msg_tail = (
-                "; add a matrix entry or pass adapter= explicitly with "
-                "device.attempt_unknown_capability=True"
-            )
-        else:
-            reason = "capability_missing"
-            reported = RELAY_TRIGGER_PREFERENCE[0]
-            msg_tail = ""
-        msg = (
-            f"Device {caps.device_class} has no supported "
-            f"relay-trigger variant{msg_tail}"
-        )
-        raise AkuvoxUnsupportedError(
-            msg,
-            capability=reported,
-            device_class=caps.device_class,
-            reason=reason,
-        )
+        """Walk the preference list and pick the first supported variant."""
+        return _device_relays.resolve_default_adapter(caps)
 
     async def get_relay_status(self) -> dict[str, Any]:
         """Retrieve current relay states from the device."""
-        self._require_capabilities().require(
-            Capability.RELAY_STATUS,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import relay
-
-        return await relay.get_relay_status(self._http)
+        return await _device_relays.get_relay_status(self._context())
 
     async def get_device_config(self) -> DeviceConfig:
         """Retrieve full device configuration."""
-        self._require_capabilities().require(
-            Capability.DEVICE_CONFIG_GET,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import config
-
-        return await config.get_device_config(self._http)
+        return await _device_config_logs.get_device_config(self._context())
 
     async def set_device_config(self, settings: dict[str, str]) -> None:
         """Update device configuration settings."""
-        self._require_capabilities().require(
-            Capability.DEVICE_CONFIG_SET,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import config
-
-        await config.set_device_config(self._http, settings)
+        await _device_config_logs.set_device_config(self._context(), settings)
 
     async def add_schedule(
         self,
@@ -626,14 +258,8 @@ class AkuvoxDevice:
         sat: str | None = None,
     ) -> None:
         """Add an access schedule to the device."""
-        self._require_capabilities().require(
-            Capability.SCHEDULE_ADD,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import schedules
-
-        await schedules.add_schedule(
-            self._http,
+        await _device_access.add_schedule(
+            self._context(),
             schedule_type=schedule_type,
             name=name,
             week=week,
@@ -653,13 +279,7 @@ class AkuvoxDevice:
 
     async def list_schedules(self, *, page: int | None = None) -> list[AccessSchedule]:
         """List schedules from the device."""
-        self._require_capabilities().require(
-            Capability.SCHEDULE_LIST,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import schedules
-
-        return await schedules.list_schedules(self._http, page=page)
+        return await _device_access.list_schedules(self._context(), page=page)
 
     async def modify_schedule(
         self,
@@ -682,14 +302,8 @@ class AkuvoxDevice:
         sat: str | None = None,
     ) -> None:
         """Modify an existing schedule on the device."""
-        self._require_capabilities().require(
-            Capability.SCHEDULE_MODIFY,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import schedules
-
-        await schedules.modify_schedule(
-            self._http,
+        await _device_access.modify_schedule(
+            self._context(),
             id=id,
             name=name,
             schedule_type=schedule_type,
@@ -710,78 +324,27 @@ class AkuvoxDevice:
 
     async def delete_schedule(self, *, id: str) -> None:
         """Delete a schedule from the device."""
-        self._require_capabilities().require(
-            Capability.SCHEDULE_DELETE,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import schedules
+        await _device_access.delete_schedule(self._context(), id=id)
 
-        await schedules.delete_schedule(self._http, id=id)
-
-    async def list_groups(
-        self,
-        *,
-        page: int | None = None,
-    ) -> list[Group]:
+    async def list_groups(self, *, page: int | None = None) -> list[Group]:
         """List groups from the device."""
-        self._require_capabilities().require(
-            Capability.GROUP_LIST,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import groups
-
-        return await groups.list_groups(self._http, page=page)
+        return await _device_access.list_groups(self._context(), page=page)
 
     async def add_group(self, *, name: str) -> None:
         """Add a group to the device."""
-        self._require_capabilities().require(
-            Capability.GROUP_ADD,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import groups
+        await _device_access.add_group(self._context(), name=name)
 
-        await groups.add_group(self._http, name=name)
-
-    async def modify_group(
-        self,
-        *,
-        id: str,
-        name: str,
-    ) -> None:
+    async def modify_group(self, *, id: str, name: str) -> None:
         """Modify an existing group on the device."""
-        self._require_capabilities().require(
-            Capability.GROUP_MODIFY,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import groups
-
-        await groups.modify_group(self._http, id=id, name=name)
+        await _device_access.modify_group(self._context(), id=id, name=name)
 
     async def delete_group(self, *, id: str) -> None:
         """Delete a group from the device."""
-        self._require_capabilities().require(
-            Capability.GROUP_DELETE,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import groups
+        await _device_access.delete_group(self._context(), id=id)
 
-        await groups.delete_group(self._http, id=id)
-
-    async def list_contacts(
-        self,
-        *,
-        page: int | None = None,
-    ) -> list[Contact]:
+    async def list_contacts(self, *, page: int | None = None) -> list[Contact]:
         """List contacts from the device."""
-        self._require_capabilities().require(
-            Capability.CONTACT_LIST,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import contacts
-
-        return await contacts.list_contacts(
-            self._http, page=page, capabilities=self._require_capabilities()
-        )
+        return await _device_contacts.list_contacts(self._context(), page=page)
 
     async def add_contact(
         self,
@@ -791,21 +354,11 @@ class AkuvoxDevice:
         group: str | None = None,
     ) -> None:
         """Add a contact to the device address book."""
-        self._require_capabilities().require(
-            Capability.CONTACT_ADD,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import contacts
-        from pylocal_akuvox._capability_types import SchemaShape
-
-        caps = self._require_capabilities()
-        shape = caps.schema_shapes.get("contact", SchemaShape.DOOR_PHONE)
-        await contacts.add_contact(
-            self._http,
+        await _device_contacts.add_contact(
+            self._context(),
             name=name,
             phone=phone,
             group=group,
-            schema_shape=shape,
         )
 
     async def modify_contact(
@@ -817,135 +370,22 @@ class AkuvoxDevice:
         group: str | None = None,
     ) -> None:
         """Modify an existing contact on the device."""
-        self._require_capabilities().require(
-            Capability.CONTACT_MODIFY,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import contacts
-        from pylocal_akuvox._capability_types import SchemaShape
-
-        caps = self._require_capabilities()
-        shape = caps.schema_shapes.get("contact", SchemaShape.DOOR_PHONE)
-        await contacts.modify_contact(
-            self._http,
+        await _device_contacts.modify_contact(
+            self._context(),
             id=id,
             name=name,
             phone=phone,
             group=group,
-            schema_shape=shape,
         )
 
     async def delete_contact(self, *, id: str | list[str]) -> None:
-        """Delete one or more contacts from the device.
-
-        Gate-only: ``delete_contact`` is shape-agnostic (the
-        delete-by-id payload is identical across schemas), so the
-        wrapper performs the capability check and then delegates to
-        the service function without a ``schema_shape=`` kwarg.
-        """
-        self._require_capabilities().require(
-            Capability.CONTACT_DELETE,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import contacts
-
-        await contacts.delete_contact(self._http, id=id)
+        """Delete one or more contacts from the device."""
+        await _device_contacts.delete_contact(self._context(), id=id)
 
     async def get_door_logs(self, *, page: int | None = None) -> list[DoorLogEntry]:
         """Retrieve door access logs from the device."""
-        self._require_capabilities().require(
-            Capability.LOG_DOOR,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import logs
-
-        return await logs.get_door_logs(self._http, page=page)
+        return await _device_config_logs.get_door_logs(self._context(), page=page)
 
     async def get_call_logs(self, *, page: int | None = None) -> list[CallLogEntry]:
         """Retrieve call logs from the device."""
-        self._require_capabilities().require(
-            Capability.LOG_CALL,
-            allow_unknown=self.attempt_unknown_capability,
-        )
-        from pylocal_akuvox import logs
-
-        return await logs.get_call_logs(self._http, page=page)
-
-
-def _merge_probe_with_matrix(
-    matrix: DeviceCapabilities | None,
-    probe: DeviceCapabilities,
-) -> DeviceCapabilities:
-    """Merge a probe-derived profile on top of a matrix-derived profile.
-
-    Per ``contracts/probe-api.md`` §"Edge cases" item 7 / 9-cell merge
-    table:
-
-    * Probe ``SUPPORTED`` / ``UNSUPPORTED`` always wins (newer
-      first-hand observation).
-    * Probe ``UNKNOWN`` never regresses a matrix-confirmed
-      ``SUPPORTED`` / ``UNSUPPORTED`` (absence of evidence is not
-      evidence of absence).
-    * Capabilities the probe did not touch carry through unchanged
-      from the matrix.
-
-    The probe deliberately omits write capabilities (FR-003: "no
-    write inference from read signals"), so write capabilities in
-    ``matrix.capabilities`` are preserved verbatim — the read-side
-    UNSUPPORTED signal of one endpoint never propagates to its
-    sibling write capability.
-
-    Returns the probe profile unchanged when ``matrix`` is ``None``
-    (probe-only flow with no matrix entry — the integrator either
-    has an unrecognised device or constructed the device without
-    entering the context manager first).
-    """
-    if matrix is None:
-        return probe
-
-    # Start from the matrix mapping (preserves write capabilities and
-    # any capabilities the probe did not exercise) and overlay probe
-    # observations using the 9-cell rule.
-    merged: dict[Capability, CapabilityStatus] = dict(matrix.capabilities)
-    for capability, probe_status in probe.capabilities.items():
-        if probe_status is CapabilityStatus.UNKNOWN:
-            # Probe UNKNOWN never regresses a matrix-confirmed value.
-            # Per ``DeviceCapabilities.status_of`` the canonical
-            # representation is "absent ⇒ UNKNOWN", not
-            # "present-with-UNKNOWN", so leaving the slot untouched
-            # is the correct way to express an indeterminate probe.
-            continue
-        # Probe SUPPORTED or UNSUPPORTED always wins.
-        merged[capability] = probe_status
-
-    # field_aliases / schema_shapes / notes: probe observations win
-    # for keys the probe explicitly recorded, otherwise the matrix
-    # value carries through. The probe never deletes entries.
-    field_aliases = dict(matrix.field_aliases)
-    field_aliases.update(probe.field_aliases)
-    schema_shapes = dict(matrix.schema_shapes)
-    schema_shapes.update(probe.schema_shapes)
-    notes = dict(matrix.notes)
-    notes.update(probe.notes)
-    # The conservative-empty profile installed by ``__aenter__`` for an
-    # unrecognised device carries a ``"device_not_in_matrix"`` discriminator
-    # note that ``DeviceCapabilities.require`` keys off to choose
-    # ``reason="device_unrecognized"`` (capabilities.py). Once a probe has
-    # successfully enumerated the device, that condition no longer applies:
-    # a still-UNKNOWN capability should raise ``capability_unknown`` (probed
-    # but indeterminate), not ``device_unrecognized`` (never probed). Strip
-    # the discriminator key before constructing the merged profile.
-    notes.pop("device_not_in_matrix", None)
-
-    return DeviceCapabilities(
-        device_class=probe.device_class,
-        firmware_version=probe.firmware_version,
-        capabilities=merged,
-        field_aliases=field_aliases,
-        schema_shapes=schema_shapes,
-        notes=notes,
-        # Provenance comes from the matrix entry (the probe never
-        # writes provenance per ``contracts/probe-api.md`` §"Provenance
-        # produced by the probe").
-        provenance=matrix.provenance,
-    )
+        return await _device_config_logs.get_call_logs(self._context(), page=page)

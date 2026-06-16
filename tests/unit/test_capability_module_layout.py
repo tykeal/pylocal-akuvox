@@ -29,6 +29,8 @@ silently undone:
 from __future__ import annotations
 
 import importlib
+import importlib.util
+from pathlib import Path
 
 import pytest
 
@@ -148,3 +150,62 @@ def test_probe_capabilities_reachable_via_device() -> None:
     Story 1 acceptance scenario.
     """
     assert callable(pylocal_akuvox.AkuvoxDevice.probe_capabilities)
+
+
+def test_device_subpath_remains_importable() -> None:
+    """``pylocal_akuvox.device`` remains a public import path."""
+    module = importlib.import_module("pylocal_akuvox.device")
+
+    assert getattr(module, "AkuvoxDevice") is pylocal_akuvox.AkuvoxDevice
+    assert module.__file__ is not None
+    module_path = Path(module.__file__)
+    assert module_path.name == "device.py" or (
+        module_path.suffix == ".pyc" and module_path.name.startswith("device.")
+    )
+
+
+def test_device_public_symbol_in_top_level_all() -> None:
+    """``AkuvoxDevice`` remains part of the top-level public exports."""
+    assert "AkuvoxDevice" in pylocal_akuvox.__all__
+
+
+def test_device_underscore_modules_importable() -> None:
+    """Each focused device helper module must import cleanly."""
+    for name in (
+        "pylocal_akuvox._device_profiles",
+        "pylocal_akuvox._device_runtime",
+        "pylocal_akuvox._device_users",
+        "pylocal_akuvox._device_relays",
+        "pylocal_akuvox._device_access",
+        "pylocal_akuvox._device_contacts",
+        "pylocal_akuvox._device_config_logs",
+    ):
+        importlib.import_module(name)
+
+
+def _module_line_count(module_name: str) -> int:
+    """Return the source line count for an importable module."""
+    module = importlib.import_module(module_name)
+    assert module.__file__ is not None
+    path = Path(module.__file__)
+    if path.suffix == ".pyc":
+        source_path = Path(importlib.util.source_from_cache(str(path)))
+        if not source_path.exists():
+            pytest.skip(f"source file not available for {module_name}")
+        path = source_path
+    return len(path.read_text(encoding="utf-8").splitlines())
+
+
+def test_device_modules_under_aislop_limit() -> None:
+    """The retained facade and helper modules must stay below 400 lines."""
+    for name in (
+        "pylocal_akuvox.device",
+        "pylocal_akuvox._device_profiles",
+        "pylocal_akuvox._device_runtime",
+        "pylocal_akuvox._device_users",
+        "pylocal_akuvox._device_relays",
+        "pylocal_akuvox._device_access",
+        "pylocal_akuvox._device_contacts",
+        "pylocal_akuvox._device_config_logs",
+    ):
+        assert _module_line_count(name) < 400

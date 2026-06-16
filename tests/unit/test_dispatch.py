@@ -267,12 +267,11 @@ async def test_adapter_missing_reason(monkeypatch: pytest.MonkeyPatch) -> None:
     only raise site for this reason. We exercise it by deleting the
     API entry from the registry copy used by the dispatcher.
     """
-    from pylocal_akuvox import capability_adapters
-    from pylocal_akuvox import device as device_module
+    from pylocal_akuvox import _device_relays, capability_adapters
 
     patched = dict(capability_adapters.RELAY_TRIGGER_ADAPTERS)
     del patched[(Capability.RELAY_TRIGGER_API, "api")]
-    monkeypatch.setattr(device_module, "RELAY_TRIGGER_ADAPTERS", patched)
+    monkeypatch.setattr(_device_relays, "RELAY_TRIGGER_ADAPTERS", patched)
 
     with aioresponses() as m:
         register_default_info(m, payload=_X916_INFO)
