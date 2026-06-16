@@ -87,7 +87,7 @@ after the file-by-file phase plan below — see "Post-Design Re-Check".*
 | Principle | Status | Notes |
 |-----------|--------|-------|
 | **I. Code Quality (NON-NEGOTIABLE)** | PASS | Each new source module gets SPDX headers, a focused module docstring, full type annotations, and no public API expansion. The split reduces the oversized facade while keeping each helper below the 400-line threshold. Existing docstrings may move to helpers if needed; public wrapper docstrings remain accurate. ruff, mypy, interrogate, and aislop must pass. |
-| **II. Test-Driven Development (NON-NEGOTIABLE)** | PASS | Device-layout assertions are authored first locally in `tests/unit/test_capability_module_layout.py`. Against `main`, the import-preservation assertions pass but the `_device_*` module and line-count assertions fail (red). Each extraction phase then makes the relevant assertions green. Existing device/user/relay/access/contact/config/log/probe tests keep behaviour pinned. |
+| **II. Test-Driven Development (NON-NEGOTIABLE)** | PASS | Public device import-preservation assertions are authored first locally in `tests/unit/test_capability_module_layout.py` and pass against `main`. `_device_*` importability and line-count assertions are added incrementally in their owning extraction phases; the final `device.py` line-count assertion is added when the facade is slimmed. Existing device/user/relay/access/contact/config/log/probe tests keep behaviour pinned. |
 | **III. User Experience Consistency** | PASS | The documented public surface is unchanged: `AkuvoxDevice` remains available from both top-level and `pylocal_akuvox.device`; method signatures and error contracts are preserved. This is explicitly non-breaking and does not require a migration path for public consumers. |
 | **IV. Performance Requirements** | PASS | The refactor adds internal function calls and module imports only. No event-loop blocking, network call reordering, extra probe/request calls, or cache invalidation change is introduced. Helper functions receive the same `AkuvoxHttpClient` instance and cached `DeviceCapabilities` state as the current methods use. |
 | **V. Atomic Commits & Compliance (NON-NEGOTIABLE)** | PASS | The implementation should land as one atomic refactor commit plus a separate changelog commit only if the implementer chooses to keep docs distinct. Implementation commits must follow `AGENTS.md` co-author guidance and identify the AI model actually used. This plan PR itself lands as one `Docs(spec)` commit with DCO sign-off and a single Claude co-author trailer, per the plan-authoring instructions. New implementation source files later must carry SPDX headers. |
@@ -111,11 +111,20 @@ non-breaking import-path requirement.
 
 - `importlib.import_module("pylocal_akuvox.device")` succeeds.
 - `getattr(device_module, "AkuvoxDevice") is pylocal_akuvox.AkuvoxDevice`.
+- A mypy-safe `__file__` assertion, such as
+  `assert device_module.__file__ is not None` before constructing
+  `Path(device_module.__file__)` and checking for a `device.py`/`device.*.pyc`
+  name, confirms the public subpath is backed by the retained `device.py`
+  module.
 - `"AkuvoxDevice" in pylocal_akuvox.__all__`.
-- Each `_device_*.py` helper module imports cleanly via
-  `importlib.import_module`.
+- Add the successful `pylocal_akuvox.device` preservation assertions first. Add
+  each `_device_*.py` importability assertion and line-count entry
+  incrementally in the phase that creates that helper module, so the layout test
+  never claims the full helper set is green before those modules exist.
 - `device.py` and all `_device_*.py` helpers are below 400 lines using a
-  line-count helper based on `Path(module.__file__).read_text().splitlines()`.
+  line-count helper that first asserts `module.__file__ is not None`, then
+  reads `Path(module.__file__).read_text().splitlines()` once the final helper
+  entry is added.
 - The test must **not** use `pytest.raises(ModuleNotFoundError)` for
   `pylocal_akuvox.device`.
 
@@ -125,9 +134,11 @@ non-breaking import-path requirement.
 
 - `uv run python -m py_compile tests/unit/test_capability_module_layout.py`
   passes.
-- `uv run pytest tests/unit/test_capability_module_layout.py -q` fails only on
-  expected red assertions before source extraction; after the implementation it
-  passes.
+- `uv run pytest tests/unit/test_capability_module_layout.py -q` passes for
+  the initial `pylocal_akuvox.device` preservation assertions. Later helper
+  assertions are added with their owning extraction phases and pass after each
+  corresponding helper exists; after the implementation the complete layout
+  test passes.
 - `uv run ruff check tests/unit/test_capability_module_layout.py` is clean.
 - `uv run mypy tests/unit/test_capability_module_layout.py` is clean, or the
   project-wide mypy gate including tests is clean if that is the configured
@@ -210,7 +221,7 @@ cannot mutate facade state.
 **Acceptance criteria**:
 
 - `uv run python -m py_compile src/pylocal_akuvox/device.py src/pylocal_akuvox/_device_runtime.py` passes.
-- `uv run pytest tests/unit/test_device.py tests/unit/test_capability_module_layout.py -q` passes for runtime-related assertions once this phase is complete.
+- `uv run pytest tests/unit/test_device.py tests/unit/test_capability_module_layout.py -q` passes for the preservation assertions and any helper assertions added through this phase; assertions for later `_device_*` modules are not added until their owning phases.
 - `uv run ruff check src/pylocal_akuvox/device.py src/pylocal_akuvox/_device_runtime.py tests/unit/test_capability_module_layout.py` is clean.
 - `uv run mypy src/pylocal_akuvox/device.py src/pylocal_akuvox/_device_runtime.py` is clean.
 - `uv run aislop scan --include 'src/pylocal_akuvox/device.py,src/pylocal_akuvox/_device_profiles.py,src/pylocal_akuvox/_device_runtime.py'` reports no file-too-large finding for the two helper modules.
@@ -549,8 +560,9 @@ contracts rather than `_DeviceContext`.
 
 Extend `tests/unit/test_capability_module_layout.py`; do not create a parallel
 layout test file. The file already pins specs 009/010 and imports
-`importlib`, `pytest`, `pylocal_akuvox`, and capability helper modules. Add a
-new device section that is the inverse of the 009/010 subpath-removal tests.
+`importlib`, `pytest`, `pylocal_akuvox`, and capability helper modules. Add
+`from pathlib import Path` if the file does not already import `Path`, then add
+a new device section that is the inverse of the 009/010 subpath-removal tests.
 
 ### Required device-layout assertions
 
@@ -560,6 +572,12 @@ def test_device_subpath_remains_importable() -> None:
     module = importlib.import_module("pylocal_akuvox.device")
 
     assert getattr(module, "AkuvoxDevice") is pylocal_akuvox.AkuvoxDevice
+    assert module.__file__ is not None
+    module_path = Path(module.__file__)
+    assert module_path.name == "device.py" or (
+        module_path.suffix == ".pyc"
+        and module_path.name.startswith("device.")
+    )
 
 
 def test_device_public_symbol_in_top_level_all() -> None:
@@ -581,14 +599,11 @@ def test_device_underscore_modules_importable() -> None:
         importlib.import_module(name)
 ```
 
-The implementation may combine the first two assertions if readability is
-better, but both facts must be pinned. The key rule is that `device` import is a
-successful import assertion, never:
-
-```python
-with pytest.raises(ModuleNotFoundError):
-    importlib.import_module("pylocal_akuvox.device")
-```
+The implementation may combine the device import assertions if readability is
+better, but all public-import facts must be pinned. DO NOT use
+`pytest.raises(ModuleNotFoundError)` for `pylocal_akuvox.device` — that pattern
+is correct for 009/010 (which deleted the module) but WRONG for 011, which
+preserves the module.
 
 ### Line-count assertions
 
@@ -598,7 +613,8 @@ add a small helper for the affected device modules:
 ```python
 def _module_line_count(module_name: str) -> int:
     module = importlib.import_module(module_name)
-    path = Path(module.__file__ or "")
+    assert module.__file__ is not None
+    path = Path(module.__file__)
     return len(path.read_text(encoding="utf-8").splitlines())
 
 
