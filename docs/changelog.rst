@@ -49,6 +49,15 @@ Breaking changes
 
   Refs #141.
 
+Changed
+^^^^^^^
+
+* Split the ``AkuvoxDevice`` implementation into focused internal
+  ``_device_*`` helper modules while preserving ``pylocal_akuvox.device``
+  and both public import forms.
+
+  Refs #142.
+
 Added
 ^^^^^
 
