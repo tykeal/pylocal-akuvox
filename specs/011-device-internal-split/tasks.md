@@ -13,11 +13,13 @@ SPDX-License-Identifier: Apache-2.0
 branch) hosts the future implementation PR. The spec PR (#153), plan PR (#154),
 and this tasks artifact each ship as separate documentation PRs.
 
-**Tests are MANDATORY** per constitution §II (TDD). The device-layout assertions
-in `tests/unit/test_capability_module_layout.py` are authored first. Against
-`main`, the public `pylocal_akuvox.device` import assertions already pass, while
-the `_device_*` importability and line-count assertions are RED until the helper
-modules exist and `device.py` is slimmed below 400 lines.
+**Tests are MANDATORY** per constitution §II (TDD). The public
+`pylocal_akuvox.device` preservation assertions in
+`tests/unit/test_capability_module_layout.py` are authored first and already
+pass on `main`. The `_device_*` importability and line-count assertions are
+added incrementally in the phases that create those helpers; the final
+`device.py` line-count assertion is added when the facade is slimmed below 400
+lines.
 
 **Non-breaking invariant**: `src/pylocal_akuvox/device.py` stays present,
 `class AkuvoxDevice` stays defined in that file, `pylocal_akuvox.device` stays
@@ -80,35 +82,39 @@ implementation, because live source is canonical if line numbers drift.
 
 ## Phase 1: Tests first — extend device layout assertions
 
-**Purpose**: Pin the non-breaking public import path and final helper-module
-shape before extracting source code.
+**Purpose**: Pin the non-breaking public import path before extracting source
+code; helper-module layout assertions are added incrementally as helpers land.
 
 - [ ] T001 Extend `tests/unit/test_capability_module_layout.py` with the
   device-layout TDD assertions.
 
   - **Goal**: Add structural tests for spec 011 before any source extraction.
   - **Files touched**: `tests/unit/test_capability_module_layout.py` only.
-  - **Specific assertions**:
-    1. `test_device_subpath_remains_importable` imports
-       `pylocal_akuvox.device` with `importlib.import_module` and asserts the
-       module has `AkuvoxDevice`.
-    2. `test_device_subpath_exports_akuvox_device` asserts
-       `getattr(module, "AkuvoxDevice") is pylocal_akuvox.AkuvoxDevice`.
-    3. `test_device_public_symbol_in_top_level_all` asserts
-       `"AkuvoxDevice" in pylocal_akuvox.__all__`.
-    4. `test_device_underscore_modules_importable` imports each of
-       `pylocal_akuvox._device_profiles`, `_device_runtime`, `_device_users`,
-       `_device_relays`, `_device_access`, `_device_contacts`, and
-       `_device_config_logs`.
-    5. `test_device_modules_under_aislop_limit` counts `splitlines()` for
-       `pylocal_akuvox.device` plus all seven `_device_*` modules and asserts
-       each count is `< 400`.
+  - **Specific assertions** (may be combined into fewer test functions for
+    readability):
+    1. Import `pylocal_akuvox.device` with `importlib.import_module` and assert
+       the module has `AkuvoxDevice`.
+    2. Assert `getattr(module, "AkuvoxDevice") is
+       pylocal_akuvox.AkuvoxDevice`.
+    3. Import `Path` with `from pathlib import Path`, assert
+       `module.__file__ is not None`, derive `module_path` from
+       `Path(module.__file__)`, and assert the name is `device.py` (or
+       `device.*.pyc` when running from bytecode).
+    4. Assert `"AkuvoxDevice" in pylocal_akuvox.__all__`.
+  - **Incremental layout-test ownership after T001**:
+    - Each helper-module extraction phase adds that helper's importability and
+      line-count coverage in `tests/unit/test_capability_module_layout.py`. The
+      owning task must list that test file under **Files touched** and include a
+      layout-test acceptance criterion for the assertions present at that phase.
+    - The facade-slimming phase adds `pylocal_akuvox.device` to the line-count
+      coverage after the retained facade is below 400 lines. That owning task
+      must likewise list `tests/unit/test_capability_module_layout.py` under
+      **Files touched** and include the full layout-test acceptance criterion.
   - **Acceptance criteria**:
     - `uv run python -m py_compile tests/unit/test_capability_module_layout.py`
       passes.
-    - `uv run pytest tests/unit/test_capability_module_layout.py -q` is RED only
-      for the expected missing `_device_*` modules and current oversized
-      `device.py` before extraction.
+    - `uv run pytest tests/unit/test_capability_module_layout.py -q` passes on
+      `main` for the initial public import-preservation assertions.
     - No assertion uses `pytest.raises(ModuleNotFoundError)` for
       `pylocal_akuvox.device`.
 
@@ -248,7 +254,8 @@ shared domain-helper context logic.
     - `AkuvoxDevice.__aexit__` still resets `_info` and `_capabilities` in a
       `finally` path.
     - `uv run pytest tests/unit/test_device.py tests/unit/test_capability_module_layout.py -q`
-      passes for runtime-related assertions that can be green at this phase.
+      passes with layout assertions added through the runtime helper phase;
+      assertions for later helper modules are not added yet.
     - No behavioral changes beyond extraction, modulo automatic ruff/isort
       import-block reordering and ruff format whitespace normalization.
 
@@ -632,13 +639,10 @@ prepare the implementation PR for review.
   - **Goal**: Prove the retained facade and every new helper module are under
     the size threshold using the required include syntax.
   - **Files touched**: none.
-  - **Commands**:
-    - Task-required include form:
-      `aislop scan --include 'pylocal_akuvox/device,pylocal_akuvox/_device_profiles,pylocal_akuvox/_device_runtime,pylocal_akuvox/_device_users,pylocal_akuvox/_device_relays,pylocal_akuvox/_device_access,pylocal_akuvox/_device_contacts,pylocal_akuvox/_device_config_logs'`
-    - Project-managed mirror for spec/plan path consistency:
-      `uv run aislop scan --include 'src/pylocal_akuvox/device.py,src/pylocal_akuvox/_device_profiles.py,src/pylocal_akuvox/_device_runtime.py,src/pylocal_akuvox/_device_users.py,src/pylocal_akuvox/_device_relays.py,src/pylocal_akuvox/_device_access.py,src/pylocal_akuvox/_device_contacts.py,src/pylocal_akuvox/_device_config_logs.py'`
+  - **Command**:
+    - `uv run aislop scan --include 'src/pylocal_akuvox/device.py,src/pylocal_akuvox/_device_profiles.py,src/pylocal_akuvox/_device_runtime.py,src/pylocal_akuvox/_device_users.py,src/pylocal_akuvox/_device_relays.py,src/pylocal_akuvox/_device_access.py,src/pylocal_akuvox/_device_contacts.py,src/pylocal_akuvox/_device_config_logs.py'`
   - **Acceptance criteria**: No `complexity/file-too-large` findings appear
-    for any listed module in either scan; command exit 0 alone is not sufficient
+    for any listed module in the scan; command exit 0 alone is not sufficient
     because scan output must be reviewed. The comma-separated `--include` form is
     mandatory; do not pass affected files as positional arguments.
 
@@ -670,7 +674,7 @@ prepare the implementation PR for review.
       — clean.
     - `git add -A && pre-commit run --all-files` — rerun after the changelog
       edit so the final staged tree is hook-clean.
-    - `aislop scan --include 'pylocal_akuvox/device,pylocal_akuvox/_device_profiles,pylocal_akuvox/_device_runtime,pylocal_akuvox/_device_users,pylocal_akuvox/_device_relays,pylocal_akuvox/_device_access,pylocal_akuvox/_device_contacts,pylocal_akuvox/_device_config_logs'` and `uv run aislop scan --include 'src/pylocal_akuvox/device.py,src/pylocal_akuvox/_device_profiles.py,src/pylocal_akuvox/_device_runtime.py,src/pylocal_akuvox/_device_users.py,src/pylocal_akuvox/_device_relays.py,src/pylocal_akuvox/_device_access.py,src/pylocal_akuvox/_device_contacts.py,src/pylocal_akuvox/_device_config_logs.py'` — final explicit size scans with comma-separated `--include`; do not use positional file paths.
+    - `uv run aislop scan --include 'src/pylocal_akuvox/device.py,src/pylocal_akuvox/_device_profiles.py,src/pylocal_akuvox/_device_runtime.py,src/pylocal_akuvox/_device_users.py,src/pylocal_akuvox/_device_relays.py,src/pylocal_akuvox/_device_access.py,src/pylocal_akuvox/_device_contacts.py,src/pylocal_akuvox/_device_config_logs.py'` — final explicit size scan with comma-separated `--include`; do not use positional file paths.
   - **Acceptance criteria**: Changelog is non-breaking, all closing sweep commands
     pass or are manually reviewed as described, the final staged tree is
     pre-commit clean, and the implementation branch is ready for PR review.
