@@ -87,6 +87,7 @@ The hooks may enforce (non-exhaustive list):
 - **yamllint** - YAML linting
 - **gitlint** - Commit message format validation
 - **actionlint** - GitHub Actions workflow validation
+- **aislop** - AI-slop / code-quality gate (full-tree, every commit)
 
 Additional hooks may be configured. Check `.pre-commit-config.yaml` for the
 complete list.
@@ -106,6 +107,29 @@ modified by hooks, stage them and commit again.
 ### Never Bypass Hooks
 
 Using `--no-verify` to bypass pre-commit hooks is **PROHIBITED**.
+
+### aislop Quality Gate
+
+The `aislop` hook runs `aislop ci` over the WHOLE project on every
+commit (not just staged files) and must report `100 / 100` with zero
+issues. The project currently holds a clean 100/100 score; keep it
+there.
+
+- The hook is a `local` pre-commit hook wired to:
+  `additional_dependencies: ['aislop@0.12.0']` (the npm-published
+  package). It is NOT installed from the upstream `scanaislop/aislop`
+  git tag, because that tag does not ship the built `dist/` directory
+  and registers a broken bin.
+- To scan specific files manually, use the comma-separated `--include`
+  form — positional path arguments are rejected:
+
+  ```bash
+  npx --yes aislop@0.12.0 scan \
+    --include 'src/pylocal_akuvox/device.py,src/pylocal_akuvox/_device_users.py'
+  ```
+
+- Run a full local gate with `npx --yes aislop@0.12.0 ci --human` before
+  pushing.
 
 ## Atomic Commits
 
@@ -147,6 +171,57 @@ directory using `uv`:
 - Run linting before committing: `uv run ruff check src/ tests/`
 - All tests must pass before pushing
 - New features should include appropriate test coverage
+- Maintain **100% branch coverage**:
+
+  ```bash
+  uv run pytest tests/ \
+    --cov=pylocal_akuvox \
+    --cov-branch \
+    --cov-report=term-missing
+  ```
+
+- The suite is the regression baseline; never let the test count
+  regress without explicit justification
+
+## Documentation (Sphinx/RST)
+
+User-facing docs live in `docs/` and are published via Read the Docs.
+
+- Build with warnings-as-errors before pushing doc changes:
+  `uv run --extra docs sphinx-build -W -b html docs docs/_build/html`
+- `docs/_build/` is build output and is gitignored — never commit it.
+- **Do not put GitHub issue/PR references in reader-facing docs**
+  (guide pages, capability notes). They add no value for readers.
+  `docs/changelog.rst` is the ONE exception — issue/PR references are
+  intentionally retained there.
+- Multi-line inline RST literals (for example, ``literal``) confuse
+  Sphinx; use an indented `::` literal block instead. Sphinx may accept
+  the inline form silently, but reviewers flag it.
+- In `docs/changelog.rst`, the "Breaking changes" subsection uses a
+  sibling-level 16-caret `^^^^^^^^^^^^^^^^` underline; using a deeper
+  underline depth reparents existing bullets.
+
+## Refactor & Module-Layout Conventions
+
+When splitting a large module into focused submodules:
+
+- Use underscore-prefixed sibling modules (`_device_users.py`,
+  `_capability_profile.py`), not a package — an empty `__init__.py`
+  would still let the old subpath resolve.
+- For a BREAKING split that drops a public import path, DELETE the
+  original module entirely so `import pkg.oldmodule` raises
+  `ModuleNotFoundError`. For a NON-breaking split, keep the public
+  class in its original module and move only internal helpers.
+- Cover module layout with a single owned test
+  (`tests/unit/test_capability_module_layout.py`). When asserting a
+  dropped subpath, use a BARE `pytest.raises(ModuleNotFoundError)` —
+  never the tuple `(ModuleNotFoundError, ImportError)`, which would
+  mask a partial-shim regression. When asserting a PRESERVED path,
+  import it and assert the public symbol resolves.
+- Re-validate every moved symbol/import against the LIVE source before
+  creating modules; planning docs drift and cause ruff `F401`.
+- "Make no other change" refactor steps implicitly allow automatic
+  ruff/isort import-block reordering and format normalization.
 
 ## Development Workflow Summary
 
