@@ -11,8 +11,8 @@ Unreleased
 Breaking changes
 ^^^^^^^^^^^^^^^^
 
-* The ``pylocal_akuvox.capabilities`` import subpath has been removed.
-  ``import pylocal_akuvox.capabilities`` and
+* The ``pylocal_akuvox.capabilities`` import subpath has been removed
+  (issue #140). ``import pylocal_akuvox.capabilities`` and
   ``from pylocal_akuvox.capabilities import X`` now raise
   ``ModuleNotFoundError``.
 
@@ -32,8 +32,8 @@ Breaking changes
   DeviceCapabilities, FieldAliases, SchemaShape``. No consumer-facing
   public symbol has been renamed or removed.
 
-* The ``pylocal_akuvox.capability_probe`` import subpath has been removed.
-  ``import pylocal_akuvox.capability_probe`` and
+* The ``pylocal_akuvox.capability_probe`` import subpath has been
+  removed (issue #141). ``import pylocal_akuvox.capability_probe`` and
   ``from pylocal_akuvox.capability_probe import probe_capabilities``
   now raise ``ModuleNotFoundError``.
 
@@ -47,12 +47,16 @@ Breaking changes
   ``pylocal_akuvox._probe_outcomes``, ``pylocal_akuvox._probe_classifiers``,
   ``pylocal_akuvox._probe_parsers``, and ``pylocal_akuvox._capability_probe``.
 
+  Refs #141.
+
 Changed
 ^^^^^^^
 
 * Split the ``AkuvoxDevice`` implementation into focused internal
   ``_device_*`` helper modules while preserving ``pylocal_akuvox.device``
   and both public import forms.
+
+  Refs #142.
 
 Added
 ^^^^^
