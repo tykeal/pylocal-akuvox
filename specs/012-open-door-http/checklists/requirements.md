@@ -19,7 +19,7 @@ SPDX-License-Identifier: Apache-2.0
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain
+- [ ] No [NEEDS CLARIFICATION] markers remain — **intentionally deferred** (one marker retained by design; see Notes and the spec's "Outstanding Clarifications" section)
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria focus on externally visible behavior
