@@ -14,6 +14,13 @@ import aiohttp
 import pytest
 from aioresponses import aioresponses
 
+from pylocal_akuvox import (
+    _device_access,
+    _device_config_logs,
+    _device_contacts,
+    _device_relays,
+    _device_users,
+)
 from pylocal_akuvox.auth import AuthConfig, AuthMethod
 from pylocal_akuvox.device import AkuvoxDevice
 from pylocal_akuvox.exceptions import (
@@ -773,6 +780,78 @@ async def test_unrecognised_device_installs_conservative_empty_profile() -> None
     assert_only_connect_time_info(m)
 
 
+def test_private_require_capabilities_stays_callable() -> None:
+    """The compatibility capability helper delegates to runtime logic."""
+    from pylocal_akuvox._capability_profile import DeviceCapabilities
+
+    sentinel = DeviceCapabilities(
+        device_class="X916",
+        firmware_version="916.30.10.114",
+        capabilities={},
+        field_aliases={},
+        schema_shapes={},
+        notes={},
+    )
+
+    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    device._capabilities = sentinel  # noqa: SLF001
+
+    assert device._require_capabilities() is sentinel  # noqa: SLF001
+
+
+def test_private_relay_resolvers_stay_callable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The private relay resolver methods remain thin compatibility delegates."""
+    from pylocal_akuvox import _device_relays
+    from pylocal_akuvox._capability_profile import DeviceCapabilities
+    from pylocal_akuvox._capability_types import Capability
+
+    sentinel = DeviceCapabilities(
+        device_class="X916",
+        firmware_version="916.30.10.114",
+        capabilities={},
+        field_aliases={},
+        schema_shapes={},
+        notes={},
+    )
+    calls: list[tuple[str, bool]] = []
+
+    def fake_override(
+        caps: DeviceCapabilities,
+        adapter: Capability,
+        *,
+        allow_unknown: bool,
+    ) -> Capability:
+        """Record override resolver arguments."""
+        assert caps is sentinel
+        assert adapter is Capability.RELAY_TRIGGER_API
+        calls.append(("override", allow_unknown))
+        return Capability.RELAY_TRIGGER_API
+
+    def fake_default(caps: DeviceCapabilities) -> Capability:
+        """Record default resolver arguments."""
+        assert caps is sentinel
+        calls.append(("default", False))
+        return Capability.RELAY_TRIGGER_FCGI
+
+    monkeypatch.setattr(_device_relays, "resolve_override_adapter", fake_override)
+    monkeypatch.setattr(_device_relays, "resolve_default_adapter", fake_default)
+
+    device = AkuvoxDevice(host="192.168.1.100", timeout=5, request_delay=0.0)
+    device.attempt_unknown_capability = True
+
+    assert (
+        device._resolve_override_adapter(sentinel, Capability.RELAY_TRIGGER_API)  # noqa: SLF001
+        is Capability.RELAY_TRIGGER_API
+    )
+    assert (
+        device._resolve_default_adapter(sentinel)  # noqa: SLF001
+        is Capability.RELAY_TRIGGER_FCGI
+    )
+    assert calls == [("override", True), ("default", False)]
+
+
 # ---------------------------------------------------------------------------
 # T038: Per-method capability gate + introspection audit (FR-011, SC-005)
 # ---------------------------------------------------------------------------
@@ -786,6 +865,34 @@ _INFRA_OUT_OF_SCOPE = {"get_info", "get_status", "probe_capabilities"}
 # scan, NOT in a literal ``self._capabilities.require(...)`` call.
 # Per ``contracts/adapter-dispatch.md`` §"Dispatch order".
 _ADAPTER_GATED = {"trigger_relay"}
+
+_DEVICE_HELPERS: dict[str, tuple[str, Callable[..., Any]]] = {
+    "add_contact": ("_device_contacts", _device_contacts.add_contact),
+    "add_group": ("_device_access", _device_access.add_group),
+    "add_schedule": ("_device_access", _device_access.add_schedule),
+    "add_user": ("_device_users", _device_users.add_user),
+    "delete_contact": ("_device_contacts", _device_contacts.delete_contact),
+    "delete_group": ("_device_access", _device_access.delete_group),
+    "delete_schedule": ("_device_access", _device_access.delete_schedule),
+    "delete_user": ("_device_users", _device_users.delete_user),
+    "get_call_logs": ("_device_config_logs", _device_config_logs.get_call_logs),
+    "get_device_config": (
+        "_device_config_logs",
+        _device_config_logs.get_device_config,
+    ),
+    "get_door_logs": ("_device_config_logs", _device_config_logs.get_door_logs),
+    "get_relay_status": ("_device_relays", _device_relays.get_relay_status),
+    "list_contacts": ("_device_contacts", _device_contacts.list_contacts),
+    "list_groups": ("_device_access", _device_access.list_groups),
+    "list_schedules": ("_device_access", _device_access.list_schedules),
+    "list_users": ("_device_users", _device_users.list_users),
+    "modify_contact": ("_device_contacts", _device_contacts.modify_contact),
+    "modify_group": ("_device_access", _device_access.modify_group),
+    "modify_schedule": ("_device_access", _device_access.modify_schedule),
+    "modify_user": ("_device_users", _device_users.modify_user),
+    "set_device_config": ("_device_config_logs", _device_config_logs.set_device_config),
+    "trigger_relay": ("_device_relays", _device_relays.trigger_relay),
+}
 
 
 def _public_coroutine_methods() -> list[tuple[str, Callable[..., Any]]]:
@@ -804,8 +911,9 @@ def test_every_public_device_method_has_capability_gate() -> None:
 
     Iterates :func:`inspect.getmembers` over :class:`AkuvoxDevice`,
     filters to public coroutine functions, partitions by the explicit
-    out-of-scope sets, and asserts every remaining method's source
-    contains the literal ``self._capabilities.require(`` substring.
+    out-of-scope sets, and asserts every remaining method delegates to
+    a helper whose source contains the literal
+    ``ctx.capabilities.require(`` substring.
 
     The exempt sets ``_INFRA_OUT_OF_SCOPE`` and ``_ADAPTER_GATED`` are
     defined at the module level above (with explanatory comments) so
@@ -819,23 +927,31 @@ def test_every_public_device_method_has_capability_gate() -> None:
     for name, fn in methods:
         if name in _INFRA_OUT_OF_SCOPE:
             continue
+        helper = _DEVICE_HELPERS.get(name)
+        assert helper is not None, (
+            f"public coroutine {name!r} on AkuvoxDevice is missing "
+            "an entry in _DEVICE_HELPERS"
+        )
+        helper_module, helper_fn = helper
         if name in _ADAPTER_GATED:
             # Adapter-gated methods reference RELAY_TRIGGER_ADAPTERS
             # instead of a literal require(...) call.
-            source = inspect.getsource(fn)
+            source = inspect.getsource(helper_fn)
             assert "RELAY_TRIGGER_ADAPTERS" in source, (
                 f"adapter-gated method {name!r} must reference "
                 f"RELAY_TRIGGER_ADAPTERS in its source"
             )
             continue
-        source = inspect.getsource(fn)
-        assert "self._capabilities.require(" in source or (
-            "self._require_capabilities().require(" in source
-        ), (
+        helper_call = f"{helper_module}.{helper_fn.__name__}"
+        assert helper_call in inspect.getsource(fn), (
+            f"public coroutine {name!r} on AkuvoxDevice must delegate "
+            "to its owning helper"
+        )
+        source = inspect.getsource(helper_fn)
+        assert "ctx.capabilities.require(" in source, (
             f"public coroutine {name!r} on AkuvoxDevice is missing a "
-            f"capability gate (expected literal "
-            f"'self._capabilities.require(' or "
-            f"'self._require_capabilities().require(' in its source)"
+            "capability gate in its owning helper (expected literal "
+            "'ctx.capabilities.require(' in helper source)"
         )
 
 
