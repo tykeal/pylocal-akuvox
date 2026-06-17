@@ -128,7 +128,7 @@ canonical** if anything drifts.
 **Purpose**: Confirm the working tree and capture the current green state
 before any TDD red step.
 
-- [ ] T001 Capture the pre-change baseline on `main`.
+- [x] T001 Capture the pre-change baseline on `main`.
 
   - **Goal**: Record that the suite is green and the FCGI dispatch tests
     currently pin the credential-less `relay=1` request, so later red/green
@@ -154,7 +154,7 @@ before any TDD red step.
 OpenDoor request path — plus `door_num` validation. Covers FR-001, FR-004,
 FR-005, FR-006 (a free function is inherently non-gated), FR-008, FR-013.
 
-- [ ] T002 [US1] Red — author construction, default, classification, and
+- [x] T002 [US1] Red — author construction, default, classification, and
   validation tests for `open_door_http` in `tests/unit/test_relay.py`.
 
   - **Goal**: Pin the observable request and the status→exception mapping
@@ -184,7 +184,7 @@ FR-005, FR-006 (a free function is inherently non-gated), FR-008, FR-013.
   - **Acceptance criteria**: `uv run python -m py_compile tests/unit/test_relay.py` passes; the new tests **fail** (red) because
     `open_door_http`/`_validate_door_num` do not yet exist.
 
-- [ ] T003 [US1] Green — implement `open_door_http` and `_validate_door_num`
+- [x] T003 [US1] Green — implement `open_door_http` and `_validate_door_num`
   in `src/pylocal_akuvox/relay.py`.
 
   - **Goal**: Make T002 pass with the helper, validation, and HTTP-status
@@ -236,7 +236,7 @@ validates `door_num`; the credentialed request path exists.
 **Goal**: FR-002 (single-encoder, injection-safe) and FR-003 (password
 redaction). Covers SC-002, SC-003.
 
-- [ ] T004 [US2] Red — author special-character encoding and log-redaction
+- [x] T004 [US2] Red — author special-character encoding and log-redaction
   tests in `tests/unit/test_relay.py`.
 
   - **Goal**: Pin that arbitrary credentials are encoded exactly once and
@@ -260,7 +260,7 @@ redaction). Covers SC-002, SC-003.
     already pass if `params=` was used in T003, but the redaction/log
     assertions **fail** (red) because no logger/redaction helper exists yet.
 
-- [ ] T005 [US2] Green — add the module logger and
+- [x] T005 [US2] Green — add the module logger and
   `_redacted_open_door_query` redaction helper in
   `src/pylocal_akuvox/relay.py`.
 
@@ -298,7 +298,7 @@ from logs and exceptions on every path.
 (FR-006) and uses per-call credentials independent of `AuthConfig`
 (FR-007). Covers SC-001.
 
-- [ ] T006 [US1] Red — author the passthrough delegation/non-gated test.
+- [x] T006 [US1] Red — author the passthrough delegation/non-gated test.
 
   - **Goal**: Pin that `AkuvoxDevice.open_door_http` delegates to
     `relay.open_door_http(self._http, ...)` and succeeds **without** a prior
@@ -318,7 +318,7 @@ from logs and exceptions on every path.
   - **Acceptance criteria**: `py_compile` passes; the test **fails** (red)
     because `AkuvoxDevice.open_door_http` does not yet exist.
 
-- [ ] T007 [US1] Green — add `AkuvoxDevice.open_door_http` in
+- [x] T007 [US1] Green — add `AkuvoxDevice.open_door_http` in
   `src/pylocal_akuvox/device.py`.
 
   - **Goal**: Make T006 pass with a thin, non-gated passthrough.
@@ -351,7 +351,7 @@ request. Convert `_fcgi_relay_trigger` to an actionable guard; retain the
 registries, the `RELAY_TRIGGER_FCGI` member, and the IT83 matrix entry
 (research Decision 2, option (a)). Covers FR-014, FR-015.
 
-- [ ] T008 Red — rewrite the FCGI dispatch tests in
+- [x] T008 Red — rewrite the FCGI dispatch tests in
   `tests/unit/test_dispatch.py` to pin the guard behaviour.
 
   - **Goal**: Replace every assertion that the dispatch path issues
@@ -388,7 +388,7 @@ registries, the `RELAY_TRIGGER_FCGI` member, and the IT83 matrix entry
     **fail** (red) against the still-credential-less adapter; the untouched
     gating tests still pass.
 
-- [ ] T009 Green — convert `_fcgi_relay_trigger` to an actionable guard and
+- [x] T009 Green — convert `_fcgi_relay_trigger` to an actionable guard and
   update the matrix comment.
 
   - **Goal**: Make T008 pass; guarantee FR-015 by issuing no request.
@@ -431,7 +431,7 @@ raises an actionable guard.
 **Goal**: Docstring security/prerequisite note and user-facing
 two-mechanism guidance, plus changelog. Covers SC-006.
 
-- [ ] T010 [US3] Finalize the FR-009 docstrings on `open_door_http` (free
+- [x] T010 [US3] Finalize the FR-009 docstrings on `open_door_http` (free
   function and passthrough).
 
   - **Goal**: Refine the complete docstrings authored in T003/T007 to add
@@ -447,7 +447,7 @@ two-mechanism guidance, plus changelog. Covers SC-006.
     behavioural test change required (docstring-only); existing tests stay
     green.
 
-- [ ] T011 [P] [US3] Add the two-mechanism guidance to `docs/quickstart.rst`
+- [x] T011 [P] [US3] Add the two-mechanism guidance to `docs/quickstart.rst`
   and `README.md`.
 
   - **Goal**: Tell integrators when to use `/fcgi/do?action=OpenDoor` vs
@@ -465,7 +465,7 @@ two-mechanism guidance, plus changelog. Covers SC-006.
     (AGENTS.md §Documentation) succeeds; markdownlint/RST hygiene clean;
     aislop clean.
 
-- [ ] T012 [P] [US3] Add changelog entries in `docs/changelog.rst`.
+- [x] T012 [P] [US3] Add changelog entries in `docs/changelog.rst`.
 
   - **Goal**: Record the new method and the IT83 dispatch behaviour change.
   - **Files touched**: `docs/changelog.rst`.
@@ -491,7 +491,7 @@ trade-off (SC-006).
 once, gated behind an explicit opt-in flag and relay credentials; otherwise
 skip-and-report.
 
-- [ ] T013 [US4] Red — author MVP opt-in/skip unit tests in
+- [x] T013 [US4] Red — author MVP opt-in/skip unit tests in
   `tests/unit/test_mvp_test.py`.
 
   - **Goal**: Pin that OpenDoor is skipped (reported, not failed) without
@@ -510,7 +510,7 @@ skip-and-report.
   - **Acceptance criteria**: `py_compile` passes; tests **fail** (red)
     because the flags/step do not exist yet.
 
-- [ ] T014 [US4] Green — add the `--open-door` opt-in, credentials, and the
+- [x] T014 [US4] Green — add the `--open-door` opt-in, credentials, and the
   gated step in `examples/mvp_test.py`.
 
   - **Goal**: Make T013 pass with a single opt-in OpenDoor exercise.
@@ -547,7 +547,7 @@ safely skips otherwise.
 **Purpose**: Whole-suite green, coverage gate, and conventions compliance
 before the implementation PR.
 
-- [ ] T015 Run the full quality gate.
+- [x] T015 Run the full quality gate.
 
   - **Goal**: Confirm every gate is green across the whole change.
   - **Files touched**: none (read-only), modulo auto-formatting fixes.
@@ -560,7 +560,7 @@ before the implementation PR.
     `uv run --extra docs sphinx-build -W -b html docs docs/_build/html`.
   - **Acceptance criteria**: all gates green; 100% branch coverage.
 
-- [ ] T016 Pre-PR conventions & REUSE/SPDX sweep.
+- [x] T016 Pre-PR conventions & REUSE/SPDX sweep.
 
   - **Goal**: Ensure new/changed files carry SPDX headers, no credential
     leaks, and Conventional-Commit-ready diffs.
