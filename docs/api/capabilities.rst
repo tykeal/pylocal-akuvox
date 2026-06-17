@@ -60,17 +60,17 @@ write CRUD operations on users, schedules, groups, and contacts are
 ``SUPPORTED``; relay trigger uses the API variant
 (``Capability.RELAY_TRIGGER_API``); ``ScheduleRelay`` and
 ``Schedule-Relay`` are both accepted on read and emitted on write
-(the dual-write contract from issues #99 / #101).
+(the dual-write contract).
 
 X915S
 ~~~~~
 
 Door-phone variant on the X915S product line. Reads the bare
-``Schedule`` key in user payloads (issue #118 / PR #120), so the
+``Schedule`` key in user payloads, so the
 matrix entry lists ``Schedule`` first in the
 ``schedule_relay`` field-alias read order. ``add_contact`` is
 ``UNSUPPORTED`` on this variant per the "unsupported action" envelope
-observation in issue #121; ``modify_contact`` / ``delete_contact``
+observation; ``modify_contact`` / ``delete_contact``
 were not specifically exercised and remain ``UNKNOWN``. Contact
 payloads use the apartment-book schema shape.
 
@@ -83,9 +83,8 @@ band; aliasing matches X916 byte-for-byte.
 IT83
 ~~~~
 
-Indoor-monitor product line (community reporter, issue #122 /
-#130). The ``/api/relay/*`` endpoints return "No handlers for this
-request" on this device class
+Indoor-monitor product line (community reporter). The ``/api/relay/*``
+endpoints return "No handlers for this request" on this device class
 (``Capability.RELAY_TRIGGER_API`` and ``Capability.RELAY_STATUS``
 are both ``UNSUPPORTED``); the ``/fcgi/do?action=OpenDoor`` variant
 (``Capability.RELAY_TRIGGER_FCGI``) works. All user / contact /
