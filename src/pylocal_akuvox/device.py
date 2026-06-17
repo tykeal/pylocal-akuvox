@@ -32,23 +32,14 @@ from pylocal_akuvox._device_runtime import (
     get_status as _runtime_get_status,
 )
 from pylocal_akuvox._http import AkuvoxHttpClient
+from pylocal_akuvox.relay import open_door_http as _open
 
 if TYPE_CHECKING:
+    from pylocal_akuvox import models
     from pylocal_akuvox._capability_profile import DeviceCapabilities
     from pylocal_akuvox._capability_types import Capability
     from pylocal_akuvox._device_runtime import _DeviceContext
     from pylocal_akuvox.auth import AuthConfig
-    from pylocal_akuvox.models import (
-        AccessSchedule,
-        CallLogEntry,
-        Contact,
-        DeviceConfig,
-        DeviceInfo,
-        DeviceStatus,
-        DoorLogEntry,
-        Group,
-        User,
-    )
 
 
 __all__ = [
@@ -81,7 +72,7 @@ class AkuvoxDevice:
             request_delay=request_delay,
         )
         self._capabilities: DeviceCapabilities | None = None
-        self._info: DeviceInfo | None = None
+        self._info: models.DeviceInfo | None = None
         self.attempt_unknown_capability: bool = False
 
     @property
@@ -127,11 +118,11 @@ class AkuvoxDevice:
         """Close the underlying HTTP session and clear cached state."""
         await exit_device(self, exc_type, exc_val, exc_tb)
 
-    async def get_info(self) -> DeviceInfo:
+    async def get_info(self) -> models.DeviceInfo:
         """Retrieve device identification data."""
         return await _runtime_get_info(self._http, self._info)
 
-    async def get_status(self) -> DeviceStatus:
+    async def get_status(self) -> models.DeviceStatus:
         """Retrieve device operational status."""
         return await _runtime_get_status(self._http)
 
@@ -158,7 +149,7 @@ class AkuvoxDevice:
             card_code=card_code,
         )
 
-    async def list_users(self, *, page: int | None = None) -> list[User]:
+    async def list_users(self, *, page: int | None = None) -> list[models.User]:
         """List users from the device."""
         return await _device_users.list_users(self._context(), page=page)
 
@@ -210,6 +201,16 @@ class AkuvoxDevice:
             adapter=adapter,
         )
 
+    async def open_door_http(
+        self,
+        *,
+        user: str,
+        password: str,
+        door_num: int = 1,
+    ) -> None:
+        """Unlock via clear-URL OpenDoor HTTP using device relay credentials."""
+        await _open(self._http, user=user, password=password, door_num=door_num)
+
     def _resolve_override_adapter(
         self,
         caps: DeviceCapabilities,
@@ -230,7 +231,7 @@ class AkuvoxDevice:
         """Retrieve current relay states from the device."""
         return await _device_relays.get_relay_status(self._context())
 
-    async def get_device_config(self) -> DeviceConfig:
+    async def get_device_config(self) -> models.DeviceConfig:
         """Retrieve full device configuration."""
         return await _device_config_logs.get_device_config(self._context())
 
@@ -277,7 +278,9 @@ class AkuvoxDevice:
             sat=sat,
         )
 
-    async def list_schedules(self, *, page: int | None = None) -> list[AccessSchedule]:
+    async def list_schedules(
+        self, *, page: int | None = None
+    ) -> list[models.AccessSchedule]:
         """List schedules from the device."""
         return await _device_access.list_schedules(self._context(), page=page)
 
@@ -326,7 +329,7 @@ class AkuvoxDevice:
         """Delete a schedule from the device."""
         await _device_access.delete_schedule(self._context(), id=id)
 
-    async def list_groups(self, *, page: int | None = None) -> list[Group]:
+    async def list_groups(self, *, page: int | None = None) -> list[models.Group]:
         """List groups from the device."""
         return await _device_access.list_groups(self._context(), page=page)
 
@@ -342,7 +345,7 @@ class AkuvoxDevice:
         """Delete a group from the device."""
         await _device_access.delete_group(self._context(), id=id)
 
-    async def list_contacts(self, *, page: int | None = None) -> list[Contact]:
+    async def list_contacts(self, *, page: int | None = None) -> list[models.Contact]:
         """List contacts from the device."""
         return await _device_contacts.list_contacts(self._context(), page=page)
 
@@ -382,10 +385,14 @@ class AkuvoxDevice:
         """Delete one or more contacts from the device."""
         await _device_contacts.delete_contact(self._context(), id=id)
 
-    async def get_door_logs(self, *, page: int | None = None) -> list[DoorLogEntry]:
+    async def get_door_logs(
+        self, *, page: int | None = None
+    ) -> list[models.DoorLogEntry]:
         """Retrieve door access logs from the device."""
         return await _device_config_logs.get_door_logs(self._context(), page=page)
 
-    async def get_call_logs(self, *, page: int | None = None) -> list[CallLogEntry]:
+    async def get_call_logs(
+        self, *, page: int | None = None
+    ) -> list[models.CallLogEntry]:
         """Retrieve call logs from the device."""
         return await _device_config_logs.get_call_logs(self._context(), page=page)

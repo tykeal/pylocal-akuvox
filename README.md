@@ -116,6 +116,9 @@ asyncio.run(main())
 
 ### Trigger a Door Relay
 
+Door-phone models that support the JSON relay API use `trigger_relay()`,
+which sends `/api/relay/trig` with the connection's `AuthConfig`:
+
 ```python
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
@@ -126,6 +129,30 @@ async def main():
 
 asyncio.run(main())
 ```
+
+IT83-class devices use Akuvox's separate Open Relay Via HTTP setting instead.
+Enable **Phone → Relay → Open Relay Via HTTP** on the device and pass those
+relay-specific credentials per call:
+
+```python
+import asyncio
+from pylocal_akuvox import AkuvoxDevice
+
+async def main():
+    async with AkuvoxDevice("192.168.1.100") as device:
+        await device.open_door_http(
+            user="relay-user",
+            password="relay-password",
+        )
+
+asyncio.run(main())
+```
+
+The vendor endpoint carries the OpenDoor password in the URL query string,
+so it can appear in proxy or device access logs outside this library. On an
+IT83, `trigger_relay()` raises an actionable error directing callers to
+`AkuvoxDevice.open_door_http()` instead of sending a credential-less
+OpenDoor request.
 
 ### Authentication
 

@@ -6,11 +6,13 @@
 from __future__ import annotations
 
 import json
+import sys
 from typing import Any, cast
 
 import examples.mvp_test as mvp_test
 import pytest
 
+from pylocal_akuvox import Capability, CapabilityStatus, DeviceCapabilities
 from pylocal_akuvox.exceptions import (
     AkuvoxAuthenticationError,
     AkuvoxConnectionError,
@@ -119,6 +121,44 @@ class _FakePrintDevice:
         ]
 
 
+class _FakeOpenDoorDevice:
+    """Device double that records OpenDoor HTTP calls."""
+
+    def __init__(self) -> None:
+        """Initialize the recorded call list."""
+        self.calls: list[tuple[str, str, int]] = []
+
+    async def open_door_http(
+        self,
+        *,
+        user: str,
+        password: str,
+        door_num: int = 1,
+    ) -> None:
+        """Record one OpenDoor HTTP call."""
+        self.calls.append((user, password, door_num))
+
+
+class _FakeDeviceContext:
+    """Async context manager returning a fake device."""
+
+    def __init__(self, device: _FakeOpenDoorDevice) -> None:
+        """Store the fake device returned from ``__aenter__``."""
+        self.device = device
+
+    async def __aenter__(self) -> _FakeOpenDoorDevice:
+        """Return the fake device."""
+        return self.device
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """Exit the fake context manager."""
+
+
 async def _successful_step() -> str:
     """Return a value from a successful diagnostic step."""
     return "ok"
@@ -142,6 +182,84 @@ async def _connection_error_step() -> None:
 async def _authentication_error_step() -> None:
     """Raise a fatal authentication error."""
     raise AkuvoxAuthenticationError("bad credentials")
+
+
+def _all_supported_capabilities() -> DeviceCapabilities:
+    """Return a capability profile that lets every write step run."""
+    return DeviceCapabilities(
+        device_class="Test",
+        firmware_version="1",
+        capabilities={
+            capability: CapabilityStatus.SUPPORTED for capability in Capability
+        },
+        field_aliases={},
+        schema_shapes={},
+    )
+
+
+def _patch_fast_write_steps(
+    monkeypatch: pytest.MonkeyPatch,
+    device: _FakeOpenDoorDevice,
+) -> None:
+    """Patch write-test dependencies so OpenDoor gating can be tested quickly."""
+
+    async def return_user_id(*_args: object, **_kwargs: object) -> str:
+        """Return a fake user ID for the add-user step."""
+        return "user-id"
+
+    async def return_schedule_id(*_args: object, **_kwargs: object) -> str:
+        """Return a fake schedule ID for the add-schedule step."""
+        return "schedule-id"
+
+    async def return_group_id(*_args: object, **_kwargs: object) -> str:
+        """Return a fake group ID for the add-group step."""
+        return "group-id"
+
+    async def return_contact_id(*_args: object, **_kwargs: object) -> str:
+        """Return a fake contact ID for the add-contact step."""
+        return "contact-id"
+
+    async def succeed(*_args: object, **_kwargs: object) -> None:
+        """Pretend a patched write step succeeded."""
+        return None
+
+    async def no_sleep(_delay: float) -> None:
+        """Skip write-test cooldown sleeps."""
+        return None
+
+    monkeypatch.setattr(
+        mvp_test,
+        "create_device",
+        lambda _kwargs, _diagnostics: _FakeDeviceContext(device),
+    )
+    monkeypatch.setattr(cast("Any", mvp_test).asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(mvp_test, "test_add_user", return_user_id)
+    monkeypatch.setattr(mvp_test, "test_modify_user", succeed)
+    monkeypatch.setattr(mvp_test, "test_delete_user", succeed)
+    monkeypatch.setattr(mvp_test, "test_verify_user_deletion", succeed)
+    monkeypatch.setattr(mvp_test, "test_add_schedule", return_schedule_id)
+    monkeypatch.setattr(mvp_test, "test_modify_schedule", succeed)
+    monkeypatch.setattr(mvp_test, "test_delete_schedule", succeed)
+    monkeypatch.setattr(mvp_test, "test_verify_schedule_deletion", succeed)
+    monkeypatch.setattr(mvp_test, "test_trigger_relay", succeed)
+    monkeypatch.setattr(mvp_test, "test_set_device_config", succeed)
+    monkeypatch.setattr(mvp_test, "test_add_group", return_group_id)
+    monkeypatch.setattr(mvp_test, "test_delete_group", succeed)
+    monkeypatch.setattr(mvp_test, "test_verify_group_deletion", succeed)
+    monkeypatch.setattr(mvp_test, "test_add_contact", return_contact_id)
+    monkeypatch.setattr(mvp_test, "test_modify_contact", succeed)
+    monkeypatch.setattr(mvp_test, "test_delete_contact", succeed)
+    monkeypatch.setattr(mvp_test, "test_verify_contact_deletion", succeed)
+
+
+def _run_parser_coroutine_without_loop(coro: Any) -> Any:
+    """Drive a no-await parser-test coroutine without touching event loops."""
+    try:
+        coro.send(None)
+    except StopIteration as exc:
+        return exc.value
+    msg = "parser test coroutine unexpectedly yielded"
+    raise AssertionError(msg)
 
 
 async def test_run_step_records_success() -> None:
@@ -296,6 +414,186 @@ def test_summary_prints_capability_matrix_data(
     assert (
         f'failure_shape=http=200 retcode=-1 retmsg="{action_not_supported}"' in output
     )
+
+
+async def test_open_door_helper_redacts_password(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Exercise the MVP OpenDoor helper without printing the password."""
+    device = _FakeOpenDoorDevice()
+
+    await mvp_test.test_open_door(
+        cast("Any", device),
+        user="relay-user",
+        password="relay-secret",
+    )
+
+    assert device.calls == [("relay-user", "relay-secret", 1)]
+    output = capsys.readouterr().out
+    assert "relay-user" in output
+    assert mvp_test._REDACTED_VALUE in output
+    assert "relay-secret" not in output
+
+
+async def test_write_tests_skip_open_door_without_opt_in(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Write tests report OpenDoor as skipped unless explicitly enabled."""
+    device = _FakeOpenDoorDevice()
+    _patch_fast_write_steps(monkeypatch, device)
+    diagnostics = mvp_test.DiagnosticReport(
+        host="192.0.2.10",
+        auth_method="none",
+        use_ssl=False,
+        verify_ssl=True,
+    )
+    results = mvp_test.TestResults(diagnostics)
+
+    await mvp_test._run_write_tests(
+        {},
+        results,
+        capabilities=_all_supported_capabilities(),
+        open_door=False,
+        open_door_user=None,
+        open_door_password=None,
+        redact_stdout=False,
+    )
+
+    assert device.calls == []
+    assert any(label == "open_door_http" for label, _reason in results.skipped)
+
+
+async def test_write_tests_attempt_open_door_once_with_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Write tests fire OpenDoor exactly once when opt-in credentials exist."""
+    device = _FakeOpenDoorDevice()
+    _patch_fast_write_steps(monkeypatch, device)
+    diagnostics = mvp_test.DiagnosticReport(
+        host="192.0.2.10",
+        auth_method="none",
+        use_ssl=False,
+        verify_ssl=True,
+    )
+    results = mvp_test.TestResults(diagnostics)
+
+    await mvp_test._run_write_tests(
+        {},
+        results,
+        capabilities=_all_supported_capabilities(),
+        open_door=True,
+        open_door_user="relay-user",
+        open_door_password="relay-secret",
+        redact_stdout=False,
+    )
+
+    assert device.calls == [("relay-user", "relay-secret", 1)]
+    assert "open_door_http" in results.passed
+    output = capsys.readouterr().out
+    assert mvp_test._REDACTED_VALUE in output
+    assert "relay-secret" not in output
+
+
+def test_main_parses_open_door_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CLI parses explicit OpenDoor relay credentials."""
+    captured: dict[str, Any] = {}
+
+    async def fake_run_all(args: Any) -> None:
+        """Capture parsed CLI args without running online tests."""
+        captured["args"] = args
+
+    monkeypatch.setattr(mvp_test, "run_all", fake_run_all)
+    monkeypatch.setattr(
+        cast("Any", mvp_test).asyncio,
+        "run",
+        _run_parser_coroutine_without_loop,
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "mvp_test.py",
+            "192.0.2.10",
+            "--write",
+            "--open-door",
+            "--open-door-user",
+            "relay-user",
+            "--open-door-pass",
+            "relay-secret",
+        ],
+    )
+
+    mvp_test.main()
+
+    args = captured["args"]
+    assert args.open_door is True
+    assert args.open_door_user == "relay-user"
+    assert args.open_door_password == "relay-secret"
+
+
+def test_main_reads_open_door_password_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CLI accepts the OpenDoor relay password from the environment."""
+    captured: dict[str, Any] = {}
+
+    async def fake_run_all(args: Any) -> None:
+        """Capture parsed CLI args without running online tests."""
+        captured["args"] = args
+
+    monkeypatch.setenv("AKUVOX_OPEN_DOOR_PASSWORD", "env-secret")
+    monkeypatch.setattr(mvp_test, "run_all", fake_run_all)
+    monkeypatch.setattr(
+        cast("Any", mvp_test).asyncio,
+        "run",
+        _run_parser_coroutine_without_loop,
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "mvp_test.py",
+            "192.0.2.10",
+            "--write",
+            "--open-door",
+            "--open-door-user",
+            "relay-user",
+        ],
+    )
+
+    mvp_test.main()
+
+    assert captured["args"].open_door_password == "env-secret"
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["mvp_test.py", "192.0.2.10", "--open-door"],
+        ["mvp_test.py", "192.0.2.10", "--write", "--open-door"],
+        [
+            "mvp_test.py",
+            "192.0.2.10",
+            "--write",
+            "--open-door",
+            "--open-door-user",
+            "relay-user",
+        ],
+    ],
+)
+def test_main_rejects_incomplete_open_door_args(
+    monkeypatch: pytest.MonkeyPatch,
+    argv: list[str],
+) -> None:
+    """CLI rejects unsafe OpenDoor opt-ins that lack prerequisites."""
+    monkeypatch.delenv("AKUVOX_OPEN_DOOR_PASSWORD", raising=False)
+    monkeypatch.setattr(sys, "argv", argv)
+
+    with pytest.raises(SystemExit):
+        mvp_test.main()
 
 
 def test_failure_signature_quotes_single_line_tokens() -> None:
