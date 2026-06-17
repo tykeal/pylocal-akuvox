@@ -35,13 +35,31 @@ under **Phone → Relay → Open Relay Via HTTP**) directly in the URL query
 string, and it does **not** necessarily return the JSON envelope that
 `/api/*` endpoints produce.
 
-This feature adds first-class support for that documented endpoint as a
-**separate, explicitly-chosen** trigger path alongside `trigger_relay`.
+This feature adds first-class, **credentialed** support for that
+documented endpoint as a **separate, explicitly-chosen** trigger path.
 Callers decide which mechanism to use; the library does not auto-detect
 device support. Because the credential travels in clear text in the URL,
 the feature carries an explicit security contract: credentials MUST be
 URL-encoded (never raw-interpolated) and the password MUST be redacted
 from any logging.
+
+**This is not a greenfield addition — it corrects and completes an
+existing partial implementation.** The codebase already ships a
+capability-dispatched FCGI relay variant
+(`Capability.RELAY_TRIGGER_FCGI`, the `_fcgi_relay_trigger` adapter in
+`capability_adapters.py`, an IT83 entry in `capability_matrix.py`, and
+relay-trigger dispatch wiring). That existing adapter issues
+`GET /fcgi/do?action=OpenDoor&relay=<num>` via the raw (non-JSON)
+request path **without sending any credentials** and using a `relay`
+query parameter rather than the vendor-documented `DoorNum`. The vendor
+endpoint requires the dedicated `UserName`/`Password` pair, so the
+current contract would fail against a correctly-configured device. This
+specification therefore defines the **corrected/migrated contract** (add
+credentials, align the parameter name to the vendor docs, mandate
+encoding and redaction) and the explicit caller-facing entry point from
+issue #122, and it gives planning an explicit migration target rather
+than treating the work as purely additive. See "Existing Partial
+Implementation" below.
 
 The scope of this specification is limited to `action=OpenDoor` on
 `/fcgi/do`. Every other `/fcgi/` command (reboot, factory reset, etc.) is
@@ -69,6 +87,37 @@ path because its response shape is not guaranteed to be a JSON envelope.
 
 Both mechanisms must coexist because each works on a disjoint set of
 device classes, and callers must be able to choose explicitly.
+
+### Existing Partial Implementation
+
+The current `main` already contains FCGI relay-trigger scaffolding that
+this feature must reconcile with the vendor docs rather than duplicate:
+
+| Existing artifact | Location | Current behavior |
+|---|---|---|
+| `Capability.RELAY_TRIGGER_FCGI` | `_capability_types.py` | Capability member for the FCGI relay variant |
+| `_fcgi_relay_trigger` adapter | `capability_adapters.py` | Issues `GET /fcgi/do?action=OpenDoor&relay=<num>` via `_request_raw`; maps 2xx→success, 401→auth error, other 4xx→request error, 5xx→device error; rejects non-zero `mode`/`level`/`delay` |
+| Relay-trigger dispatch wiring | `capability_adapters.py` | `RELAY_TRIGGER_ADAPTERS`, `RELAY_TRIGGER_PREFERENCE` (API before FCGI), `CAPABILITY_TO_VARIANT` |
+| IT83 matrix entry | `capability_matrix.py` | Marks `RELAY_TRIGGER_FCGI` `SUPPORTED` and `RELAY_TRIGGER_API` `UNSUPPORTED` for the IT83 device class, citing issues #122 / #130 |
+
+The existing adapter's request contract **diverges from the vendor docs
+in two material ways**:
+
+1. **No credentials are sent.** The vendor endpoint requires
+   `UserName` and `Password` query parameters (the dedicated "Open Relay
+   Via HTTP" credential pair). The current adapter sends neither, so it
+   would be rejected by a correctly-configured device.
+2. **Wrong parameter name.** The current adapter uses `relay=<num>`,
+   while the vendor docs specify `DoorNum=<n>`.
+
+The current adapter does, however, already establish two correct
+foundations this spec builds on: it uses the raw, non-JSON
+`_request_raw` path (FR-004) and an HTTP-status-based success/failure
+mapping (FR-008). This specification corrects the credential and
+parameter-name gaps, adds the encoding/redaction contract, and defines
+the caller-facing entry point. The relationship between the existing
+capability-dispatched variant and the new credentialed entry point is a
+material design decision captured under "Outstanding Clarifications".
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -236,7 +285,9 @@ attempted exactly once.
   `open_door_http(http, *, user, password, door_num=1)` in `relay.py` and
   a thin `AkuvoxDevice.open_door_http(...)` passthrough; final names are
   confirmed during planning but the observable request contract above is
-  fixed.
+  fixed. This entry point supersedes the credential-less request issued by
+  the existing `_fcgi_relay_trigger` adapter (see "Existing Partial
+  Implementation" and FR-014/FR-015).
 
 - **FR-002 — URL-encode credentials**: `UserName`, `Password`, and
   `DoorNum` MUST be URL-encoded as query parameters. Credentials MUST NOT
@@ -307,6 +358,24 @@ attempted exactly once.
   commands and MUST NOT add device-class auto-detection of trigger
   mechanisms.
 
+- **FR-014 — Correct the query parameter name to the vendor docs**: The
+  request MUST use the vendor-documented `DoorNum=<n>` query parameter,
+  not the `relay=<num>` parameter used by the current
+  `_fcgi_relay_trigger` adapter. The corrected parameter name MUST be
+  applied wherever the FCGI OpenDoor request is constructed so the
+  library and the device agree on the relay identifier.
+
+- **FR-015 — Reconcile credentials with the existing FCGI dispatch path**:
+  The existing capability-dispatched FCGI variant (`_fcgi_relay_trigger`,
+  reached through `trigger_relay` for `RELAY_TRIGGER_FCGI` devices) MUST
+  NOT continue issuing a credential-less `/fcgi/do` request that a
+  correctly-configured device would reject. The implementation MUST ensure
+  every code path that issues `action=OpenDoor` either supplies the
+  required `UserName`/`Password` (per FR-002/FR-003) or is updated/retired
+  per the design decision in "Outstanding Clarifications". No code path may
+  ship that sends the OpenDoor request without credentials once this
+  feature lands.
+
 ### Key Entities *(include if feature involves data)*
 
 - **OpenDoor request**: The outbound `GET /fcgi/do` call. Attributes:
@@ -356,8 +425,15 @@ attempted exactly once.
 - **Auto-detection of trigger mechanism**: the library will not probe or
   guess which of `/api/relay/trig` or `/fcgi/do?action=OpenDoor` a given
   device class supports. Mechanism choice is the caller's responsibility.
-- **Capability-matrix or capability-probe integration**: OpenDoor is not
-  added to the capability profile/matrix or the probe in this feature.
+  (The existing static IT83 capability-matrix entry is retained as-is;
+  this exclusion is about runtime auto-detection, not the existing static
+  matrix data.)
+- **New capability-probe steps or new matrix device classes**: this
+  feature does not add a probe step for OpenDoor and does not add matrix
+  entries for additional device classes. It MAY correct the request
+  contract used by the already-present `RELAY_TRIGGER_FCGI` adapter and
+  IT83 matrix entry (per FR-014/FR-015 and the clarification below), but
+  it does not extend the probe/matrix surface beyond what already ships.
 - **TLS enforcement or transport hardening**: the feature does not change
   the library's transport/TLS posture; it documents the clear-text
   trade-off rather than mitigating it.
@@ -419,6 +495,26 @@ attempted exactly once.
   defined and the failure-shape tests (FR-011) can pin whichever rule is
   adopted.
 
+- **[NEEDS CLARIFICATION: relationship between the new credentialed entry
+  point and the existing capability-dispatched FCGI adapter]** — The
+  codebase already dispatches `RELAY_TRIGGER_FCGI` through
+  `trigger_relay` via the credential-less `_fcgi_relay_trigger` adapter.
+  Issue #122 proposes a dedicated, non-capability-gated `open_door_http`
+  method that takes per-call credentials. Planning must decide which of
+  the following the implementation adopts (all satisfy FR-014/FR-015): (a)
+  retire the credential-less adapter and route FCGI unlocks exclusively
+  through the new credentialed method; (b) keep the capability dispatch
+  but thread the relay credentials into the adapter (e.g. via a
+  credential carrier on the trigger call); or (c) keep both — the
+  capability adapter for credential-less/legacy devices and the explicit
+  method for credentialed devices. The non-negotiable constraint is
+  FR-015: no shipped path may issue the OpenDoor request without
+  credentials against a device that requires them. This is flagged
+  because the choice materially affects the public API surface and the
+  capability-dispatch behavior; it does not block the spec because every
+  option preserves the corrected request contract (FR-002, FR-003,
+  FR-014) and the security requirements.
+
 ## Dependencies
 
 - The device under control must have **Phone → Relay → Open Relay Via
@@ -427,6 +523,11 @@ attempted exactly once.
 - The library's existing HTTP client and validation/exception types
   (`AkuvoxValidationError`, the connection-error contract, and the raw
   non-JSON request path).
+- The existing FCGI relay scaffolding that this feature corrects:
+  `Capability.RELAY_TRIGGER_FCGI` (`_capability_types.py`), the
+  `_fcgi_relay_trigger` adapter and dispatch registries
+  (`capability_adapters.py`), and the IT83 matrix entry
+  (`capability_matrix.py`).
 
 ## References
 

@@ -19,7 +19,7 @@ SPDX-License-Identifier: Apache-2.0
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain — **intentionally deferred** (one marker retained by design; see Notes and the spec's "Outstanding Clarifications" section)
+- [ ] No [NEEDS CLARIFICATION] markers remain — **intentionally deferred** (two markers retained by design; see Notes and the spec's "Outstanding Clarifications" section)
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria focus on externally visible behavior
@@ -51,16 +51,33 @@ requirements, scenarios, and success criteria:
 | Docs note on when to use `/fcgi/do?action=OpenDoor` vs `/api/relay/trig` | FR-010; US3 scenario 1; SC-006 |
 | Out of scope: other `/fcgi/` commands, IT83 broader gaps, auto-detection | Out of Scope section; FR-013 |
 
+### Reconciliation with existing codebase
+
+This spec is **not** purely additive: the codebase already ships a
+partial FCGI relay variant. The following spec elements address the
+divergence raised in review:
+
+| Existing-code reality | Spec coverage |
+|---|---|
+| `Capability.RELAY_TRIGGER_FCGI` + `_fcgi_relay_trigger` + IT83 matrix entry already present | Overview "not a greenfield addition" paragraph; "Existing Partial Implementation" subsection; Dependencies |
+| Existing adapter sends no `UserName`/`Password` | FR-002, FR-003, FR-015 |
+| Existing adapter uses `relay=<num>`, not `DoorNum` | FR-014 |
+| Out-of-scope previously contradicted the present matrix entry | Corrected Out-of-Scope bullets (static matrix retained; no new probe/matrix surface) |
+| Standalone method vs capability dispatch relationship | Outstanding Clarifications (2nd marker) |
+
 ## Notes
 
-- One [NEEDS CLARIFICATION] marker is intentionally retained (see the
-  spec's "Outstanding Clarifications" section): the exact
-  success/failure classification of the OpenDoor response cannot be
-  finalized without probing real IT83 hardware. The spec adopts a
-  well-defined HTTP-status-based default (2xx success / non-2xx failure)
-  so the marker does not block planning; it flags a rule that must be
-  confirmed or tightened against a real device during implementation.
+- Two [NEEDS CLARIFICATION] markers are intentionally retained (see the
+  spec's "Outstanding Clarifications" section): (1) the exact
+  success/failure classification of the OpenDoor response, which cannot
+  be finalized without probing real IT83 hardware (the spec adopts a
+  well-defined HTTP-status-based default so it does not block planning);
+  and (2) the relationship between the new credentialed entry point and
+  the existing capability-dispatched FCGI adapter, which materially
+  affects the public API surface and is a deliberate planning decision.
+  Both are deferred with well-defined defaults/constraints and neither
+  blocks `/speckit.plan`.
 - All other checklist items pass. Items marked incomplete require spec
   updates before `/speckit.clarify` or `/speckit.plan` only if the
-  retained clarification cannot be deferred; here it is deliberately
-  deferred with a documented default.
+  retained clarifications cannot be deferred; here they are deliberately
+  deferred with documented defaults and constraints.
