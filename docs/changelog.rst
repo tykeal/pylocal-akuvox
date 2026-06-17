@@ -52,6 +52,12 @@ Breaking changes
 Changed
 ^^^^^^^
 
+* ``trigger_relay()`` on IT83-class devices now raises an actionable
+  error directing callers to ``AkuvoxDevice.open_door_http()`` instead
+  of issuing a credential-less OpenDoor request.
+
+  Refs #122.
+
 * Split the ``AkuvoxDevice`` implementation into focused internal
   ``_device_*`` helper modules while preserving ``pylocal_akuvox.device``
   and both public import forms.
@@ -60,6 +66,12 @@ Changed
 
 Added
 ^^^^^
+
+* Added ``pylocal_akuvox.relay.open_door_http`` and
+  ``AkuvoxDevice.open_door_http`` for credentialed
+  ``/fcgi/do?action=OpenDoor`` relay unlocks.
+
+  Refs #122.
 
 * Initial release of pylocal-akuvox
 * Async-only Python library for Akuvox local HTTP API
