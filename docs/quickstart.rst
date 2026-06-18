@@ -226,35 +226,74 @@ Manage Groups
 Manage Contacts
 ---------------
 
+Door-phone devices expose contact records with a device ``ID`` and optional
+``Group``. Apartment-book devices expose read-only records without ``ID``;
+their additional ``apt_name``, ``apt_num``, ``building``, and ``landline``
+fields come from ``APTName``, ``APTNum``, ``Building``, and ``Landline``.
+Empty apartment-book ``building`` and ``landline`` values are preserved as
+``""`` because the device returned those fields.
+
 .. code-block:: python
 
    import asyncio
-   from pylocal_akuvox import AkuvoxDevice
+   from pylocal_akuvox import (
+       AkuvoxDevice,
+       AkuvoxUnsupportedError,
+       Capability,
+       CapabilityStatus,
+   )
 
    async def main():
        async with AkuvoxDevice("192.168.1.100") as device:
            # List all contacts
            contacts = await device.list_contacts()
            for c in contacts:
-               print(f"{c.name} ({c.group}): {c.phone}")
+               if c.id is None:
+                   key = (c.apt_num, c.phone)
+                   print(
+                       f"{c.name}: apt={c.apt_num} phone={c.phone} "
+                       f"building={c.building!r} landline={c.landline!r}"
+                   )
+                   # Use the caller-side key only when both parts are present.
+                   # Fall back to c.name when the pair is incomplete.
+                   if all(key):
+                       print(f"caller key: {key}")
+               else:
+                   print(f"{c.name} ({c.group}): {c.phone}")
 
-           # Add a contact to a group
-           await device.add_contact(
-               name="Alice",
-               phone="5551234",
-               group="Residents",
-           )
+           status = device.capabilities.status_of(Capability.CONTACT_ADD)
+           if status is CapabilityStatus.SUPPORTED:
+               # Add a contact to a group on door-phone devices
+               await device.add_contact(
+                   name="Alice",
+                   phone="5551234",
+                   group="Residents",
+               )
 
-           # Move a contact to another group
-           await device.modify_contact(id="1", group="Staff")
+               # Move a contact to another group
+               await device.modify_contact(id="1", group="Staff")
 
-           # Delete a contact
-           await device.delete_contact(id="1")
+               # Delete a contact
+               await device.delete_contact(id="1")
 
-           # Batch delete
-           await device.delete_contact(id=["2", "3"])
+               # Batch delete
+               await device.delete_contact(id=["2", "3"])
+           elif status is CapabilityStatus.UNSUPPORTED:
+               try:
+                   await device.add_contact(name="Alice", phone="5551234")
+               except AkuvoxUnsupportedError as err:
+                   assert err.reason == "capability_missing"
+                   print("Contact writes are not supported on this device")
+           else:
+               print("Contact writes are not confirmed for this device")
 
    asyncio.run(main())
+
+Apartment-book records have no device-assigned ``ID``. The library does not
+create a synthetic identifier or guarantee uniqueness. When both fields are
+available, use a caller-side ``(apt_num, phone)`` composite key; fall back to
+``name`` when needed. Two records with the same ``name`` remain
+distinguishable when their ``apt_num`` or ``phone`` values differ.
 
 Retrieve Logs
 -------------

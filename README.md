@@ -28,6 +28,8 @@ and log retrieval over the device's local HTTP API.
 - **Comprehensive error handling** — typed exception hierarchy
 - **Capability-aware API** — built-in device support matrix, safe probing,
   and fail-fast unsupported-operation checks
+- **Contact schema fidelity** — door-phone and apartment-book contact records
+  preserve their device-specific fields
 
 ## Installation
 
@@ -89,6 +91,18 @@ connection.
 The examples below call service methods directly for brevity. They assume the
 relevant capability is `SUPPORTED`; for portable code, guard each operation
 with the probed or matrix profile as shown above.
+
+### Contact models
+
+Door-phone devices such as X916 and E18C expose contacts with `ID`, `Name`,
+`Phone`, and `Group`. Apartment-book devices such as X915S expose contacts with
+`Name`, `Phone`, `APTName`, `APTNum`, `Building`, and `Landline`; they have no
+device-assigned `ID` or `Group`.
+
+`Contact` exposes apartment-book metadata as `apt_name`, `apt_num`, `building`,
+and `landline`. Those fields are `None` on door-phone records. Apartment-book
+contacts are read-only over the public HTTP API, so manage them through the
+device web UI, provisioning, or another vendor-supported channel.
 
 ### Manage Users and PINs
 

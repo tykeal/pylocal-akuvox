@@ -14,9 +14,10 @@ from aioresponses import aioresponses
 from pylocal_akuvox.device import AkuvoxDevice
 from pylocal_akuvox.exceptions import (
     AkuvoxDeviceError,
+    AkuvoxUnsupportedError,
     AkuvoxValidationError,
 )
-from tests.unit._helpers import register_default_info
+from tests.unit._helpers import assert_only_connect_time_info, register_default_info
 
 if TYPE_CHECKING:
     from pylocal_akuvox._capability_types import (
@@ -81,6 +82,22 @@ _EMPTY_PAGE_RESPONSE: dict[str, object] = {
     "action": "get",
     "message": "OK",
     "data": {"num": 0, "item": []},
+}
+
+_X915S_INFO_PAYLOAD: dict[str, object] = {
+    "retcode": 0,
+    "action": "info",
+    "message": "",
+    "data": {
+        "Status": {
+            "Model": "X915S",
+            "MAC": "AA:BB:CC:DD:EE:FF",
+            "FirmwareVersion": "2915.30.10.114",
+            "HardwareVersion": "1.0",
+            "Uptime": "1d",
+            "WebLang": 0,
+        }
+    },
 }
 
 
@@ -538,6 +555,10 @@ def test_contact_from_api_response_door_phone_default() -> None:
     assert c1.id == "1"
     assert c1.phone == "555-1"
     assert c1.group == "Default"
+    assert c1.apt_name is None
+    assert c1.apt_num is None
+    assert c1.building is None
+    assert c1.landline is None
 
     # Missing Name still raises.
     with pytest.raises(AkuvoxParseError, match="Missing required field"):
@@ -566,18 +587,33 @@ def test_contact_from_api_response_apartment_book_no_id() -> None:
         schema_shapes={"contact": SchemaShape.APARTMENT_BOOK},
     )
     data = {
-        "Name": "Apt 101 Resident",
-        "APTName": "Building A",
-        "APTNum": "101",
-        "Building": "A",
-        "Landline": "5550100",
+        "Name": "01_monitor",
+        "Phone": "192.168.0.10",
+        "APTName": "1",
+        "APTNum": "1",
+        "Building": "",
+        "Landline": "",
         # NO "ID" field — apartment-book payloads may omit it.
     }
     c = Contact.from_api_response(data, capabilities=caps)
-    assert c.name == "Apt 101 Resident"
+    assert c.name == "01_monitor"
     assert c.id is None
-    # Apartment-book fields are accepted but not surfaced on the
-    # public model yet — only the parser tolerates them.
+    assert c.phone == "192.168.0.10"
+    assert c.group is None
+    assert c.apt_name == "1"
+    assert c.apt_num == "1"
+    assert c.building == ""
+    assert c.landline == ""
+
+    sparse = Contact.from_api_response(
+        {"Name": "02_monitor", "Phone": "192.168.0.11", "APTName": "2"},
+        capabilities=caps,
+    )
+    assert sparse.id is None
+    assert sparse.apt_name == "2"
+    assert sparse.apt_num is None
+    assert sparse.building is None
+    assert sparse.landline is None
 
 
 def test_contact_from_api_response_door_phone_explicit_shape() -> None:
@@ -602,6 +638,10 @@ def test_contact_from_api_response_door_phone_explicit_shape() -> None:
     a = Contact.from_api_response(data)
     b = Contact.from_api_response(data, capabilities=caps)
     assert a == b
+    assert a.apt_name is None
+    assert a.apt_num is None
+    assert a.building is None
+    assert a.landline is None
 
 
 def test_contact_from_api_response_capabilities_without_shape_key_falls_back() -> None:
@@ -625,97 +665,141 @@ def test_contact_from_api_response_capabilities_without_shape_key_falls_back() -
     c = Contact.from_api_response(data, capabilities=caps)
     assert c.name == "Bob"
     assert c.id == "9"
+    assert c.apt_name is None
+    assert c.apt_num is None
+    assert c.building is None
+    assert c.landline is None
 
 
-# -- T066: contacts.add_contact / modify_contact schema_shape= kwarg --
+def test_contact_to_api_payload_omits_apartment_book_fields() -> None:
+    """Apartment-book fields never appear in contact write payloads."""
+    from pylocal_akuvox.models import Contact
+
+    door_phone = Contact(name="Alice", id="1", phone="555-0100", group="Residents")
+    apartment_book = Contact(
+        name="01_monitor",
+        phone="192.168.0.10",
+        apt_name="1",
+        apt_num="1",
+        building="",
+        landline="",
+    )
+
+    assert door_phone.to_api_payload() == {
+        "Name": "Alice",
+        "ID": "1",
+        "Phone": "555-0100",
+        "Group": "Residents",
+    }
+    assert apartment_book.to_api_payload() == {
+        "Name": "01_monitor",
+        "Phone": "192.168.0.10",
+    }
 
 
-async def test_add_contact_service_function_default_shape_byte_identical() -> None:
-    """T066: ``add_contact`` with no kwarg == ``schema_shape=DOOR_PHONE``.
+async def test_x915s_contact_writes_reject_before_io() -> None:
+    """X915S contact mutations raise uniformly through the capability gate."""
+    from pylocal_akuvox._capability_types import Capability
 
-    Direct service-function callers that omit the new kwarg see
-    byte-identical payloads to calls that explicitly pass
-    ``SchemaShape.DOOR_PHONE`` — pins FR-016 for the door-phone
-    write path.
-    """
-    import json
+    def assert_unsupported(
+        err: AkuvoxUnsupportedError,
+        *,
+        operation: str,
+        capability: Capability,
+    ) -> None:
+        """Assert the X915S unsupported-write error contract."""
+        assert err.reason == "capability_missing"
+        assert err.device_class == "X915S"
+        assert err.capability is capability
+        assert "X915S" in str(err)
+        assert operation in str(err)
 
+    with aioresponses() as m:
+        register_default_info(m, payload=_X915S_INFO_PAYLOAD)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxUnsupportedError) as exc_info:
+                await device.add_contact(name="Bob")
+            assert_unsupported(
+                exc_info.value,
+                operation="contact.add",
+                capability=Capability.CONTACT_ADD,
+            )
+
+            with pytest.raises(AkuvoxUnsupportedError) as exc_info:
+                await device.modify_contact(id="1", name="Bob")
+            assert_unsupported(
+                exc_info.value,
+                operation="contact.modify",
+                capability=Capability.CONTACT_MODIFY,
+            )
+
+            with pytest.raises(AkuvoxUnsupportedError) as exc_info:
+                await device.delete_contact(id="1")
+            assert_unsupported(
+                exc_info.value,
+                operation="contact.delete",
+                capability=Capability.CONTACT_DELETE,
+            )
+
+    assert_only_connect_time_info(m)
+
+
+# -- T066: contacts.add_contact / modify_contact service write surface --
+
+
+async def test_add_contact_service_function_door_phone_payload() -> None:
+    """T066: ``add_contact`` emits the door-phone payload without a shape kwarg."""
     from pylocal_akuvox import contacts as contacts_svc
-    from pylocal_akuvox._capability_types import SchemaShape
     from pylocal_akuvox._http import AkuvoxHttpClient
 
     with aioresponses() as m:
         m.post(
             f"{BASE_URL}/api/contact/set",
             payload=_MUTATION_OK_RESPONSE,
-            repeat=True,
         )
         async with AkuvoxHttpClient("192.168.1.100") as http:
-            await contacts_svc.add_contact(http, name="x", phone="555")
-            await contacts_svc.add_contact(
-                http, name="x", phone="555", schema_shape=SchemaShape.DOOR_PHONE
-            )
+            await contacts_svc.add_contact(http, name="x", phone="555", group="Staff")
 
         url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/contact/set"))
         calls = m.requests[url_key]
-        assert len(calls) == 2
-        a = json.dumps(calls[0].kwargs.get("json"), sort_keys=False)
-        b = json.dumps(calls[1].kwargs.get("json"), sort_keys=False)
-        assert a == b
+        assert len(calls) == 1
+        assert calls[0].kwargs.get("json") == {
+            "target": "contact",
+            "action": "add",
+            "data": {
+                "item": [{"Name": "x", "Phone": "555", "Group": "Staff"}],
+            },
+        }
 
 
-async def test_add_contact_service_function_apartment_book_raises() -> None:
-    """T066: ``schema_shape=APARTMENT_BOOK`` raises ``NotImplementedError``.
-
-    Apartment-book writes are explicitly deferred — the message names
-    the missing source for ``APTName``/``APTNum``/``Building``/
-    ``Landline`` so an integrator can pivot.
-    """
+async def test_add_contact_service_function_posts_without_shape_deferral() -> None:
+    """T066: service add path posts normally without an apartment-book deferral."""
     from pylocal_akuvox import contacts as contacts_svc
-    from pylocal_akuvox._capability_types import SchemaShape
     from pylocal_akuvox._http import AkuvoxHttpClient
 
     with aioresponses() as m:
-        # No HTTP mock needed — service function raises before the
-        # request leaves the process.
+        m.post(f"{BASE_URL}/api/contact/set", payload=_MUTATION_OK_RESPONSE)
         async with AkuvoxHttpClient("192.168.1.100") as http:
-            with pytest.raises(NotImplementedError, match="apartment-book"):
-                await contacts_svc.add_contact(
-                    http, name="x", schema_shape=SchemaShape.APARTMENT_BOOK
-                )
-        # No request should have been issued.
-        assert m.requests == {}
+            await contacts_svc.add_contact(http, name="x")
+    assert ("POST", aiohttp.client.URL(f"{BASE_URL}/api/contact/set")) in m.requests
 
 
-async def test_modify_contact_service_function_apartment_book_raises() -> None:
-    """T066: ``modify_contact`` apartment-book path raises ``NotImplementedError``.
-
-    Mirror of the add-side deferral: same deferral message, same
-    no-request guarantee.
-    """
+async def test_modify_contact_service_function_posts_without_shape_deferral() -> None:
+    """T066: service modify path posts normally without a shape deferral."""
     from pylocal_akuvox import contacts as contacts_svc
-    from pylocal_akuvox._capability_types import SchemaShape
     from pylocal_akuvox._http import AkuvoxHttpClient
 
     with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/contact/get?page=1", payload=_CONTACT_GET_RESPONSE)
+        m.post(f"{BASE_URL}/api/contact/set", payload=_SET_OK_RESPONSE)
         async with AkuvoxHttpClient("192.168.1.100") as http:
-            with pytest.raises(NotImplementedError, match="apartment-book"):
-                await contacts_svc.modify_contact(
-                    http, id="1", name="x", schema_shape=SchemaShape.APARTMENT_BOOK
-                )
-        assert m.requests == {}
+            await contacts_svc.modify_contact(http, id="1", name="x")
+    assert ("POST", aiohttp.client.URL(f"{BASE_URL}/api/contact/set")) in m.requests
 
 
-async def test_modify_contact_service_function_door_phone_byte_identical() -> None:
-    """T066: ``modify_contact`` with no kwarg == ``schema_shape=DOOR_PHONE``.
-
-    Direct callers that omit the kwarg see byte-identical merge-and-set
-    payloads to the explicit DOOR_PHONE path.
-    """
-    import json
-
+async def test_modify_contact_service_function_door_phone_payload() -> None:
+    """T066: ``modify_contact`` emits the door-phone payload without a shape kwarg."""
     from pylocal_akuvox import contacts as contacts_svc
-    from pylocal_akuvox._capability_types import SchemaShape
     from pylocal_akuvox._http import AkuvoxHttpClient
 
     with aioresponses() as m:
@@ -724,32 +808,33 @@ async def test_modify_contact_service_function_door_phone_byte_identical() -> No
             payload=_CONTACT_GET_RESPONSE,
             repeat=True,
         )
-        m.post(f"{BASE_URL}/api/contact/set", payload=_SET_OK_RESPONSE, repeat=True)
+        m.post(f"{BASE_URL}/api/contact/set", payload=_SET_OK_RESPONSE)
         async with AkuvoxHttpClient("192.168.1.100") as http:
             await contacts_svc.modify_contact(http, id="1", name="Alice2")
-            await contacts_svc.modify_contact(
-                http, id="1", name="Alice2", schema_shape=SchemaShape.DOOR_PHONE
-            )
         url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/contact/set"))
         calls = m.requests[url_key]
-        assert len(calls) == 2
-        a = json.dumps(calls[0].kwargs.get("json"), sort_keys=False)
-        b = json.dumps(calls[1].kwargs.get("json"), sort_keys=False)
-        assert a == b
+        assert len(calls) == 1
+        assert calls[0].kwargs.get("json") == {
+            "target": "contact",
+            "action": "set",
+            "data": {
+                "item": [
+                    {
+                        "ID": "1",
+                        "Name": "Alice2",
+                        "Phone": "5551234",
+                        "Group": "Default",
+                    }
+                ],
+            },
+        }
 
 
 # -- T066 wrapper dispatch pin --
 
 
 async def test_wrapper_add_contact_passes_door_phone_for_x916() -> None:
-    """T066: wrapper extracts ``schema_shapes["contact"]`` and passes it.
-
-    Verifies dispatch end-to-end: X916 matrix entry pins
-    ``schema_shapes["contact"] = DOOR_PHONE`` (after T067), so the
-    wrapper extracts DOOR_PHONE and the service function emits today's
-    payload byte-identically. Asserted via the on-the-wire payload
-    matching the existing default-add test fixture.
-    """
+    """T066: wrapper delegates door-phone contact fields without shape plumbing."""
     with aioresponses() as m:
         register_default_info(m)
         m.post(f"{BASE_URL}/api/contact/set", payload=_MUTATION_OK_RESPONSE)

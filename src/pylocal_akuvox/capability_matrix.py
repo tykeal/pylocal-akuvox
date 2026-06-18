@@ -109,8 +109,10 @@ _X915S_CURRENT = DeviceCapabilities(
         Capability.GROUP_MODIFY: CapabilityStatus.SUPPORTED,
         Capability.GROUP_DELETE: CapabilityStatus.SUPPORTED,
         Capability.CONTACT_LIST: CapabilityStatus.SUPPORTED,
-        # Issue #121: apartment-book contact writes are intentionally deferred.
+        # Issue #121: apartment-book contact writes are unsupported over HTTP.
         Capability.CONTACT_ADD: CapabilityStatus.UNSUPPORTED,
+        Capability.CONTACT_MODIFY: CapabilityStatus.UNSUPPORTED,
+        Capability.CONTACT_DELETE: CapabilityStatus.UNSUPPORTED,
         Capability.RELAY_TRIGGER_API: CapabilityStatus.SUPPORTED,
         Capability.RELAY_STATUS: CapabilityStatus.SUPPORTED,
         Capability.DEVICE_CONFIG_GET: CapabilityStatus.SUPPORTED,

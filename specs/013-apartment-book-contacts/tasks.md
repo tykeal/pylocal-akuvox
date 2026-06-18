@@ -155,7 +155,7 @@ canonical** if anything drifts.
 **Purpose**: Confirm the working tree and capture the current green state
 before any TDD red step.
 
-- [ ] T001 Capture the pre-change baseline on `main`.
+- [x] T001 Capture the pre-change baseline on `main`.
 
   - **Goal**: Record that the suite is green and that the
     soon-to-be-removed tests (the `NotImplementedError` deferral, the
@@ -186,7 +186,7 @@ before any TDD red step.
 door-phone path byte-identical. Covers FR-001, FR-002, FR-003, FR-004;
 SC-001, SC-002, SC-005.
 
-- [ ] T002 [P] [US1] [US3] Red — author apartment-book parse + door-phone
+- [x] T002 [P] [US1] [US3] Red — author apartment-book parse + door-phone
   byte-identity tests in `tests/unit/test_contacts.py`.
 
   - **Goal**: Pin that the four apartment-book fields are surfaced on the
@@ -227,7 +227,7 @@ SC-001, SC-002, SC-005.
     assertions **fail** (red) because `Contact` has no `apt_name`/`apt_num`/
     `building`/`landline` yet and the `APARTMENT_BOOK` branch discards them.
 
-- [ ] T003 [US1] [US3] Green — add the four optional fields and populate
+- [x] T003 [US1] [US3] Green — add the four optional fields and populate
   them on the apartment-book branch in `src/pylocal_akuvox/models/contacts.py`.
 
   - **Goal**: Make T002 pass: surface the apartment-book metadata, keep the
@@ -271,7 +271,7 @@ missing `ID`; door-phone reads and write payloads are byte-identical.
 **Goal**: All three mutating ops reject uniformly via the existing
 capability gate. Covers FR-005, FR-006, FR-012, FR-013; SC-003, SC-004.
 
-- [ ] T004 [US2] Red — author the uniform-rejection device tests for the
+- [x] T004 [US2] Red — author the uniform-rejection device tests for the
   X915S profile in `tests/unit/test_contacts.py`.
 
   - **Goal**: Pin that `add_contact`, `modify_contact`, and `delete_contact`
@@ -304,7 +304,7 @@ capability gate. Covers FR-005, FR-006, FR-012, FR-013; SC-003, SC-004.
     `reason="capability_unknown"` (default `allow_unknown=False`) instead of
     `capability_missing`.
 
-- [ ] T005 [US2] Green — mark `CONTACT_MODIFY`/`CONTACT_DELETE` `UNSUPPORTED`
+- [x] T005 [US2] Green — mark `CONTACT_MODIFY`/`CONTACT_DELETE` `UNSUPPORTED`
   on the X915S matrix entry in `src/pylocal_akuvox/capability_matrix.py`.
 
   - **Goal**: Make T004 pass by making the X915S contact-mutation
@@ -338,7 +338,7 @@ capability gate. Covers FR-005, FR-006, FR-012, FR-013; SC-003, SC-004.
 `schema_shape=` kwarg so the recognisable capability error is the only
 write outcome. Covers FR-005, FR-006, FR-012.
 
-- [ ] T006 [US2] Red — rewrite the deferral/kwarg tests in
+- [x] T006 [US2] Red — rewrite the deferral/kwarg tests in
   `tests/unit/test_contacts.py`.
 
   - **Goal**: Replace the assertions that pin the soon-to-be-removed
@@ -373,7 +373,7 @@ write outcome. Covers FR-005, FR-006, FR-012.
     `NotImplementedError` on `APARTMENT_BOOK` and still accept
     `schema_shape=` / the wrapper still passes it.
 
-- [ ] T007 [US2] Green — remove the deferral, the dead kwarg, and the dead
+- [x] T007 [US2] Green — remove the deferral, the dead kwarg, and the dead
   `_contact_shape` pass-through.
 
   - **Goal**: Make T006 pass by deleting the obsolete write-deferral and the
@@ -416,7 +416,7 @@ survives.
 capability error for the opt-in / unrecognised-device path. Covers FR-007,
 FR-012; SC-003 (opt-in path).
 
-- [ ] T008 [US2] Red — author the envelope-translation tests in
+- [x] T008 [US2] Red — author the envelope-translation tests in
   `tests/unit/test_http.py`.
 
   - **Goal**: Pin that the action-unsupported envelopes translate to
@@ -448,7 +448,7 @@ FR-012; SC-003 (opt-in path).
     markers; assertion 4 **fails** because the current raise carries no
     `reason`.
 
-- [ ] T009 [US2] Green — broaden the envelope match in
+- [x] T009 [US2] Green — broaden the envelope match in
   `src/pylocal_akuvox/_http.py`.
 
   - **Goal**: Make T008 pass by recognising the action-unsupported markers
@@ -492,7 +492,7 @@ constraint, and the apartment-book identifier strategy. Covers FR-008
 (out-of-band management wording), FR-009 (pre-flight pattern), FR-010,
 FR-011; SC-006.
 
-- [ ] T010 [P] [US5] Device-class contact models section in
+- [x] T010 [P] [US5] Device-class contact models section in
   `docs/api/contacts.rst` and `README.md`.
 
   - **Goal**: Let a developer state, from the docs, which device class uses
@@ -515,7 +515,7 @@ FR-011; SC-006.
     docs docs/_build/html` is warnings-clean; aislop clean on the changed
     docs; no clear-text/secret leakage.
 
-- [ ] T011 [P] [US4] Apartment-book read, identifier strategy, and
+- [x] T011 [P] [US4] Apartment-book read, identifier strategy, and
   pre-flight check in `docs/quickstart.rst`.
 
   - **Goal**: Document the recommended identifier strategy for ID-less
@@ -539,7 +539,7 @@ FR-011; SC-006.
   - **Acceptance criteria**: sphinx `-W` build clean; aislop clean; the
     documented composite distinguishes the same-`name` records (US4).
 
-- [ ] T012 [P] Changelog entries in `docs/changelog.rst`.
+- [x] T012 [P] Changelog entries in `docs/changelog.rst`.
 
   - **Goal**: Record the additive fields and the changed write-rejection
     behaviour under `Unreleased`, referencing #121.
@@ -567,7 +567,7 @@ read-only constraint, the identifier strategy, and the pre-flight pattern.
 **Purpose**: Whole-suite green, coverage gate, and conventions compliance
 before the implementation PR.
 
-- [ ] T013 Run the full quality gate.
+- [x] T013 Run the full quality gate.
 
   - **Goal**: Confirm every gate is green across the whole change.
   - **Files touched**: none (read-only), modulo auto-formatting fixes.
@@ -583,7 +583,7 @@ before the implementation PR.
     sphinx-build -W -b html docs docs/_build/html`.
   - **Acceptance criteria**: all gates green; 100% branch coverage.
 
-- [ ] T014 Pre-PR conventions & REUSE/SPDX sweep.
+- [x] T014 Pre-PR conventions & REUSE/SPDX sweep.
 
   - **Goal**: Ensure changed files carry SPDX headers (no **new** source
     file is expected) and the diffs are Conventional-Commit-ready.

@@ -234,11 +234,35 @@ async def test_unsupported_api_raises_unsupported_error(
         async with client:
             with pytest.raises(AkuvoxUnsupportedError) as exc_info:
                 await client.get("/api/system/info")
-    # T042 backward-compat: legacy single-arg construction still produces
-    # an instance with ``.reason is None`` (the structured-fields evolution
-    # in T044 is purely additive — see contracts/unsupported-error.md
-    # §"Backward-compatibility guarantees").
-    assert exc_info.value.reason is None
+    assert exc_info.value.reason == "envelope_unsupported"
+    assert exc_info.value.capability is None
+    assert exc_info.value.device_class is None
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "unsupport action",
+        "unsupported action",
+        "Unsupport Action",
+    ],
+)
+async def test_action_unsupported_envelopes_raise_unsupported_error(
+    client: AkuvoxHttpClient,
+    message: str,
+) -> None:
+    """Action-unsupported device envelopes map to unsupported errors."""
+    response = {
+        "retcode": -1,
+        "action": "unknow",
+        "message": message,
+    }
+    with aioresponses() as m:
+        m.post(f"{BASE_URL}/api/contact/set", payload=response)
+        async with client:
+            with pytest.raises(AkuvoxUnsupportedError) as exc_info:
+                await client.post("/api/contact/set", data={})
+    assert exc_info.value.reason == "envelope_unsupported"
     assert exc_info.value.capability is None
     assert exc_info.value.device_class is None
 

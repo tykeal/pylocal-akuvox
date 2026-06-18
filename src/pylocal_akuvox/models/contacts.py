@@ -17,12 +17,25 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, kw_only=True)
 class Contact:
-    """Contact entry in the device address book."""
+    """Contact entry in a door-phone or apartment-book address book.
+
+    Door-phone records populate ``name``, optional ``id``, ``phone``,
+    and ``group``. Apartment-book records may omit a device-assigned
+    ``ID`` and additionally expose ``apt_name``, ``apt_num``,
+    ``building``, and ``landline``. The library does not synthesize a
+    unique identifier for apartment-book records. Apartment-book-only
+    fields are read-fidelity fields and are intentionally omitted from
+    :meth:`to_api_payload`.
+    """
 
     name: str
     id: str | None = None
     phone: str | None = None
     group: str | None = None
+    apt_name: str | None = None  # APTName
+    apt_num: str | None = None  # APTNum
+    building: str | None = None  # Building
+    landline: str | None = None  # Landline
 
     @classmethod
     def from_api_response(
@@ -45,13 +58,12 @@ class Contact:
         * :attr:`SchemaShape.APARTMENT_BOOK`: additive parser used by
           X915S current firmware. ``Name`` is required as on
           door-phone; ``ID`` is **not** required (apartment-book
-          payloads from the device may omit it per issue #121).
-          Apartment-book-only fields (``APTName``, ``APTNum``,
-          ``Building``, ``Landline``) are accepted but currently
-          discarded — the public ``Contact`` model surface is
-          unchanged; only the parser tolerates these extra keys and
-          the missing ``ID``. Surfacing the apartment-book fields on
-          the public model is deferred to a follow-up issue.
+          payloads from the device may omit it).
+          Apartment-book-only fields are surfaced as ``apt_name``
+          (``APTName``), ``apt_num`` (``APTNum``), ``building``
+          (``Building``), and ``landline`` (``Landline``). Empty
+          apartment-book strings are preserved as device-returned
+          information.
 
         Omitting the ``capabilities`` kwarg (or supplying a record
         with no ``"contact"`` schema-shape entry) falls back to the
@@ -68,19 +80,18 @@ class Contact:
             raise AkuvoxParseError(msg) from exc
 
         if shape is SchemaShape.APARTMENT_BOOK:
-            # Apartment-book payloads (X915S) may omit ``ID`` entirely
-            # (issue #121). They additionally carry ``APTName``,
-            # ``APTNum``, ``Building``, ``Landline`` — accepted but
-            # not exposed on the public ``Contact`` surface (the model
-            # remains door-phone-shaped for now; surfacing the extras
-            # on the public model is a follow-up). ``Phone`` is read
-            # if present so a door-phone-style payload still parses
-            # under the apartment-book branch.
+            # Apartment-book payloads (X915S) may omit ``ID`` entirely.
+            # ``Phone`` is read if present so a door-phone-style
+            # payload still parses under the apartment-book branch.
             return cls(
                 name=name,
                 id=data.get("ID"),
                 phone=data.get("Phone") or None,
                 group=data.get("Group") or None,
+                apt_name=data.get("APTName"),
+                apt_num=data.get("APTNum"),
+                building=data.get("Building"),
+                landline=data.get("Landline"),
             )
 
         # Door-phone path — byte-identical to the pre-refactor parser.

@@ -52,6 +52,16 @@ Breaking changes
 Changed
 ^^^^^^^
 
+* Contact writes (add, modify, delete) on apartment-book device classes
+  now raise a uniform ``AkuvoxUnsupportedError`` with
+  ``reason="capability_missing"`` before any I/O; device
+  ``"unsupport action"`` / ``"unsupported action"`` envelopes now
+  translate to ``AkuvoxUnsupportedError`` with
+  ``reason="envelope_unsupported"``; and the public service-function
+  ``schema_shape=`` write-deferral kwarg was removed.
+
+  Refs #121.
+
 * ``trigger_relay()`` on IT83-class devices now raises an actionable
   error directing callers to ``AkuvoxDevice.open_door_http()`` instead
   of issuing a credential-less OpenDoor request.
@@ -76,6 +86,12 @@ Fixed
 
 Added
 ^^^^^
+
+* Added optional apartment-book ``Contact`` fields ``apt_name``,
+  ``apt_num``, ``building``, and ``landline`` for preserving X915S
+  contact metadata on reads.
+
+  Refs #121.
 
 * Added ``pylocal_akuvox.relay.open_door_http`` and
   ``AkuvoxDevice.open_door_http`` for credentialed
