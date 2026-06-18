@@ -20,12 +20,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from pylocal_akuvox._capability_types import Capability
-from pylocal_akuvox.exceptions import (
-    AkuvoxAuthenticationError,
-    AkuvoxDeviceError,
-    AkuvoxRequestError,
-    AkuvoxValidationError,
-)
+from pylocal_akuvox.exceptions import AkuvoxUnsupportedError
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -78,50 +73,28 @@ async def _api_relay_trigger(http: AkuvoxHttpClient, args: RelayTriggerArgs) -> 
     await http.post("/api/relay/trig", data=body)
 
 
-async def _fcgi_relay_trigger(http: AkuvoxHttpClient, args: RelayTriggerArgs) -> None:
-    """Relay trigger via ``/fcgi/do?action=OpenDoor`` (IT83 indoor monitor).
+async def _fcgi_relay_trigger(
+    _http: AkuvoxHttpClient,
+    _args: RelayTriggerArgs,
+) -> None:
+    """Guard the deprecated credential-less FCGI relay-trigger adapter.
 
-    Per issue #122. The FCGI variant accepts only ``num`` (mapped onto
-    a relay ID query parameter); ``mode`` / ``level`` / ``delay`` are
-    not supported on this transport. Callers passing non-default
-    values for those fields against an FCGI-only device receive an
-    :class:`AkuvoxValidationError` raised here at the adapter
-    boundary — failing fast at the variant edge rather than letting
-    the IT83 silently drop the extra parameters.
-
-    Uses :meth:`AkuvoxHttpClient._request_raw` (not the JSON-envelope
-    :meth:`get`) because the IT83 FCGI handler returns a text/plain or
-    text/html success body, not a ``{"retcode": ...}`` envelope. The
-    envelope parser would raise :class:`AkuvoxParseError` on a
-    successful door-open. HTTP status mapping mirrors
-    :meth:`AkuvoxHttpClient._handle_response` so downstream
-    integrators can catch a single error type regardless of which
-    adapter fired:
-
-    * 2xx → success (return)
-    * 401 → :class:`AkuvoxAuthenticationError`
-    * any other 4xx (including 403) → :class:`AkuvoxRequestError`
-    * 5xx or any other non-2xx → :class:`AkuvoxDeviceError`
+    The vendor ``/fcgi/do?action=OpenDoor`` endpoint requires dedicated
+    Open Relay Via HTTP credentials and the ``DoorNum`` query parameter.
+    The capability-dispatch path cannot supply those per-call credentials,
+    so it intentionally issues no request and directs callers to the
+    credentialed public helper instead.
     """
-    if args.mode != 0 or args.level != 0 or args.delay != 0:
-        msg = (
-            "FCGI relay trigger does not support mode/level/delay; "
-            "only num is honored on this device class"
-        )
-        raise AkuvoxValidationError(msg)
-    status, body = await http._request_raw(  # noqa: SLF001
-        "GET", f"/fcgi/do?action=OpenDoor&relay={args.num}"
+    msg = (
+        "FCGI relay trigger requires Open Relay Via HTTP credentials; "
+        "call AkuvoxDevice.open_door_http(user=..., password=..., "
+        "door_num=...) instead"
     )
-    if 200 <= status < 300:
-        return
-    if status == 401:
-        msg = f"Authentication required for FCGI relay trigger (HTTP {status})"
-        raise AkuvoxAuthenticationError(msg)
-    if 400 <= status < 500:
-        msg = f"FCGI relay trigger rejected: HTTP {status}; body={body[:200]!r}"
-        raise AkuvoxRequestError(msg)
-    msg = f"FCGI relay trigger failed: HTTP {status}; body={body[:200]!r}"
-    raise AkuvoxDeviceError(msg)
+    raise AkuvoxUnsupportedError(
+        msg,
+        capability=Capability.RELAY_TRIGGER_FCGI,
+        reason="capability_missing",
+    )
 
 
 # Adapter registry — keyed by ``(Capability, variant_tag)``.

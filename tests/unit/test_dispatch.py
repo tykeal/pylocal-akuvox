@@ -8,17 +8,17 @@ Per ``specs/008-capability-matrix/contracts/adapter-dispatch.md``
 
 * Door-phone classes (X916, X915S current FW, E18C current FW) dispatch
   to ``POST /api/relay/trig`` with the documented body shape.
-* IT83 dispatches to ``GET /fcgi/do?action=OpenDoor&relay=<num>``.
+* IT83 raises an actionable guard directing callers to
+  ``open_door_http`` because credential-less OpenDoor dispatch is retired.
 * IT83 with explicit ``adapter=Capability.RELAY_TRIGGER_API`` raises
   ``capability_missing`` with no relay-trigger request issued
   (the connect-time ``GET /api/system/info`` still happens; the
   capability gate prevents any *additional* request).
 * X916 with explicit ``adapter=Capability.RELAY_TRIGGER_FCGI``
   (FCGI=UNKNOWN) raises ``capability_unknown`` by default; with the
-  integrator opt-in flag set, it dispatches to the FCGI URL.
-* FCGI adapter rejects non-zero ``mode``/``level``/``delay`` with
-  :class:`AkuvoxValidationError` before any relay request is issued
-  (only the connect-time info call is recorded).
+  integrator opt-in flag set, it reaches the same OpenDoor guard.
+* FCGI adapter issues no request for any relay-trigger shape; callers
+  must use the credentialed ``open_door_http`` helper instead.
 * Unrecognised-device profile + ``trigger_relay`` →
   ``capability_unknown`` with no relay request issued (only the
   connect-time info call).
@@ -35,10 +35,7 @@ from aioresponses import aioresponses
 
 from pylocal_akuvox import AkuvoxDevice
 from pylocal_akuvox._capability_types import Capability
-from pylocal_akuvox.exceptions import (
-    AkuvoxUnsupportedError,
-    AkuvoxValidationError,
-)
+from pylocal_akuvox.exceptions import AkuvoxUnsupportedError
 from tests.unit._helpers import (
     BASE_URL,
     assert_only_connect_time_info,
@@ -131,24 +128,21 @@ async def test_door_phone_classes_route_to_api_relay_trig(
         }
 
 
-# --- IT83 routes to /fcgi/do ---------------------------------------------
+# --- IT83 FCGI dispatch raises actionable guard --------------------------
 
 
-async def test_it83_routes_to_fcgi_do() -> None:
-    """IT83 dispatches to ``GET /fcgi/do?action=OpenDoor&relay=<num>``."""
+async def test_it83_routes_to_fcgi_guard() -> None:
+    """IT83 trigger_relay raises the OpenDoor guard without a relay request."""
     with aioresponses() as m:
         register_default_info(m, payload=_IT83_INFO)
-        m.get(
-            f"{BASE_URL}/fcgi/do?action=OpenDoor&relay=1",
-            payload={"retcode": 0, "action": "OpenDoor", "message": "", "data": {}},
-        )
         async with AkuvoxDevice("192.168.1.100") as device:
-            await device.trigger_relay(num=1)
-        url_key = (
-            "GET",
-            aiohttp.client.URL(f"{BASE_URL}/fcgi/do?action=OpenDoor&relay=1"),
-        )
-        assert url_key in m.requests
+            with pytest.raises(
+                AkuvoxUnsupportedError, match="open_door_http"
+            ) as exc_info:
+                await device.trigger_relay(num=1)
+        assert exc_info.value.reason == "capability_missing"
+        assert exc_info.value.capability is Capability.RELAY_TRIGGER_FCGI
+        assert_only_connect_time_info(m)
 
 
 # --- IT83 + adapter=API → capability_missing ------------------------------
@@ -190,25 +184,22 @@ async def test_x916_with_fcgi_adapter_default_raises_capability_unknown() -> Non
         assert_only_connect_time_info(m)
 
 
-async def test_x916_with_fcgi_adapter_and_attempt_unknown_dispatches() -> None:
-    """X916 + adapter=FCGI + ``attempt_unknown_capability=True`` dispatches."""
+async def test_x916_with_fcgi_adapter_and_attempt_unknown_reaches_guard() -> None:
+    """X916 + adapter=FCGI + opt-in reaches the OpenDoor guard."""
     with aioresponses() as m:
         register_default_info(m, payload=_X916_INFO)
-        m.get(
-            f"{BASE_URL}/fcgi/do?action=OpenDoor&relay=1",
-            payload={"retcode": 0, "action": "OpenDoor", "message": "", "data": {}},
-        )
         async with AkuvoxDevice("192.168.1.100") as device:
             device.attempt_unknown_capability = True
-            await device.trigger_relay(num=1, adapter=Capability.RELAY_TRIGGER_FCGI)
-        url_key = (
-            "GET",
-            aiohttp.client.URL(f"{BASE_URL}/fcgi/do?action=OpenDoor&relay=1"),
-        )
-        assert url_key in m.requests
+            with pytest.raises(
+                AkuvoxUnsupportedError, match="open_door_http"
+            ) as exc_info:
+                await device.trigger_relay(num=1, adapter=Capability.RELAY_TRIGGER_FCGI)
+        assert exc_info.value.reason == "capability_missing"
+        assert exc_info.value.capability is Capability.RELAY_TRIGGER_FCGI
+        assert_only_connect_time_info(m)
 
 
-# --- FCGI adapter rejects mode/level/delay --------------------------------
+# --- FCGI adapter guards every relay-trigger shape -----------------------
 
 
 @pytest.mark.parametrize(
@@ -216,11 +207,11 @@ async def test_x916_with_fcgi_adapter_and_attempt_unknown_dispatches() -> None:
     [("mode", 1), ("level", 1), ("delay", 5)],
 )
 async def test_fcgi_adapter_rejects_nonzero_extras(kwarg: str, value: int) -> None:
-    """FCGI adapter raises :class:`AkuvoxValidationError` on non-zero extras."""
+    """FCGI adapter raises the OpenDoor guard before any relay request."""
     with aioresponses() as m:
         register_default_info(m, payload=_IT83_INFO)
         async with AkuvoxDevice("192.168.1.100") as device:
-            with pytest.raises(AkuvoxValidationError):
+            with pytest.raises(AkuvoxUnsupportedError, match="open_door_http"):
                 kwargs: dict[str, Any] = {"num": 1, kwarg: value}
                 await device.trigger_relay(**kwargs)
         # No FCGI request was issued.
@@ -282,91 +273,44 @@ async def test_adapter_missing_reason(monkeypatch: pytest.MonkeyPatch) -> None:
         assert_only_connect_time_info(m)
 
 
-# --- FCGI adapter handles non-JSON success bodies and HTTP errors ----------
-#
-# The IT83 FCGI handler typically returns text/html or text/plain on success,
-# not a JSON envelope. Using ``_request_raw`` lets the door open without the
-# envelope parser raising ``AkuvoxParseError`` after the side-effect has
-# already fired. A non-2xx HTTP status is mapped to ``AkuvoxDeviceError``.
+# --- FCGI adapter never sends credential-less OpenDoor requests -----------
 
 
-async def test_fcgi_adapter_accepts_non_json_success_body() -> None:
-    """FCGI returning a text/html body on 2xx must not raise on success."""
+async def test_fcgi_adapter_valid_shape_still_raises_guard() -> None:
+    """FCGI adapter guard raises even for formerly valid default arguments."""
     with aioresponses() as m:
         register_default_info(m, payload=_IT83_INFO)
-        m.get(
-            f"{BASE_URL}/fcgi/do?action=OpenDoor&relay=1",
-            status=200,
-            body="<html><body>OK</body></html>",
-            content_type="text/html",
-        )
         async with AkuvoxDevice("192.168.1.100") as device:
-            await device.trigger_relay(num=1)
-
-
-async def test_fcgi_adapter_raises_device_error_on_http_500() -> None:
-    """FCGI returning a 5xx HTTP status surfaces ``AkuvoxDeviceError``."""
-    from pylocal_akuvox.exceptions import AkuvoxDeviceError
-
-    with aioresponses() as m:
-        register_default_info(m, payload=_IT83_INFO)
-        m.get(
-            f"{BASE_URL}/fcgi/do?action=OpenDoor&relay=1",
-            status=500,
-            body="Internal Server Error",
-            content_type="text/plain",
-        )
-        async with AkuvoxDevice("192.168.1.100") as device:
-            with pytest.raises(AkuvoxDeviceError):
+            with pytest.raises(AkuvoxUnsupportedError, match="open_door_http"):
                 await device.trigger_relay(num=1)
+        assert_only_connect_time_info(m)
 
 
-async def test_fcgi_adapter_raises_auth_error_on_http_401() -> None:
-    """FCGI returning HTTP 401 surfaces ``AkuvoxAuthenticationError``.
-
-    Mirrors the canonical ``_handle_response`` mapping so that
-    downstream integrators (e.g. Home Assistant's
-    ``ConfigEntryAuthFailed`` flow) can catch a single auth-error
-    type regardless of which transport variant the dispatcher
-    chose. 403 is intentionally *not* mapped here — it goes to
-    :class:`AkuvoxRequestError` (see the sibling test), matching
-    the JSON adapter's classification.
-    """
-    from pylocal_akuvox.exceptions import AkuvoxAuthenticationError
-
+async def test_fcgi_adapter_no_longer_classifies_http_500() -> None:
+    """FCGI adapter guard does not issue requests for HTTP classification."""
     with aioresponses() as m:
         register_default_info(m, payload=_IT83_INFO)
-        m.get(
-            f"{BASE_URL}/fcgi/do?action=OpenDoor&relay=1",
-            status=401,
-            body="Unauthorized",
-            content_type="text/plain",
-        )
         async with AkuvoxDevice("192.168.1.100") as device:
-            with pytest.raises(AkuvoxAuthenticationError):
+            with pytest.raises(AkuvoxUnsupportedError, match="open_door_http"):
                 await device.trigger_relay(num=1)
+        assert_only_connect_time_info(m)
 
 
-async def test_fcgi_adapter_raises_request_error_on_http_403() -> None:
-    """FCGI returning HTTP 403 surfaces ``AkuvoxRequestError``.
-
-    Mirrors :meth:`AkuvoxHttpClient._handle_response` which maps
-    every 4xx other than 401 to :class:`AkuvoxRequestError`.
-    Routing 403 to ``AkuvoxAuthenticationError`` would diverge
-    from the rest of the public surface and force integrators to
-    catch the wrong exception type depending on which adapter
-    fired.
-    """
-    from pylocal_akuvox.exceptions import AkuvoxRequestError
-
+async def test_fcgi_adapter_no_longer_classifies_http_401() -> None:
+    """FCGI adapter guard replaces the old auth-status mapping."""
     with aioresponses() as m:
         register_default_info(m, payload=_IT83_INFO)
-        m.get(
-            f"{BASE_URL}/fcgi/do?action=OpenDoor&relay=1",
-            status=403,
-            body="Forbidden",
-            content_type="text/plain",
-        )
         async with AkuvoxDevice("192.168.1.100") as device:
-            with pytest.raises(AkuvoxRequestError):
+            with pytest.raises(AkuvoxUnsupportedError, match="open_door_http"):
                 await device.trigger_relay(num=1)
+        assert_only_connect_time_info(m)
+
+
+async def test_fcgi_adapter_no_longer_classifies_http_403() -> None:
+    """FCGI adapter guard replaces the old request-status mapping."""
+    with aioresponses() as m:
+        register_default_info(m, payload=_IT83_INFO)
+        async with AkuvoxDevice("192.168.1.100") as device:
+            with pytest.raises(AkuvoxUnsupportedError, match="open_door_http"):
+                await device.trigger_relay(num=1)
+        assert_only_connect_time_info(m)

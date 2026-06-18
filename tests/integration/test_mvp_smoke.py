@@ -14,10 +14,9 @@ Two device classes are exercised:
 * **IT83** — indoor monitor. Write capabilities are ``UNKNOWN`` in
   the matrix, so ``add_user`` / ``add_contact`` must print the
   ``UNKNOWN``-flavoured SKIP message. The relay trigger
-  (``RELAY_TRIGGER_FCGI``) is ``SUPPORTED`` and routes through the
-  ``/fcgi/do?action=OpenDoor&relay=1`` adapter — the test asserts
-  exactly one FCGI request and zero requests to ``/api/user/set`` /
-  ``/api/contact/set``.
+  (``RELAY_TRIGGER_FCGI``) is informational and raises an actionable
+  guard; the test asserts zero FCGI requests and zero requests to
+  ``/api/user/set`` / ``/api/contact/set``.
 
 * **X916** — door-phone reference. Every gated read step is
   ``SUPPORTED``; the test asserts no ``SKIP:``-prefixed line is
@@ -94,6 +93,9 @@ def _make_args(*, host: str, write: bool) -> argparse.Namespace:
         no_verify_ssl=False,
         json_report=None,
         redact_stdout=False,
+        open_door=False,
+        open_door_user=None,
+        open_door_password=None,
     )
 
 
@@ -151,7 +153,7 @@ def _iter_request_paths(m: aioresponses) -> Iterator[str]:
 
 
 def test_mvp_against_it83(_no_sleep: None, capsys: pytest.CaptureFixture[str]) -> None:
-    """T077 / SC-010 — IT83 SKIPs unknown writes, OKs FCGI relay trigger."""
+    """T077 / SC-010 — IT83 SKIPs unknown writes and FCGI trigger guard."""
     args = _make_args(host="192.168.1.100", write=True)
 
     with aioresponses() as m:
@@ -173,14 +175,6 @@ def test_mvp_against_it83(_no_sleep: None, capsys: pytest.CaptureFixture[str]) -
         # ``KEY_DISCOVERY``-supported endpoint that
         # ``discover_config_keys`` calls.
         m.get(f"{_BASE_URL}/api/config/get", payload=_CONFIG_PAYLOAD, repeat=True)
-        # The FCGI relay trigger returns a non-envelope text/plain body.
-        m.get(
-            f"{_BASE_URL}/fcgi/do?action=OpenDoor&relay=1",
-            body="OK",
-            status=200,
-            content_type="text/plain",
-        )
-
         import asyncio as _asyncio
 
         _asyncio.run(mvp_test.run_all(args))
@@ -197,13 +191,13 @@ def test_mvp_against_it83(_no_sleep: None, capsys: pytest.CaptureFixture[str]) -
     assert (
         "  SKIP: add_contact: status unknown on this device class (IT83)" in captured
     ), captured
-    # FCGI relay trigger is SUPPORTED on IT83 → OK line + actual hit.
-    assert "  OK:   trigger_relay" in captured, captured
+    # FCGI relay trigger is informational on IT83 → actionable skip, no hit.
+    assert "  SKIP: trigger_relay:" in captured, captured
+    assert "open_door_http" in captured, captured
+    assert "  ⊘ open_door_http skipped:" in captured, captured
 
     fcgi_hits = [p for p in request_paths if "/fcgi/do" in p]
-    assert len(fcgi_hits) == 1, (
-        f"Expected exactly one FCGI relay-trigger request; got {fcgi_hits}"
-    )
+    assert not fcgi_hits, f"Expected no credential-less FCGI request; got {fcgi_hits}"
     assert all("/api/user/set" not in p for p in request_paths), request_paths
     assert all("/api/contact/set" not in p for p in request_paths), request_paths
 

@@ -856,10 +856,15 @@ def test_private_relay_resolvers_stay_callable(
 # T038: Per-method capability gate + introspection audit (FR-011, SC-005)
 # ---------------------------------------------------------------------------
 
-# Documented infrastructure surface that is NOT capability-gated; the
-# gate would otherwise create a chicken-and-egg loop with matrix
-# lookup itself. Per ``data-model.md`` §"Explicit out-of-scope".
-_INFRA_OUT_OF_SCOPE = {"get_info", "get_status", "probe_capabilities"}
+# Documented infrastructure and explicit opt-in surfaces that are NOT
+# capability-gated. ``open_door_http`` uses per-call Open Relay Via HTTP
+# credentials and must remain available without a capability probe.
+_INFRA_OUT_OF_SCOPE = {
+    "get_info",
+    "get_status",
+    "open_door_http",
+    "probe_capabilities",
+}
 
 # Methods whose gate lives in the ``RELAY_TRIGGER_ADAPTERS`` registry
 # scan, NOT in a literal ``self._capabilities.require(...)`` call.

@@ -910,6 +910,20 @@ async def test_request_raw_timeout_kwarg_plumbs_to_session_request() -> None:
             assert kwargs["timeout"].total == 2.0
 
 
+async def test_request_raw_allow_redirects_kwarg_plumbs_to_session_request() -> None:
+    """_request_raw(..., allow_redirects=False) disables aiohttp redirects."""
+    client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.0)
+    async with client:
+        assert client._session is not None
+        with patch.object(
+            client._session, "request", wraps=client._session.request
+        ) as spy:
+            with aioresponses() as m:
+                m.get(f"{BASE_URL}/some/path", payload={"retcode": 0})
+                await client._request_raw("GET", "/some/path", allow_redirects=False)
+            assert spy.call_args.kwargs["allow_redirects"] is False
+
+
 async def test_request_raw_session_not_open_raises_connection_error() -> None:
     """_request_raw without an open session raises AkuvoxConnectionError."""
     client = AkuvoxHttpClient(host="192.168.1.100", timeout=5, request_delay=0.0)
@@ -1000,11 +1014,17 @@ async def test_request_raw_serialises_with_get(client: AkuvoxHttpClient) -> None
         params: dict[str, Any] | None = None,
         data: dict[str, Any] | None = None,
         timeout: float | None = None,
+        allow_redirects: bool = True,
     ) -> tuple[int, str]:
         """Record entry/exit around the raw-path _request_raw call."""
         events.append("enter-raw")
         result = await original_request_raw(
-            method, path, params=params, data=data, timeout=timeout
+            method,
+            path,
+            params=params,
+            data=data,
+            timeout=timeout,
+            allow_redirects=allow_redirects,
         )
         events.append("exit-raw")
         return result

@@ -70,7 +70,7 @@ _IT83_83_30_10_4 = DeviceCapabilities(
     device_class="IT83",
     firmware_version="83.30.10.4",
     capabilities={
-        # Issue #122: IT83 supports relay only via FCGI OpenDoor.
+        # Issue #122: IT83 relay uses open_door_http; FCGI dispatch is a guard.
         Capability.RELAY_TRIGGER_API: CapabilityStatus.UNSUPPORTED,
         Capability.RELAY_TRIGGER_FCGI: CapabilityStatus.SUPPORTED,
         Capability.RELAY_STATUS: CapabilityStatus.UNSUPPORTED,

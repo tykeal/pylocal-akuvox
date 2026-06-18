@@ -192,6 +192,7 @@ class AkuvoxHttpClient:
         params: dict[str, Any] | None = None,
         data: dict[str, Any] | None = None,
         timeout: float | None = None,
+        allow_redirects: bool = True,
     ) -> tuple[int, str]:
         """Issue a request and return ``(status, raw_body_text)`` unchanged.
 
@@ -232,6 +233,7 @@ class AkuvoxHttpClient:
             kwargs["params"] = params
         if timeout is not None:
             kwargs["timeout"] = aiohttp.ClientTimeout(total=timeout)
+        kwargs["allow_redirects"] = allow_redirects
 
         async with self._lock:
             try:

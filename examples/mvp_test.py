@@ -30,6 +30,11 @@ Examples:
     AKUVOX_PASSWORD=secret uv run examples/mvp_test.py 192.168.1.100 \
         --auth digest --user admin --write
 
+    # Opt in to OpenDoor HTTP relay test with relay-specific credentials
+    AKUVOX_OPEN_DOOR_PASSWORD=relay-secret \
+        uv run examples/mvp_test.py 192.168.1.100 --write --open-door \
+        --open-door-user relay-user
+
 JSON report schema: the top-level object contains ``device`` (model, firmware,
 and redacted host), ``auth``, ``observed_schemas``, and ``tests``. Each test
 includes ``name``, ``status``, ``label``, ``capability_status``, ``reason``,
@@ -87,6 +92,7 @@ _FIELD_DISPLAY_LIMIT = 30
 _NON_JSON_BODY_OMITTED = "<non-json response body omitted for privacy>"
 _SCALAR_JSON_BODY_OMITTED = "<scalar JSON response body omitted for privacy>"
 _REDACTED_VALUE = "<redacted>"
+_OPEN_DOOR_PASSWORD_ENV = "AKUVOX_OPEN_DOOR_PASSWORD"
 _SENSITIVE_FIELD_MARKERS = (
     "name",
     "mac",
@@ -903,6 +909,7 @@ def _instrument_device(device: AkuvoxDevice, diagnostics: DiagnosticReport) -> N
     """Attach diagnostic HTTP capture hooks to a device instance."""
     http = device._http  # noqa: SLF001 - example diagnostics need raw exchanges.
     original_request = http._request  # noqa: SLF001
+    original_request_raw = http._request_raw  # noqa: SLF001
     original_handle_response = http._handle_response  # noqa: SLF001
 
     async def diagnostic_request(
@@ -930,6 +937,48 @@ def _instrument_device(device: AkuvoxDevice, diagnostics: DiagnosticReport) -> N
             raise
 
     http._request = diagnostic_request  # type: ignore[method-assign]  # noqa: SLF001
+
+    async def diagnostic_request_raw(
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        data: dict[str, Any] | None = None,
+        timeout: float | None = None,
+        allow_redirects: bool = True,
+    ) -> tuple[int, str]:
+        """Capture raw request metadata before delegating to the HTTP client."""
+        endpoint = path if path.startswith("/") else f"/{path}"
+        diagnostics.begin_http_event(
+            method=method,
+            endpoint=endpoint,
+            data=data,
+            params=params,
+        )
+        try:
+            status, body_text = await original_request_raw(
+                method,
+                path,
+                params=params,
+                data=data,
+                timeout=timeout,
+                allow_redirects=allow_redirects,
+            )
+        except Exception as exc:
+            diagnostics.record_exception(exc)
+            raise
+        body, _json_error = _decode_json_body(body_text)
+        diagnostics.record_http_response(
+            status=status,
+            body_text=body_text,
+            body=body,
+            retcode=None,
+            retmsg=None,
+            data={},
+        )
+        return status, body_text
+
+    http._request_raw = diagnostic_request_raw  # type: ignore[method-assign]  # noqa: SLF001
     http._handle_response = _build_diagnostic_response_handler(  # type: ignore[assignment,method-assign]  # noqa: SLF001
         diagnostics,
         original_handle_response,
@@ -1295,15 +1344,38 @@ async def test_delete_user(device: AkuvoxDevice, internal_id: str) -> None:
 async def test_trigger_relay(device: AkuvoxDevice) -> None:
     """Test: Trigger relay 1.
 
-    Uses ``delay=0`` (the FCGI variant rejects non-zero
-    ``mode``/``level``/``delay``; the API variant treats ``delay=0``
-    as "use the device-side default close timer", which is the safest
-    cross-device choice).
+    Uses ``delay=0``. Door-phone classes route through
+    ``/api/relay/trig``. IT83-class FCGI dispatch now raises an
+    actionable guard because real OpenDoor unlocks require
+    relay-specific credentials; use ``--open-door`` to exercise that
+    credentialed path.
     """
     print_header("TRIGGER RELAY (/api/relay/trig | /fcgi/do?action=OpenDoor)")
     await device.trigger_relay(num=1)
     print("  Triggered relay 1")
     print("  ✓ trigger_relay() OK")
+
+
+async def test_open_door(
+    device: AkuvoxDevice,
+    *,
+    user: str,
+    password: str,
+    redact_stdout: bool = False,
+) -> None:
+    """Test: Trigger OpenDoor HTTP relay 1 with relay-specific credentials."""
+    print_header("OPEN DOOR HTTP (/fcgi/do?action=OpenDoor)")
+    display_user = _display_value("UserName", user, redact_stdout=redact_stdout)
+    display_password = _display_value(
+        "Password",
+        password,
+        redact_stdout=True,
+    )
+    print(f"  UserName: {display_user}")
+    print(f"  Password: {display_password}")
+    await device.open_door_http(user=user, password=password)
+    print("  Triggered OpenDoor HTTP door 1")
+    print("  ✓ open_door_http() OK")
 
 
 async def test_add_schedule(device: AkuvoxDevice) -> str:
@@ -1752,6 +1824,9 @@ async def _run_write_tests(
     results: TestResults,
     *,
     capabilities: DeviceCapabilities,
+    open_door: bool,
+    open_door_user: str | None,
+    open_door_password: str | None,
     redact_stdout: bool,
 ) -> None:
     """Run write tests (user/schedule CRUD, relay trigger).
@@ -1884,6 +1959,14 @@ async def _run_write_tests(
             capabilities=capabilities,
             coro_factory=lambda: test_trigger_relay(device),
         )
+        await _run_open_door_write_step(
+            device,
+            results,
+            open_door=open_door,
+            open_door_user=open_door_user,
+            open_door_password=open_door_password,
+            redact_stdout=redact_stdout,
+        )
 
         # Config set + read-back verification
         await step(
@@ -1991,6 +2074,58 @@ async def _run_write_tests(
     await asyncio.sleep(_MUTATION_SETTLE_SECS * 3)
 
 
+async def _run_open_door_write_step(
+    device: AkuvoxDevice,
+    results: TestResults,
+    *,
+    open_door: bool,
+    open_door_user: str | None,
+    open_door_password: str | None,
+    redact_stdout: bool,
+) -> None:
+    """Run or skip the opt-in OpenDoor HTTP write-test step."""
+    if not open_door or open_door_user is None or open_door_password is None:
+        skip_step(results, "open_door_http", _open_door_skip_reason())
+        return
+    await run_step(
+        results,
+        "open_door_http",
+        test_open_door(
+            device,
+            user=open_door_user,
+            password=open_door_password,
+            redact_stdout=redact_stdout,
+        ),
+    )
+
+
+def _open_door_skip_reason() -> str:
+    """Return the user-facing reason for skipping the OpenDoor write step."""
+    return (
+        "requires --open-door with --open-door-user and "
+        f"--open-door-pass or {_OPEN_DOOR_PASSWORD_ENV}"
+    )
+
+
+def _validate_open_door_args(
+    args: argparse.Namespace,
+    parser: argparse.ArgumentParser,
+) -> None:
+    """Validate and resolve OpenDoor-specific CLI arguments."""
+    if not args.open_door:
+        return
+    if not args.write:
+        parser.error("--open-door requires --write")
+    if not args.open_door_user:
+        parser.error("--open-door requires --open-door-user")
+    if not args.open_door_password:
+        args.open_door_password = os.environ.get(_OPEN_DOOR_PASSWORD_ENV)
+    if not args.open_door_password:
+        parser.error(
+            f"--open-door requires --open-door-pass or {_OPEN_DOOR_PASSWORD_ENV}"
+        )
+
+
 async def run_all(args: argparse.Namespace) -> None:
     """Run all MVP tests against the device.
 
@@ -2045,6 +2180,9 @@ async def run_all(args: argparse.Namespace) -> None:
                 device_kwargs,
                 results,
                 capabilities=capabilities,
+                open_door=getattr(args, "open_door", False),
+                open_door_user=getattr(args, "open_door_user", None),
+                open_door_password=getattr(args, "open_door_password", None),
                 redact_stdout=args.redact_stdout,
             )
 
@@ -2062,6 +2200,7 @@ async def run_all(args: argparse.Namespace) -> None:
                 print("    - add/modify/delete user")
                 print("    - add/modify/delete schedule")
                 print("    - trigger relay (device-side default close timer)")
+                print("    - open_door_http with --open-door and relay credentials")
                 print("  ⚠ Write tests WILL create and delete test data")
 
     except AkuvoxConnectionError as exc:
@@ -2118,6 +2257,7 @@ examples:
   %(prog)s 192.168.1.100 --json-report mvp-report.json
   %(prog)s 192.168.1.100 --auth basic --user admin --pass secret
   %(prog)s 192.168.1.100 --auth digest --user admin --pass secret --write
+  %(prog)s 192.168.1.100 --write --open-door --open-door-user relay-user
 
 json report:
   Top-level keys: device (model, firmware, redacted host), auth,
@@ -2155,6 +2295,24 @@ json report:
         help="Enable write tests (add/modify/delete a test user)",
     )
     parser.add_argument(
+        "--open-door",
+        action="store_true",
+        help="With --write, also exercise credentialed OpenDoor HTTP relay 1",
+    )
+    parser.add_argument(
+        "--open-door-user",
+        default=None,
+        help="OpenDoor HTTP relay username",
+    )
+    parser.add_argument(
+        "--open-door-pass",
+        dest="open_door_password",
+        default=None,
+        help=(
+            f"OpenDoor HTTP relay password (or set {_OPEN_DOOR_PASSWORD_ENV} env var)"
+        ),
+    )
+    parser.add_argument(
         "--ssl",
         action="store_true",
         help="Use HTTPS instead of HTTP",
@@ -2184,6 +2342,8 @@ json report:
 
     if args.no_verify_ssl and not args.ssl:
         args.ssl = True
+
+    _validate_open_door_args(args, parser)
 
     if args.auth in ("basic", "digest"):
         if not args.user:
