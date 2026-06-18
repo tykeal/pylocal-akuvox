@@ -330,6 +330,109 @@ async def test_open_door_http_defaults_to_door_one() -> None:
         assert url.query["DoorNum"] == "1"
 
 
+async def test_open_door_http_accepts_body_result_zero() -> None:
+    """HTTP 200 plus body ``hcSingleResult=0`` reports OpenDoor success."""
+    body = """
+    <form name='hiddenValForm_Div'>
+    <input id=hcSingleResult type=hidden value='0'>
+    </form>
+    """
+    with aioresponses() as m:
+        m.get(_OPEN_DOOR_URL_RE, status=200, body=body, content_type="text/html")
+        async with AkuvoxHttpClient(host="192.168.1.100") as http:
+            await open_door_http(http, user="relay-user", password="relay-pass")
+
+
+async def test_open_door_http_classifies_body_auth_failure() -> None:
+    """HTTP 200 plus ``hcSingleResult=-1`` is a relay credential failure."""
+    body = """
+    <form name='hiddenValForm_Div'>
+    <input id=hcSingleResult type=hidden value='-1'>
+    </form>
+    """
+    with aioresponses() as m:
+        m.get(_OPEN_DOOR_URL_RE, status=200, body=body, content_type="text/html")
+        async with AkuvoxHttpClient(host="192.168.1.100") as http:
+            with pytest.raises(AkuvoxAuthenticationError) as exc_info:
+                await open_door_http(
+                    http,
+                    user="relay-user",
+                    password="relay-pass",
+                )
+
+    message = str(exc_info.value)
+    assert "hcSingleResult=-1" in message
+    assert "Open Relay Via HTTP username/password" in message
+
+
+async def test_open_door_http_classifies_body_device_failure() -> None:
+    """HTTP 200 plus another non-zero body result is a device failure."""
+    body = "<input id=hcSingleResult type=hidden value='-2'>"
+    with aioresponses() as m:
+        m.get(_OPEN_DOOR_URL_RE, status=200, body=body, content_type="text/html")
+        async with AkuvoxHttpClient(host="192.168.1.100") as http:
+            with pytest.raises(AkuvoxDeviceError, match="hcSingleResult=-2"):
+                await open_door_http(
+                    http,
+                    user="relay-user",
+                    password="relay-pass",
+                )
+
+
+async def test_open_door_http_accepts_missing_body_marker(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """HTTP 200 without the IT83 body marker preserves legacy success."""
+    caplog.set_level(logging.DEBUG, logger="pylocal_akuvox.relay")
+    with aioresponses() as m:
+        m.get(_OPEN_DOOR_URL_RE, status=200, body="OK", content_type="text/html")
+        async with AkuvoxHttpClient(host="192.168.1.100") as http:
+            await open_door_http(http, user="relay-user", password="relay-pass")
+
+    messages = "\n".join(record.getMessage() for record in caplog.records)
+    assert "lacked a recognizable hcSingleResult marker" in messages
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        '<INPUT VALUE="0" TYPE=hidden ID=hcSingleResult>',
+        "<input value=' 0 ' type=hidden id=' hcSingleResult '>",
+        '<input id = "hcSingleResult" type=hidden value = "0" >',
+    ],
+)
+async def test_open_door_http_parses_body_marker_variations(body: str) -> None:
+    """OpenDoor result parsing tolerates case, spacing, quotes, and order."""
+    with aioresponses() as m:
+        m.get(_OPEN_DOOR_URL_RE, status=200, body=body, content_type="text/html")
+        async with AkuvoxHttpClient(host="192.168.1.100") as http:
+            await open_door_http(http, user="relay-user", password="relay-pass")
+
+
+async def test_open_door_http_redacts_password_from_body_result_error() -> None:
+    """Body-based OpenDoor errors redact echoed passwords."""
+    password = "do not/log"
+    body = (
+        "<input id=hcSingleResult type=hidden value='-1'> "
+        f"echoed UserName=relay-user&Password={password} do+not%2Flog"
+    )
+    with aioresponses() as m:
+        m.get(_OPEN_DOOR_URL_RE, status=200, body=body, content_type="text/html")
+        async with AkuvoxHttpClient(host="192.168.1.100") as http:
+            with pytest.raises(AkuvoxAuthenticationError) as exc_info:
+                await open_door_http(
+                    http,
+                    user="relay-user",
+                    password=password,
+                )
+
+    message = str(exc_info.value)
+    assert "<redacted>" in message
+    assert "relay-user" not in message
+    assert password not in message
+    assert "do+not%2Flog" not in message
+
+
 @pytest.mark.parametrize(
     ("status", "exc_type"),
     [
@@ -463,7 +566,7 @@ async def test_open_door_http_redacts_password_from_logs_and_errors(
         m.get(
             _OPEN_DOOR_URL_RE,
             status=403,
-            body=f"forbidden {password} do+not%2Flog",
+            body=f"forbidden UserName=relay-user&Password={password} do+not%2Flog",
             content_type="text/plain",
         )
         async with AkuvoxHttpClient(host="192.168.1.100") as http:
@@ -477,6 +580,7 @@ async def test_open_door_http_redacts_password_from_logs_and_errors(
     messages = "\n".join(record.getMessage() for record in caplog.records)
     assert password not in messages
     assert password not in str(exc_info.value)
+    assert "relay-user" not in str(exc_info.value)
     assert "do+not%2Flog" not in str(exc_info.value)
 
     with aioresponses() as m:
