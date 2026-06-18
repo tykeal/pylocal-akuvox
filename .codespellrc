@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # codespell configuration
-# "Thur" and "Unknow" are actual Akuvox API field names
+# "Thur", "Unknow" and "unsupport" are verbatim Akuvox API strings
+# ("unsupport action" is the X915S contact-write rejection message).
 [codespell]
-ignore-words-list = thur,unknow
+ignore-words-list = thur,unknow,unsupport
