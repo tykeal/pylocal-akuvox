@@ -23,6 +23,22 @@ if TYPE_CHECKING:
 _MAX_DELAY = 65535
 _LOGGER = logging.getLogger(__name__)
 _OPEN_DOOR_PASSWORD_PLACEHOLDER = "<redacted>"
+_OPEN_DOOR_QUERY_CREDENTIAL_RE = re.compile(
+    r"(?i)(\b(?:UserName|Password)=)([^&\s\"'<>]*)",
+)
+_OPEN_DOOR_RESULT_RE = re.compile(
+    r"""
+    <input\b
+    (?=[^>]*\bid\s*=\s*
+        (?:"\s*hcSingleResult\s*"|'\s*hcSingleResult\s*'|hcSingleResult\b)
+    )
+    (?=[^>]*\bvalue\s*=\s*
+        (?P<quote>["'])\s*(?P<value>[^"']*?)\s*(?P=quote)
+    )
+    [^>]*>
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
 
 
 def _validate_relay_trigger_args(
@@ -111,18 +127,34 @@ def _redacted_open_door_query(*, user: str, door_num: int) -> dict[str, Any]:
     }
 
 
-def _redacted_body_excerpt(body: str, password: str) -> str:
-    """Return a bounded body excerpt with password spellings redacted."""
-    quoted = quote(password, safe="")
-    quoted_plus = quote_plus(password, safe="")
-    redacted = body
-    candidates = {
-        password,
-        quoted,
-        quoted_plus,
-        re.sub(r"%[0-9A-F]{2}", lambda match: match.group(0).lower(), quoted),
-        re.sub(r"%[0-9A-F]{2}", lambda match: match.group(0).lower(), quoted_plus),
-    } - {""}
+def _redacted_body_excerpt(body: str, *, user: str, password: str) -> str:
+    """Return a bounded body excerpt with credential spellings redacted."""
+    redacted = _OPEN_DOOR_QUERY_CREDENTIAL_RE.sub(
+        lambda match: f"{match.group(1)}{_OPEN_DOOR_PASSWORD_PLACEHOLDER}",
+        body,
+    )
+    candidates = set()
+    for value in (user, password):
+        quoted = quote(value, safe="")
+        quoted_plus = quote_plus(value, safe="")
+        candidates.update(
+            {
+                value,
+                quoted,
+                quoted_plus,
+                re.sub(
+                    r"%[0-9A-F]{2}",
+                    lambda match: match.group(0).lower(),
+                    quoted,
+                ),
+                re.sub(
+                    r"%[0-9A-F]{2}",
+                    lambda match: match.group(0).lower(),
+                    quoted_plus,
+                ),
+            },
+        )
+    candidates -= {""}
     for candidate in candidates:
         redacted = redacted.replace(candidate, _OPEN_DOOR_PASSWORD_PLACEHOLDER)
     single_line = (
@@ -131,16 +163,48 @@ def _redacted_body_excerpt(body: str, password: str) -> str:
     return single_line[:200]
 
 
+def _open_door_http_body_result(body: str) -> str | None:
+    """Return the OpenDoor body result marker when present."""
+    match = _OPEN_DOOR_RESULT_RE.search(body)
+    if match is None:
+        return None
+    return match.group("value").strip()
+
+
 def _raise_for_open_door_http_status(
     status: int,
     body: str,
     *,
+    user: str,
     password: str,
 ) -> None:
-    """Raise the public OpenDoor error mapped from an HTTP status."""
+    """Raise the public OpenDoor error mapped from HTTP status and body."""
     if 200 <= status < 300:
-        return
-    body_excerpt = _redacted_body_excerpt(body, password)
+        result = _open_door_http_body_result(body)
+        if result is None:
+            _LOGGER.debug(
+                "OpenDoor HTTP unlock response body lacked a recognizable "
+                "hcSingleResult marker; treating HTTP %s as success",
+                status,
+            )
+            return
+        if result == "0":
+            return
+        body_excerpt = _redacted_body_excerpt(body, user=user, password=password)
+        if result == "-1":
+            msg = (
+                f"OpenDoor HTTP unlock authentication failed "
+                f"(HTTP {status}, hcSingleResult={result}); verify the "
+                f"Open Relay Via HTTP username/password configured on the "
+                f"device; body={body_excerpt}"
+            )
+            raise AkuvoxAuthenticationError(msg)
+        msg = (
+            f"OpenDoor HTTP unlock failed "
+            f"(HTTP {status}, hcSingleResult={result}); body={body_excerpt}"
+        )
+        raise AkuvoxDeviceError(msg)
+    body_excerpt = _redacted_body_excerpt(body, user=user, password=password)
     if status == 401:
         msg = (
             f"Authentication required for OpenDoor HTTP unlock "
@@ -172,14 +236,18 @@ async def open_door_http(
         door_num: Door number to open; must be a positive integer.
 
     Returns:
-        ``None`` on a 2xx response.
+        ``None`` when the device returns HTTP 2xx and either reports
+        ``hcSingleResult=0`` in the HTML body or omits that firmware-specific
+        marker.
 
     Raises:
         AkuvoxValidationError: If ``door_num`` is not a positive integer.
         AkuvoxConnectionError: If the request fails at the transport layer.
-        AkuvoxAuthenticationError: If the device returns HTTP 401.
+        AkuvoxAuthenticationError: If the device returns HTTP 401, or HTTP 2xx
+            with ``hcSingleResult=-1`` in the body.
         AkuvoxRequestError: If the device returns another HTTP 4xx status.
-        AkuvoxDeviceError: If the device returns any other non-2xx status.
+        AkuvoxDeviceError: If the device returns any other non-2xx status, or
+            HTTP 2xx with another non-zero ``hcSingleResult`` in the body.
 
     Notes:
         The device must have Phone → Relay → Open Relay Via HTTP enabled with
@@ -205,7 +273,7 @@ async def open_door_http(
         params=params,
         allow_redirects=False,
     )
-    _raise_for_open_door_http_status(status, body, password=password)
+    _raise_for_open_door_http_status(status, body, user=user, password=password)
 
 
 async def get_relay_status(

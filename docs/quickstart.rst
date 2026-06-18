@@ -148,9 +148,13 @@ and pass those relay-specific credentials per call:
 
 The vendor endpoint carries the OpenDoor password in the URL query
 string, so it can appear in proxy or device access logs outside this
-library. On an IT83, ``trigger_relay()`` raises an actionable error
-directing callers to ``AkuvoxDevice.open_door_http()`` instead of
-sending a credential-less OpenDoor request.
+library. On firmware that returns the ``hcSingleResult`` OpenDoor
+marker, ``open_door_http()`` treats ``0`` as success, ``-1`` as an Open
+Relay Via HTTP credential failure, and other non-zero values as
+device-side failures. Responses without that marker continue to use the
+HTTP status for compatibility. On an IT83, ``trigger_relay()`` raises an
+actionable error directing callers to ``AkuvoxDevice.open_door_http()``
+instead of sending a credential-less OpenDoor request.
 
 Retrieve Device Status
 ----------------------
