@@ -15,7 +15,7 @@ Per ``specs/008-capability-matrix/contracts/matrix-lookup.md``:
   deltas across the four entries" are honoured by the production
   entries (notably IT83's
   ``RELAY_TRIGGER_API``/``RELAY_TRIGGER_FCGI``/``RELAY_STATUS`` row,
-  X915S's ``CONTACT_ADD=UNSUPPORTED`` and
+  X915S's unsupported contact writes and
   ``schema_shapes["contact"] = APARTMENT_BOOK``).
 """
 
@@ -154,10 +154,16 @@ def test_it83_capability_deltas() -> None:
 
 
 def test_x915s_capability_deltas() -> None:
-    """X915S records CONTACT_ADD=UNSUPPORTED + schema_shapes apartment_book."""
+    """X915S records unsupported writes + schema_shapes apartment_book."""
     profile = lookup_capabilities(_X915S)
     assert profile is not None
     assert profile.status_of(Capability.CONTACT_ADD) is (CapabilityStatus.UNSUPPORTED)
+    assert profile.status_of(Capability.CONTACT_MODIFY) is (
+        CapabilityStatus.UNSUPPORTED
+    )
+    assert profile.status_of(Capability.CONTACT_DELETE) is (
+        CapabilityStatus.UNSUPPORTED
+    )
     assert profile.schema_shapes.get("contact") is SchemaShape.APARTMENT_BOOK
     # X915S still supports the rest of the door-phone surface.
     assert profile.status_of(Capability.USER_ADD) is CapabilityStatus.SUPPORTED

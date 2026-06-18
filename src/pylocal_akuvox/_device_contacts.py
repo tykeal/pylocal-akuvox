@@ -8,16 +8,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pylocal_akuvox import contacts
-from pylocal_akuvox._capability_types import Capability, SchemaShape
+from pylocal_akuvox._capability_types import Capability
 
 if TYPE_CHECKING:
     from pylocal_akuvox._device_runtime import _DeviceContext
     from pylocal_akuvox.models import Contact
-
-
-def _contact_shape(ctx: _DeviceContext) -> SchemaShape:
-    """Return the contact schema shape with the door-phone fallback."""
-    return ctx.capabilities.schema_shapes.get("contact", SchemaShape.DOOR_PHONE)
 
 
 async def list_contacts(
@@ -48,7 +43,6 @@ async def add_contact(
         name=name,
         phone=phone,
         group=group,
-        schema_shape=_contact_shape(ctx),
     )
 
 
@@ -71,7 +65,6 @@ async def modify_contact(
         name=name,
         phone=phone,
         group=group,
-        schema_shape=_contact_shape(ctx),
     )
 
 

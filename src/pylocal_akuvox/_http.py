@@ -28,7 +28,11 @@ if TYPE_CHECKING:
 
     type _Middleware = Any
 
-_UNSUPPORTED_MSG = "Api unsupported"
+_UNSUPPORTED_MARKERS = (
+    "api unsupported",
+    "unsupported action",
+    "unsupport action",
+)
 
 
 class AkuvoxHttpClient:
@@ -289,8 +293,9 @@ class AkuvoxHttpClient:
 
         retcode, message, data = self._parse_envelope(body)
 
-        if _UNSUPPORTED_MSG in message:
-            raise AkuvoxUnsupportedError(message)
+        lowered_message = message.lower()
+        if any(marker in lowered_message for marker in _UNSUPPORTED_MARKERS):
+            raise AkuvoxUnsupportedError(message, reason="envelope_unsupported")
 
         if retcode < 0:
             raise AkuvoxDeviceError(message)

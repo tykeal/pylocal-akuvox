@@ -16,21 +16,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from pylocal_akuvox._capability_types import SchemaShape
 from pylocal_akuvox.exceptions import AkuvoxValidationError
 from pylocal_akuvox.models import Contact
 
 if TYPE_CHECKING:
     from pylocal_akuvox._capability_profile import DeviceCapabilities
     from pylocal_akuvox._http import AkuvoxHttpClient
-
-
-_APARTMENT_BOOK_WRITE_DEFERRAL_MSG = (
-    "apartment-book contact writes are not yet supported; "
-    "the current public add_contact/modify_contact signature has no "
-    "source for APTName/APTNum/Building/Landline and no hardware-bench "
-    "write evidence exists for the apartment-book payload shape"
-)
 
 
 def _mutation_body(action: str, item: list[dict[str, Any]]) -> dict[str, Any]:
@@ -83,32 +74,17 @@ async def add_contact(
     name: str,
     phone: str | None = None,
     group: str | None = None,
-    schema_shape: SchemaShape | None = None,
 ) -> None:
     """Add a contact to the device address book.
-
-    ``schema_shape`` defaults to :attr:`SchemaShape.DOOR_PHONE` when
-    ``None`` (preserves FR-016 byte-identity for direct callers). The
-    :attr:`SchemaShape.APARTMENT_BOOK` branch raises
-    :class:`NotImplementedError` with a deferral message — the
-    current public signature has no source for the required
-    ``APTName``/``APTNum``/``Building``/``Landline`` fields and no
-    hardware-bench write evidence exists for that payload shape (see
-    issue #121 / Phase 3 §"Apartment-book contact writes" deferral).
 
     Service-module functions stay capability-unaware: this function
     does **not** consult any global capability matrix or
     ``self._capabilities``. The :meth:`AkuvoxDevice.add_contact`
-    wrapper performs the capability gate and extracts the schema
-    shape from ``self._capabilities`` before delegating here.
+    wrapper performs the capability gate before delegating here.
     """
     if not name:
         msg = "name is required for add_contact"
         raise AkuvoxValidationError(msg)
-
-    shape = schema_shape if schema_shape is not None else SchemaShape.DOOR_PHONE
-    if shape is SchemaShape.APARTMENT_BOOK:
-        raise NotImplementedError(_APARTMENT_BOOK_WRITE_DEFERRAL_MSG)
 
     payload: dict[str, Any] = {"Name": name}
     if phone is not None:
@@ -150,29 +126,18 @@ async def modify_contact(
     name: str | None = None,
     phone: str | None = None,
     group: str | None = None,
-    schema_shape: SchemaShape | None = None,
 ) -> None:
     """Modify an existing contact on the device.
 
     The device requires a full contact record for set operations,
     so this fetches the current record and merges changes.
 
-    ``schema_shape`` defaults to :attr:`SchemaShape.DOOR_PHONE` when
-    ``None`` (preserves FR-016 byte-identity for direct callers). The
-    :attr:`SchemaShape.APARTMENT_BOOK` branch raises
-    :class:`NotImplementedError` with a deferral message — see
-    :func:`add_contact` for the rationale.
-
     Service-module functions stay capability-unaware: see
-    :func:`add_contact` for the wrapper-extraction contract.
+    :func:`add_contact` for the wrapper-gating contract.
     """
     if name is None and phone is None and group is None:
         msg = "at least one of name, phone, or group is required for modify_contact"
         raise AkuvoxValidationError(msg)
-
-    shape = schema_shape if schema_shape is not None else SchemaShape.DOOR_PHONE
-    if shape is SchemaShape.APARTMENT_BOOK:
-        raise NotImplementedError(_APARTMENT_BOOK_WRITE_DEFERRAL_MSG)
 
     current = await _get_contact_by_id(http, id)
     if name is not None:
@@ -193,9 +158,8 @@ async def delete_contact(
     """Delete one or more contacts from the device.
 
     ``delete_contact`` is shape-agnostic: Akuvox firmware only accepts
-    a delete-by-id payload on either schema, so no ``schema_shape=``
-    kwarg is offered. The :meth:`AkuvoxDevice.delete_contact`
-    wrapper performs the capability gate via
+    a delete-by-id payload on either schema. The
+    :meth:`AkuvoxDevice.delete_contact` wrapper performs the capability gate via
     ``self._capabilities.require(Capability.CONTACT_DELETE, ...)``
     and then delegates here without further dispatch.
     """
