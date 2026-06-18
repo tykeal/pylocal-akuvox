@@ -22,9 +22,9 @@ with field aliases.
 
 The library models a `Contact` as a flat record with `name`, `id`, `phone`,
 and `group`. That shape matches **door-phone** devices (X916, E18C) whose
-`/api/contact/get` records carry an `ID` and a `GroupID`. The X915S — an
+`/api/contact/get` records carry an `ID` and a `Group`. The X915S — an
 apartment intercom — instead returns an **apartment-book** record that has
-**no `ID`** and **no `GroupID`**, and adds apartment/building fields the
+**no `ID`** and **no `Group`**, and adds apartment/building fields the
 library does not model: `APTName`, `APTNum`, `Building`, `Landline`.
 
 Two distinct problems follow from this device-class difference:
@@ -71,7 +71,7 @@ contradict the existing static capability matrix.
 | `ID` | present | **absent** |
 | `Name` | present | present |
 | `Phone` | present | present |
-| `GroupID` | present | **absent** |
+| `Group` | present | **absent** |
 | `APTName` | absent | present |
 | `APTNum` | absent | present |
 | `Building` | absent | present |
@@ -444,7 +444,7 @@ apartment-book devices.
   gains the new apartment-book fields as always-`None` on this shape.
 - **Contact (apartment-book shape)**: Same model surface, parsed from an
   X915S record. `id` is `None` (device assigns none); `group` is `None`
-  (no `GroupID`); the apartment-book fields `apt_name`, `apt_num`,
+  (no `Group`); the apartment-book fields `apt_name`, `apt_num`,
   `building`, `landline` carry the device-provided values.
 - **Contact schema shape**: The per-device selector (door-phone vs
   apartment-book) already carried by the device capability profile; it
@@ -462,8 +462,8 @@ rather than ad-hoc field aliases:
 
 | Device class (example) | Contact schema shape | Contact reads | Contact writes (add/modify/delete) | Distinguishing record fields |
 |---|---|---|---|---|
-| X916 / E18C (door phone) | door-phone | Supported | Supported | `ID`, `Name`, `Phone`, `GroupID` |
-| X915S (apartment intercom) | apartment-book | Supported (read-only) | **Unsupported** over HTTP API | `Name`, `Phone`, `APTName`, `APTNum`, `Building`, `Landline` (no `ID`, no `GroupID`) |
+| X916 / E18C (door phone) | door-phone | Supported | Supported | `ID`, `Name`, `Phone`, `Group` |
+| X915S (apartment intercom) | apartment-book | Supported (read-only) | **Unsupported** over HTTP API | `Name`, `Phone`, `APTName`, `APTNum`, `Building`, `Landline` (no `ID`, no `Group`) |
 
 - The device's effective contact schema shape is selected by its capability
   profile (`schema_shapes["contact"]`), already `APARTMENT_BOOK` for the
