@@ -68,11 +68,12 @@ X915S
 Door-phone variant on the X915S product line. Reads the bare
 ``Schedule`` key in user payloads, so the
 matrix entry lists ``Schedule`` first in the
-``schedule_relay`` field-alias read order. ``add_contact`` is
-``UNSUPPORTED`` on this variant per the "unsupported action" envelope
-observation; ``modify_contact`` / ``delete_contact``
-were not specifically exercised and remain ``UNKNOWN``. Contact
-payloads use the apartment-book schema shape.
+``schedule_relay`` field-alias read order. ``add_contact``,
+``modify_contact``, and ``delete_contact`` are all ``UNSUPPORTED``
+on this variant: apartment-book contact records are read-only over
+the HTTP API, and the device returns an "unsupported action"
+envelope for contact-write attempts. Contact payloads use the
+apartment-book schema shape.
 
 E18C
 ~~~~
