@@ -12,11 +12,6 @@ on:
     types: [opened, reopened, synchronize]
     branches:
       - main
-    paths:
-      - '**'
-      - '!.github/**'
-      - '!.*'
-      - '!tox.ini'
 
 concurrency:
   group: "${{ github.workflow }}-${{ github.ref }}"
