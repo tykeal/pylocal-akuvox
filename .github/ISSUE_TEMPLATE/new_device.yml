@@ -1,0 +1,173 @@
+# SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
+# SPDX-License-Identifier: Apache-2.0
+
+name: Add supported device
+description: Provide capability evidence to add a device class to the support matrix
+title: "[Device]: "
+labels: [enhancement, device-support]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Maintainers turn this report into a single `CAPABILITY_MATRIX` entry in
+        `src/pylocal_akuvox/capability_matrix.py`.
+
+        The most valuable input is output from `examples/mvp_test.py`. Key
+        principle: report only confirmed evidence. Mark operations `supported`
+        only after they succeeded, mark `unsupported` only after the device
+        rejected them, and leave untested operations as `unknown` in the
+        checklist. Maintainers omit unknowns from the final matrix entry.
+
+        See `docs/api/capabilities.rst`, section "Contributing a new device
+        class", for the matrix entry recipe.
+  - type: input
+    id: device-model
+    attributes:
+      label: Device model (Model field from /api/system/info)
+      description: This becomes the matrix model_prefix, matched by startswith.
+      placeholder: X915S
+    validations:
+      required: true
+  - type: input
+    id: firmware-version
+    attributes:
+      label: Firmware version (exact, e.g. 83.30.10.4)
+      placeholder: 83.30.10.4
+    validations:
+      required: true
+  - type: dropdown
+    id: firmware-band-form
+    attributes:
+      label: Firmware band form
+      description: >-
+        Exact means this firmware only. Glob allows one trailing wildcard
+        segment, such as 916.30.10.*. Floor means this version or newer, such
+        as 2915.30.10.114+. Choose Not sure if the maintainer should decide.
+      options:
+        - Exact (this firmware only)
+        - Glob (e.g. 916.30.10.*)
+        - Floor (this version or newer, e.g. 2915.30.10.114+)
+        - Not sure
+  - type: input
+    id: hardware-version
+    attributes:
+      label: Hardware version / product line
+      placeholder: Optional hardware version or product line
+  - type: dropdown
+    id: auth-mode
+    attributes:
+      label: Auth mode used to reach the HTTP API
+      options:
+        - basic
+        - digest
+        - allowlist (no auth)
+        - other / unsure
+  - type: textarea
+    id: mvp-output
+    attributes:
+      label: mvp_test.py output
+      description: |
+        Read-only probe:
+
+        ```shell
+        uv run examples/mvp_test.py <device-ip> --auth <basic|digest> --user <user>
+        ```
+
+        Allowlist/no-auth probe:
+
+        ```shell
+        uv run examples/mvp_test.py <device-ip>
+        ```
+
+        On a device you can safely mutate, add `--write`. To exercise the
+        credentialed OpenDoor relay, add `--open-door` and
+        `--open-door-user`:
+
+        ```shell
+        uv run examples/mvp_test.py <device-ip> --auth <basic|digest> --user <user> \
+          --write --open-door --open-door-user <u>
+        ```
+
+        For a machine-readable report, add `--json-report`:
+
+        ```shell
+        uv run examples/mvp_test.py <device-ip> --auth <basic|digest> --user <user> \
+          --json-report report.json
+        ```
+
+        Add `--redact-stdout` before sharing terminal logs. JSON body excerpts
+        are always redacted in `--json-report` output.
+
+        Paste the full console output and, if available, the JSON report.
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: contact-schema-shape
+    attributes:
+      label: Contact schema shape
+      options:
+        - door_phone (ID/Name/Phone/Group)
+        - apartment_book (APTName/APTNum/Building/Landline)
+        - unknown / not tested
+  - type: textarea
+    id: field-aliases
+    attributes:
+      label: Field aliases observed
+      description: >-
+        Note any renamed payload keys, especially the user schedule-relay field
+        (Schedule vs ScheduleRelay vs Schedule-Relay), and any others.
+  - type: textarea
+    id: capability-status-checklist
+    attributes:
+      label: Capability status checklist
+      description: >-
+        Change values to supported or unsupported only where direct evidence
+        exists; leave everything else as unknown.
+      render: text
+      value: |
+        # Set each to: supported | unsupported | unknown
+        # Leave as 'unknown' unless you have direct evidence.
+        user.list: unknown
+        user.add: unknown
+        user.modify: unknown
+        user.delete: unknown
+        schedule.list: unknown
+        schedule.add: unknown
+        schedule.modify: unknown
+        schedule.delete: unknown
+        group.list: unknown
+        group.add: unknown
+        group.modify: unknown
+        group.delete: unknown
+        contact.list: unknown
+        contact.add: unknown
+        contact.modify: unknown
+        contact.delete: unknown
+        relay.trigger.api: unknown
+        relay.trigger.fcgi: unknown
+        relay.status: unknown
+        device.config.get: unknown
+        device.config.set: unknown
+        log.door: unknown
+        log.call: unknown
+        key.discovery: unknown
+    validations:
+      required: true
+  - type: textarea
+    id: provenance
+    attributes:
+      label: Provenance
+      description: >-
+        Include your name or handle, whether this is a personal bench unit or a
+        community report, and the test date.
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I removed credentials, passwords, and sensitive data from all pasted output
+          required: true
+        - label: I reported only confirmed evidence and left untested operations as unknown
+          required: true
+        - label: I am willing to run follow-up tests if asked

@@ -1,0 +1,71 @@
+# SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
+# SPDX-License-Identifier: Apache-2.0
+
+name: Bug report
+description: Report a defect in the library
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a defect in pylocal-akuvox.
+        Please include enough detail for maintainers to reproduce the problem.
+  - type: input
+    id: library-version
+    attributes:
+      label: Library version
+      description: >-
+        Run: python -c "import pylocal_akuvox; print(pylocal_akuvox.__version__)"
+      placeholder: 0.0.0
+    validations:
+      required: true
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: Python 3.13.0
+    validations:
+      required: true
+  - type: input
+    id: device-model-firmware
+    attributes:
+      label: Device model & firmware (if device-related)
+      placeholder: X915S / 2915.30.10.114
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Describe the observed behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: Describe what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce / minimal code
+      description: Provide the smallest code sample or steps that reproduce the issue.
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / traceback
+      description: Paste relevant logs after removing credentials, tokens, and passwords.
+      render: shell
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched existing issues
+          required: true
+        - label: I removed any credentials/secrets from logs and code above
+          required: true
