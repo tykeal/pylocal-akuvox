@@ -5,9 +5,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, cast
 
 import examples.mvp_test as mvp_test
@@ -130,6 +132,8 @@ class _FakeOpenDoorDevice:
     def __init__(self) -> None:
         """Initialize the recorded call list."""
         self.calls: list[tuple[str, str, int]] = []
+        self.cleanup_calls: list[tuple[str, str]] = []
+        self.discoverable_cleanup = True
 
     async def open_door_http(
         self,
@@ -140,6 +144,46 @@ class _FakeOpenDoorDevice:
     ) -> None:
         """Record one OpenDoor HTTP call."""
         self.calls.append((user, password, door_num))
+
+    async def delete_user(self, *, id: str) -> None:
+        """Record one direct user cleanup call."""
+        self.cleanup_calls.append(("user", id))
+
+    async def delete_schedule(self, *, id: str) -> None:
+        """Record one direct schedule cleanup call."""
+        self.cleanup_calls.append(("schedule", id))
+
+    async def delete_group(self, *, id: str) -> None:
+        """Record one direct group cleanup call."""
+        self.cleanup_calls.append(("group", id))
+
+    async def delete_contact(self, *, id: str) -> None:
+        """Record one direct contact cleanup call."""
+        self.cleanup_calls.append(("contact", id))
+
+    async def list_users(self) -> list[Any]:
+        """Return a cleanup-discoverable user."""
+        if not self.discoverable_cleanup:
+            return [SimpleNamespace(user_id="other", id="other-id")]
+        return [SimpleNamespace(user_id="9999", id="user-id")]
+
+    async def list_schedules(self) -> list[Any]:
+        """Return a cleanup-discoverable schedule."""
+        if not self.discoverable_cleanup:
+            return [SimpleNamespace(name="other", id="other-id")]
+        return [SimpleNamespace(name="pylocal-test-sched", id="schedule-id")]
+
+    async def list_groups(self) -> list[Any]:
+        """Return a cleanup-discoverable group."""
+        if not self.discoverable_cleanup:
+            return [SimpleNamespace(name="other", id="other-id")]
+        return [SimpleNamespace(name="__test_group__", id="group-id")]
+
+    async def list_contacts(self) -> list[Any]:
+        """Return a cleanup-discoverable contact."""
+        if not self.discoverable_cleanup:
+            return [SimpleNamespace(name="other", id="other-id")]
+        return [SimpleNamespace(name="__test_contact__", id="contact-id")]
 
 
 class _FakeReportTemplate:
@@ -526,6 +570,304 @@ async def test_write_tests_attempt_open_door_once_with_credentials(
     output = capsys.readouterr().out
     assert mvp_test._REDACTED_VALUE in output
     assert "relay-secret" not in output
+
+
+async def test_write_tests_retry_user_cleanup_after_delete_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Retry user cleanup silently when the recorded delete step fails."""
+    device = _FakeOpenDoorDevice()
+    _patch_fast_write_steps(monkeypatch, device)
+
+    async def fail_delete(*_args: object, **_kwargs: object) -> None:
+        """Pretend the diagnostic delete step failed."""
+        raise mvp_test.TestStepFailed("delete failed")
+
+    monkeypatch.setattr(_report_steps, "test_delete_user", fail_delete)
+    diagnostics = mvp_test.DiagnosticReport(
+        host="192.0.2.10",
+        auth_method="none",
+        use_ssl=False,
+        verify_ssl=True,
+    )
+    results = mvp_test.TestResults(diagnostics)
+
+    await mvp_test._run_write_tests(
+        {},
+        results,
+        capabilities=_all_supported_capabilities(),
+        open_door=False,
+        open_door_user=None,
+        open_door_password=None,
+        redact_stdout=False,
+    )
+
+    assert ("user", "user-id") in device.cleanup_calls
+    assert ("delete_user", "delete failed") in results.failed
+
+
+async def test_write_tests_retry_user_cleanup_after_verify_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Retry user cleanup when delete passes but verification fails."""
+    device = _FakeOpenDoorDevice()
+    _patch_fast_write_steps(monkeypatch, device)
+
+    async def fail_verify(*_args: object, **_kwargs: object) -> None:
+        """Pretend the deleted user still appears in list results."""
+        raise mvp_test.TestStepFailed("User still present after delete")
+
+    monkeypatch.setattr(_report_steps, "test_verify_user_deletion", fail_verify)
+    diagnostics = mvp_test.DiagnosticReport(
+        host="192.0.2.10",
+        auth_method="none",
+        use_ssl=False,
+        verify_ssl=True,
+    )
+    results = mvp_test.TestResults(diagnostics)
+
+    await mvp_test._run_write_tests(
+        {},
+        results,
+        capabilities=_all_supported_capabilities(),
+        open_door=False,
+        open_door_user=None,
+        open_door_password=None,
+        redact_stdout=False,
+    )
+
+    assert ("user", "user-id") in device.cleanup_calls
+    assert (
+        "verify_user_deletion",
+        "User still present after delete",
+    ) in results.failed
+
+
+@pytest.mark.parametrize(
+    ("step_name", "result_name", "entity", "entity_id"),
+    [
+        ("test_add_user", "add_user", "user", "user-id"),
+        ("test_add_schedule", "add_schedule", "schedule", "schedule-id"),
+        ("test_add_group", "add_group", "group", "group-id"),
+        ("test_add_contact", "add_contact", "contact", "contact-id"),
+    ],
+)
+async def test_write_tests_retry_cleanup_after_unlisted_add_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    step_name: str,
+    result_name: str,
+    entity: str,
+    entity_id: str,
+) -> None:
+    """Retry cleanup when an add step creates a record but cannot find its ID."""
+    device = _FakeOpenDoorDevice()
+    _patch_fast_write_steps(monkeypatch, device)
+
+    async def fail_add(*_args: object, **_kwargs: object) -> str:
+        """Pretend an add step failed after creating a record."""
+        raise mvp_test.TestStepFailed("created record not listed")
+
+    monkeypatch.setattr(_report_steps, step_name, fail_add)
+    diagnostics = mvp_test.DiagnosticReport(
+        host="192.0.2.10",
+        auth_method="none",
+        use_ssl=False,
+        verify_ssl=True,
+    )
+    results = mvp_test.TestResults(diagnostics)
+
+    await mvp_test._run_write_tests(
+        {},
+        results,
+        capabilities=_all_supported_capabilities(),
+        open_door=False,
+        open_door_user=None,
+        open_door_password=None,
+        redact_stdout=False,
+    )
+
+    assert (entity, entity_id) in device.cleanup_calls
+    assert (result_name, "created record not listed") in results.failed
+
+
+async def test_best_effort_delete_suppresses_cleanup_error() -> None:
+    """Ignore best-effort cleanup failures."""
+
+    async def fail_cleanup() -> None:
+        """Raise a cleanup failure that should not escape."""
+        raise AkuvoxDeviceError("cleanup failed")
+
+    await _report_steps._best_effort_delete(fail_cleanup)
+
+
+async def test_best_effort_delete_preserves_cancellation() -> None:
+    """Propagate task cancellation through best-effort cleanup."""
+
+    async def cancel_cleanup() -> None:
+        """Raise cancellation from cleanup."""
+        raise asyncio.CancelledError
+
+    with pytest.raises(asyncio.CancelledError):
+        await _report_steps._best_effort_delete(cancel_cleanup)
+
+
+@pytest.mark.parametrize(
+    ("cleanup_name", "identifier"),
+    [
+        ("_cleanup_user_by_user_id", "9999"),
+        ("_cleanup_schedule_by_name", "pylocal-test-sched"),
+        ("_cleanup_group_by_name", "__test_group__"),
+        ("_cleanup_contact_by_name", "__test_contact__"),
+    ],
+)
+async def test_silent_cleanup_skips_when_add_failure_has_no_match(
+    cleanup_name: str,
+    identifier: str,
+) -> None:
+    """Skip silent cleanup when the failed add step left no discoverable record."""
+    device = _FakeOpenDoorDevice()
+    device.discoverable_cleanup = False
+    cleanup = getattr(_report_steps, cleanup_name)
+
+    await cleanup(device, identifier)
+
+    assert device.cleanup_calls == []
+
+
+@pytest.mark.parametrize(
+    ("step_name", "result_name", "entity", "entity_id"),
+    [
+        ("test_delete_schedule", "delete_schedule", "schedule", "schedule-id"),
+        ("test_delete_group", "delete_group", "group", "group-id"),
+        ("test_delete_contact", "delete_contact", "contact", "contact-id"),
+    ],
+)
+async def test_write_tests_retry_other_cleanup_after_delete_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    step_name: str,
+    result_name: str,
+    entity: str,
+    entity_id: str,
+) -> None:
+    """Retry non-user cleanup silently when a recorded delete step fails."""
+    device = _FakeOpenDoorDevice()
+    _patch_fast_write_steps(monkeypatch, device)
+
+    async def fail_delete(*_args: object, **_kwargs: object) -> None:
+        """Pretend the diagnostic delete step failed."""
+        raise mvp_test.TestStepFailed("delete failed")
+
+    monkeypatch.setattr(_report_steps, step_name, fail_delete)
+    diagnostics = mvp_test.DiagnosticReport(
+        host="192.0.2.10",
+        auth_method="none",
+        use_ssl=False,
+        verify_ssl=True,
+    )
+    results = mvp_test.TestResults(diagnostics)
+
+    await mvp_test._run_write_tests(
+        {},
+        results,
+        capabilities=_all_supported_capabilities(),
+        open_door=False,
+        open_door_user=None,
+        open_door_password=None,
+        redact_stdout=False,
+    )
+
+    assert (entity, entity_id) in device.cleanup_calls
+    assert (result_name, "delete failed") in results.failed
+
+
+@pytest.mark.parametrize(
+    ("step_name", "result_name", "entity", "entity_id"),
+    [
+        (
+            "test_verify_schedule_deletion",
+            "verify_schedule_deletion",
+            "schedule",
+            "schedule-id",
+        ),
+        ("test_verify_group_deletion", "verify_group_deletion", "group", "group-id"),
+        (
+            "test_verify_contact_deletion",
+            "verify_contact_deletion",
+            "contact",
+            "contact-id",
+        ),
+    ],
+)
+async def test_write_tests_retry_other_cleanup_after_verify_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    step_name: str,
+    result_name: str,
+    entity: str,
+    entity_id: str,
+) -> None:
+    """Retry non-user cleanup when delete passes but verification fails."""
+    device = _FakeOpenDoorDevice()
+    _patch_fast_write_steps(monkeypatch, device)
+
+    async def fail_verify(*_args: object, **_kwargs: object) -> None:
+        """Pretend the deleted record still appears in list results."""
+        raise mvp_test.TestStepFailed("Record still present after delete")
+
+    monkeypatch.setattr(_report_steps, step_name, fail_verify)
+    diagnostics = mvp_test.DiagnosticReport(
+        host="192.0.2.10",
+        auth_method="none",
+        use_ssl=False,
+        verify_ssl=True,
+    )
+    results = mvp_test.TestResults(diagnostics)
+
+    await mvp_test._run_write_tests(
+        {},
+        results,
+        capabilities=_all_supported_capabilities(),
+        open_door=False,
+        open_door_user=None,
+        open_door_password=None,
+        redact_stdout=False,
+    )
+
+    assert (entity, entity_id) in device.cleanup_calls
+    assert (result_name, "Record still present after delete") in results.failed
+
+
+async def test_write_tests_cleanup_user_before_fatal_reraise(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Retry user cleanup before propagating fatal mid-chain errors."""
+    device = _FakeOpenDoorDevice()
+    _patch_fast_write_steps(monkeypatch, device)
+
+    async def fail_modify(*_args: object, **_kwargs: object) -> None:
+        """Pretend the diagnostic modify step hit a fatal connection error."""
+        raise AkuvoxConnectionError("connection lost")
+
+    monkeypatch.setattr(_report_steps, "test_modify_user", fail_modify)
+    diagnostics = mvp_test.DiagnosticReport(
+        host="192.0.2.10",
+        auth_method="none",
+        use_ssl=False,
+        verify_ssl=True,
+    )
+    results = mvp_test.TestResults(diagnostics)
+
+    with pytest.raises(AkuvoxConnectionError):
+        await mvp_test._run_write_tests(
+            {},
+            results,
+            capabilities=_all_supported_capabilities(),
+            open_door=False,
+            open_door_user=None,
+            open_door_password=None,
+            redact_stdout=False,
+        )
+
+    assert device.cleanup_calls == [("user", "user-id")]
 
 
 async def test_report_attempt_unknown_allows_unknown_capabilities(

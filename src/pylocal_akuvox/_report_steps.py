@@ -37,6 +37,12 @@ if TYPE_CHECKING:
 SEPARATOR = "-" * 60
 _MUTATION_SETTLE_SECS = 2
 _OPEN_DOOR_PASSWORD_ENV = "AKUVOX_OPEN_DOOR_PASSWORD"
+_TEST_USER_NAME = "pylocal-test"
+_TEST_USER_ID = "9999"
+_TEST_USER_PIN = "1234"
+_TEST_SCHEDULE_NAME = "pylocal-test-sched"
+_TEST_GROUP_NAME = "__test_group__"
+_TEST_CONTACT_NAME = "__test_contact__"
 
 
 def _default_emit(message: str) -> None:  # pragma: no cover
@@ -160,6 +166,53 @@ def _record_capability_skip(
         results.diagnostics.finish_test("skipped", reason)
     results.mark_skipped(name, reason)
     _default_emit(f"  SKIP: {name}: {reason}")
+
+
+async def _best_effort_delete(delete_coro: Callable[[], Awaitable[None]]) -> None:
+    """Run a silent teardown operation and suppress cleanup failures."""
+    try:
+        await delete_coro()
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        return
+
+
+def _step_failed(results: TestResults, label: str) -> bool:
+    """Return whether a diagnostic step recorded a failure."""
+    return any(failed_label == label for failed_label, _ in results.failed)
+
+
+async def _cleanup_user_by_user_id(device: AkuvoxDevice, user_id: str) -> None:
+    """Delete any silent-cleanup user matching a known user ID."""
+    users = await device.list_users()
+    for user in users:
+        if user.user_id == user_id and user.id is not None:
+            await device.delete_user(id=user.id)
+
+
+async def _cleanup_schedule_by_name(device: AkuvoxDevice, name: str) -> None:
+    """Delete any silent-cleanup schedule matching a known name."""
+    schedules = await device.list_schedules()
+    for sched in schedules:
+        if sched.name == name and sched.id is not None:
+            await device.delete_schedule(id=sched.id)
+
+
+async def _cleanup_group_by_name(device: AkuvoxDevice, name: str) -> None:
+    """Delete any silent-cleanup group matching a known name."""
+    groups = await device.list_groups()
+    for group in groups:
+        if group.name == name and group.id is not None:
+            await device.delete_group(id=group.id)
+
+
+async def _cleanup_contact_by_name(device: AkuvoxDevice, name: str) -> None:
+    """Delete any silent-cleanup contact matching a known name."""
+    contacts = await device.list_contacts()
+    for contact in contacts:
+        if contact.name == name and contact.id is not None:
+            await device.delete_contact(id=contact.id)
 
 
 async def step[T](  # pragma: no cover
@@ -730,9 +783,9 @@ async def test_add_user(
 ) -> str:  # pragma: no cover  # noqa: E501
     """Test: Add a test user and return its internal ID."""
     print_header("ADD USER (/api/user/set action:add)")
-    test_name = "pylocal-test"
-    test_user_id = "9999"
-    test_pin = "1234"
+    test_name = _TEST_USER_NAME
+    test_user_id = _TEST_USER_ID
+    test_pin = _TEST_USER_PIN
 
     await device.add_user(
         name=test_name,
@@ -830,7 +883,7 @@ async def test_open_door(  # pragma: no cover
 async def test_add_schedule(device: AkuvoxDevice) -> str:  # pragma: no cover
     """Test: Add a test schedule and return its internal ID."""
     print_header("ADD SCHEDULE (/api/schedule/set action:add)")
-    test_name = "pylocal-test-sched"
+    test_name = _TEST_SCHEDULE_NAME
 
     await device.add_schedule(
         schedule_type="1",
@@ -886,12 +939,12 @@ async def test_delete_schedule(
 async def test_add_group(device: AkuvoxDevice) -> str:  # pragma: no cover
     """Test: Add a group and return its internal ID."""
     print_header("ADD GROUP (/api/group/add)")
-    await device.add_group(name="__test_group__")
+    await device.add_group(name=_TEST_GROUP_NAME)
     _default_emit("  Sent add_group(name='__test_group__')")
     await asyncio.sleep(_MUTATION_SETTLE_SECS)
     groups = await device.list_groups()
     for grp in groups:
-        if grp.name == "__test_group__" and grp.id is not None:
+        if grp.name == _TEST_GROUP_NAME and grp.id is not None:
             _default_emit(f"  ✓ add_group() OK — ID={grp.id}")
             return grp.id
     msg = "Group created but not found in list"
@@ -915,7 +968,7 @@ async def test_add_contact(device: AkuvoxDevice) -> str:  # pragma: no cover
     """Test: Add a contact and return its internal ID."""
     print_header("ADD CONTACT (/api/contact/set action:add)")
     await device.add_contact(
-        name="__test_contact__",
+        name=_TEST_CONTACT_NAME,
         phone="5550000",
         group="Default",
     )
@@ -925,7 +978,7 @@ async def test_add_contact(device: AkuvoxDevice) -> str:  # pragma: no cover
     await asyncio.sleep(_MUTATION_SETTLE_SECS)
     contacts = await device.list_contacts()
     for c in contacts:
-        if c.name == "__test_contact__" and c.id is not None:
+        if c.name == _TEST_CONTACT_NAME and c.id is not None:
             _default_emit(f"  → Assigned internal ID: {c.id}")
             return c.id
     msg = "Contact created but not found in list"
@@ -1273,7 +1326,7 @@ async def test_verify_contact_deletion(  # pragma: no cover
 
 
 # aislop-ignore-next-line complexity/function-too-long complexity/too-many-params
-async def _run_write_tests(  # pragma: no cover
+async def _run_write_tests(  # pragma: no cover  # noqa: C901
     device_kwargs: dict[str, Any],
     results: TestResults,
     *,
@@ -1300,48 +1353,61 @@ async def _run_write_tests(  # pragma: no cover
         _install_probed_capabilities(device, capabilities)
         # User add + delete FIRST — before any other
         # requests to avoid CGI state corruption.
-        internal_id = await step(
-            results=results,
-            name="add_user",
-            capability=Capability.USER_ADD,
-            capabilities=capabilities,
-            coro_factory=lambda: test_add_user(device, redact_stdout=redact_stdout),
-        )
-        if internal_id is None:
-            reason = "requires internal ID from add_user"
-            skip_step(results, "modify_user", reason)
-            skip_step(results, "delete_user", reason)
-            skip_step(results, "verify_user_deletion", reason)
-        else:
-            await step(
+        internal_id: str | None = None
+        user_deleted = False
+        try:
+            internal_id = await step(
                 results=results,
-                name="modify_user",
-                capability=Capability.USER_MODIFY,
+                name="add_user",
+                capability=Capability.USER_ADD,
                 capabilities=capabilities,
-                coro_factory=lambda: test_modify_user(
-                    device, internal_id, redact_stdout=redact_stdout
-                ),
+                coro_factory=lambda: test_add_user(device, redact_stdout=redact_stdout),
             )
-            await step(
-                results=results,
-                name="delete_user",
-                capability=Capability.USER_DELETE,
-                capabilities=capabilities,
-                coro_factory=lambda: test_delete_user(device, internal_id),
-            )
-            if results.was_passed("delete_user"):
+            if internal_id is None:
+                reason = "requires internal ID from add_user"
+                skip_step(results, "modify_user", reason)
+                skip_step(results, "delete_user", reason)
+                skip_step(results, "verify_user_deletion", reason)
+            else:
                 await step(
                     results=results,
-                    name="verify_user_deletion",
-                    capability=Capability.USER_LIST,
+                    name="modify_user",
+                    capability=Capability.USER_MODIFY,
                     capabilities=capabilities,
-                    coro_factory=lambda: test_verify_user_deletion(device, internal_id),
+                    coro_factory=lambda: test_modify_user(
+                        device, internal_id, redact_stdout=redact_stdout
+                    ),
                 )
-            else:
-                skip_step(
-                    results,
-                    "verify_user_deletion",
-                    "requires delete_user to pass",
+                await step(
+                    results=results,
+                    name="delete_user",
+                    capability=Capability.USER_DELETE,
+                    capabilities=capabilities,
+                    coro_factory=lambda: test_delete_user(device, internal_id),
+                )
+                if results.was_passed("delete_user"):
+                    await step(
+                        results=results,
+                        name="verify_user_deletion",
+                        capability=Capability.USER_LIST,
+                        capabilities=capabilities,
+                        coro_factory=lambda: test_verify_user_deletion(
+                            device, internal_id
+                        ),
+                    )
+                    user_deleted = results.was_passed("verify_user_deletion")
+                else:
+                    skip_step(
+                        results,
+                        "verify_user_deletion",
+                        "requires delete_user to pass",
+                    )
+        finally:
+            if internal_id is not None and not user_deleted:
+                await _best_effort_delete(lambda: device.delete_user(id=internal_id))
+            elif internal_id is None and _step_failed(results, "add_user"):
+                await _best_effort_delete(
+                    lambda: _cleanup_user_by_user_id(device, _TEST_USER_ID)
                 )
 
     # Device needs cooldown between request groups
@@ -1351,48 +1417,59 @@ async def _run_write_tests(  # pragma: no cover
     async with create_device(device_kwargs, results.diagnostics) as device:
         _install_probed_capabilities(device, capabilities)
         # Schedule add + delete
-        sched_id = await step(
-            results=results,
-            name="add_schedule",
-            capability=Capability.SCHEDULE_ADD,
-            capabilities=capabilities,
-            coro_factory=lambda: test_add_schedule(device),
-        )
-        if sched_id is None:
-            reason = "requires internal ID from add_schedule"
-            skip_step(results, "modify_schedule", reason)
-            skip_step(results, "delete_schedule", reason)
-            skip_step(results, "verify_schedule_deletion", reason)
-        else:
-            await step(
+        sched_id: str | None = None
+        schedule_deleted = False
+        try:
+            sched_id = await step(
                 results=results,
-                name="modify_schedule",
-                capability=Capability.SCHEDULE_MODIFY,
+                name="add_schedule",
+                capability=Capability.SCHEDULE_ADD,
                 capabilities=capabilities,
-                coro_factory=lambda: test_modify_schedule(device, sched_id),
+                coro_factory=lambda: test_add_schedule(device),
             )
-            await step(
-                results=results,
-                name="delete_schedule",
-                capability=Capability.SCHEDULE_DELETE,
-                capabilities=capabilities,
-                coro_factory=lambda: test_delete_schedule(device, sched_id),
-            )
-            if results.was_passed("delete_schedule"):
+            if sched_id is None:
+                reason = "requires internal ID from add_schedule"
+                skip_step(results, "modify_schedule", reason)
+                skip_step(results, "delete_schedule", reason)
+                skip_step(results, "verify_schedule_deletion", reason)
+            else:
                 await step(
                     results=results,
-                    name="verify_schedule_deletion",
-                    capability=Capability.SCHEDULE_LIST,
+                    name="modify_schedule",
+                    capability=Capability.SCHEDULE_MODIFY,
                     capabilities=capabilities,
-                    coro_factory=lambda: test_verify_schedule_deletion(
-                        device, sched_id
-                    ),
+                    coro_factory=lambda: test_modify_schedule(device, sched_id),
                 )
-            else:
-                skip_step(
-                    results,
-                    "verify_schedule_deletion",
-                    "requires delete_schedule to pass",
+                await step(
+                    results=results,
+                    name="delete_schedule",
+                    capability=Capability.SCHEDULE_DELETE,
+                    capabilities=capabilities,
+                    coro_factory=lambda: test_delete_schedule(device, sched_id),
+                )
+                if results.was_passed("delete_schedule"):
+                    await step(
+                        results=results,
+                        name="verify_schedule_deletion",
+                        capability=Capability.SCHEDULE_LIST,
+                        capabilities=capabilities,
+                        coro_factory=lambda: test_verify_schedule_deletion(
+                            device, sched_id
+                        ),
+                    )
+                    schedule_deleted = results.was_passed("verify_schedule_deletion")
+                else:
+                    skip_step(
+                        results,
+                        "verify_schedule_deletion",
+                        "requires delete_schedule to pass",
+                    )
+        finally:
+            if sched_id is not None and not schedule_deleted:
+                await _best_effort_delete(lambda: device.delete_schedule(id=sched_id))
+            elif sched_id is None and _step_failed(results, "add_schedule"):
+                await _best_effort_delete(
+                    lambda: _cleanup_schedule_by_name(device, _TEST_SCHEDULE_NAME)
                 )
 
         # Relay trigger (auto-closes per the device-side default
@@ -1438,38 +1515,51 @@ async def _run_write_tests(  # pragma: no cover
     async with create_device(device_kwargs, results.diagnostics) as device:
         _install_probed_capabilities(device, capabilities)
         # Group add + delete
-        group_id = await step(
-            results=results,
-            name="add_group",
-            capability=Capability.GROUP_ADD,
-            capabilities=capabilities,
-            coro_factory=lambda: test_add_group(device),
-        )
-        if group_id is None:
-            reason = "requires internal ID from add_group"
-            skip_step(results, "delete_group", reason)
-            skip_step(results, "verify_group_deletion", reason)
-        else:
-            await step(
+        group_id: str | None = None
+        group_deleted = False
+        try:
+            group_id = await step(
                 results=results,
-                name="delete_group",
-                capability=Capability.GROUP_DELETE,
+                name="add_group",
+                capability=Capability.GROUP_ADD,
                 capabilities=capabilities,
-                coro_factory=lambda: test_delete_group(device, group_id),
+                coro_factory=lambda: test_add_group(device),
             )
-            if results.was_passed("delete_group"):
+            if group_id is None:
+                reason = "requires internal ID from add_group"
+                skip_step(results, "delete_group", reason)
+                skip_step(results, "verify_group_deletion", reason)
+            else:
                 await step(
                     results=results,
-                    name="verify_group_deletion",
-                    capability=Capability.GROUP_LIST,
+                    name="delete_group",
+                    capability=Capability.GROUP_DELETE,
                     capabilities=capabilities,
-                    coro_factory=lambda: test_verify_group_deletion(device, group_id),
+                    coro_factory=lambda: test_delete_group(device, group_id),
                 )
-            else:
-                skip_step(
-                    results,
-                    "verify_group_deletion",
-                    "requires delete_group to pass",
+                if results.was_passed("delete_group"):
+                    await step(
+                        results=results,
+                        name="verify_group_deletion",
+                        capability=Capability.GROUP_LIST,
+                        capabilities=capabilities,
+                        coro_factory=lambda: test_verify_group_deletion(
+                            device, group_id
+                        ),
+                    )
+                    group_deleted = results.was_passed("verify_group_deletion")
+                else:
+                    skip_step(
+                        results,
+                        "verify_group_deletion",
+                        "requires delete_group to pass",
+                    )
+        finally:
+            if group_id is not None and not group_deleted:
+                await _best_effort_delete(lambda: device.delete_group(id=group_id))
+            elif group_id is None and _step_failed(results, "add_group"):
+                await _best_effort_delete(
+                    lambda: _cleanup_group_by_name(device, _TEST_GROUP_NAME)
                 )
 
     # Cooldown before contact tests
@@ -1479,48 +1569,59 @@ async def _run_write_tests(  # pragma: no cover
     async with create_device(device_kwargs, results.diagnostics) as device:
         _install_probed_capabilities(device, capabilities)
         # Contact add + modify + delete
-        contact_id = await step(
-            results=results,
-            name="add_contact",
-            capability=Capability.CONTACT_ADD,
-            capabilities=capabilities,
-            coro_factory=lambda: test_add_contact(device),
-        )
-        if contact_id is None:
-            reason = "requires internal ID from add_contact"
-            skip_step(results, "modify_contact", reason)
-            skip_step(results, "delete_contact", reason)
-            skip_step(results, "verify_contact_deletion", reason)
-        else:
-            await step(
+        contact_id: str | None = None
+        contact_deleted = False
+        try:
+            contact_id = await step(
                 results=results,
-                name="modify_contact",
-                capability=Capability.CONTACT_MODIFY,
+                name="add_contact",
+                capability=Capability.CONTACT_ADD,
                 capabilities=capabilities,
-                coro_factory=lambda: test_modify_contact(device, contact_id),
+                coro_factory=lambda: test_add_contact(device),
             )
-            await step(
-                results=results,
-                name="delete_contact",
-                capability=Capability.CONTACT_DELETE,
-                capabilities=capabilities,
-                coro_factory=lambda: test_delete_contact(device, contact_id),
-            )
-            if results.was_passed("delete_contact"):
+            if contact_id is None:
+                reason = "requires internal ID from add_contact"
+                skip_step(results, "modify_contact", reason)
+                skip_step(results, "delete_contact", reason)
+                skip_step(results, "verify_contact_deletion", reason)
+            else:
                 await step(
                     results=results,
-                    name="verify_contact_deletion",
-                    capability=Capability.CONTACT_LIST,
+                    name="modify_contact",
+                    capability=Capability.CONTACT_MODIFY,
                     capabilities=capabilities,
-                    coro_factory=lambda: test_verify_contact_deletion(
-                        device, contact_id
-                    ),
+                    coro_factory=lambda: test_modify_contact(device, contact_id),
                 )
-            else:
-                skip_step(
-                    results,
-                    "verify_contact_deletion",
-                    "requires delete_contact to pass",
+                await step(
+                    results=results,
+                    name="delete_contact",
+                    capability=Capability.CONTACT_DELETE,
+                    capabilities=capabilities,
+                    coro_factory=lambda: test_delete_contact(device, contact_id),
+                )
+                if results.was_passed("delete_contact"):
+                    await step(
+                        results=results,
+                        name="verify_contact_deletion",
+                        capability=Capability.CONTACT_LIST,
+                        capabilities=capabilities,
+                        coro_factory=lambda: test_verify_contact_deletion(
+                            device, contact_id
+                        ),
+                    )
+                    contact_deleted = results.was_passed("verify_contact_deletion")
+                else:
+                    skip_step(
+                        results,
+                        "verify_contact_deletion",
+                        "requires delete_contact to pass",
+                    )
+        finally:
+            if contact_id is not None and not contact_deleted:
+                await _best_effort_delete(lambda: device.delete_contact(id=contact_id))
+            elif contact_id is None and _step_failed(results, "add_contact"):
+                await _best_effort_delete(
+                    lambda: _cleanup_contact_by_name(device, _TEST_CONTACT_NAME)
                 )
 
     # Cooldown before read tests
