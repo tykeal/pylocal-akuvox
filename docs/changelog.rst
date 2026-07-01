@@ -87,6 +87,11 @@ Fixed
 Added
 ^^^^^
 
+* Added the public ``run_capability_report()`` API for generating the
+  redacted capability report used by ``examples/mvp_test.py``.
+
+  Refs #208.
+
 * Added optional apartment-book ``Contact`` fields ``apt_name``,
   ``apt_num``, ``building``, and ``landline`` for preserving X915S
   contact metadata on reads.
