@@ -99,6 +99,11 @@ Added
 
   Refs #122.
 
+* Added E18 device-class support with the full door-phone capability
+  set and firmware floor ``18.30.10.118+``.
+
+  Refs #207.
+
 * Initial release of pylocal-akuvox
 * Async-only Python library for Akuvox local HTTP API
 * Device connection and info retrieval
