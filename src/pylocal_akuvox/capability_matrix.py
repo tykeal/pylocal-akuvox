@@ -185,6 +185,45 @@ _E18C_CURRENT = DeviceCapabilities(
     ),
 )
 
+# Issue #207: E18 shares the E18C/X916 door-phone capability set.
+_E18_CURRENT = DeviceCapabilities(
+    device_class="E18",
+    firmware_version="18.30.10.118",
+    capabilities={
+        Capability.USER_LIST: CapabilityStatus.SUPPORTED,
+        Capability.USER_ADD: CapabilityStatus.SUPPORTED,
+        Capability.USER_MODIFY: CapabilityStatus.SUPPORTED,
+        Capability.USER_DELETE: CapabilityStatus.SUPPORTED,
+        Capability.SCHEDULE_LIST: CapabilityStatus.SUPPORTED,
+        Capability.SCHEDULE_ADD: CapabilityStatus.SUPPORTED,
+        Capability.SCHEDULE_MODIFY: CapabilityStatus.SUPPORTED,
+        Capability.SCHEDULE_DELETE: CapabilityStatus.SUPPORTED,
+        Capability.GROUP_LIST: CapabilityStatus.SUPPORTED,
+        Capability.GROUP_ADD: CapabilityStatus.SUPPORTED,
+        Capability.GROUP_MODIFY: CapabilityStatus.SUPPORTED,
+        Capability.GROUP_DELETE: CapabilityStatus.SUPPORTED,
+        Capability.CONTACT_LIST: CapabilityStatus.SUPPORTED,
+        Capability.CONTACT_ADD: CapabilityStatus.SUPPORTED,
+        Capability.CONTACT_MODIFY: CapabilityStatus.SUPPORTED,
+        Capability.CONTACT_DELETE: CapabilityStatus.SUPPORTED,
+        Capability.RELAY_TRIGGER_API: CapabilityStatus.SUPPORTED,
+        Capability.RELAY_STATUS: CapabilityStatus.SUPPORTED,
+        Capability.DEVICE_CONFIG_GET: CapabilityStatus.SUPPORTED,
+        Capability.DEVICE_CONFIG_SET: CapabilityStatus.SUPPORTED,
+        Capability.LOG_DOOR: CapabilityStatus.SUPPORTED,
+        Capability.LOG_CALL: CapabilityStatus.SUPPORTED,
+        Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
+    },
+    field_aliases={"schedule_relay": DEFAULT_USER_FIELD_ALIASES},
+    schema_shapes={"contact": SchemaShape.DOOR_PHONE},
+    provenance=Provenance(
+        test_bench_device_id="maintainer's bench unit",
+        firmware_version="18.30.10.118",
+        library_version=_LIB_VERSION,
+        observed_at=_OBSERVED_AT,
+    ),
+)
+
 _X916_BASELINE = DeviceCapabilities(
     device_class="X916",
     firmware_version="916.30.10.114",
@@ -242,6 +281,11 @@ CAPABILITY_MATRIX: tuple[tuple[DeviceClassPattern, DeviceCapabilities], ...] = (
     (
         DeviceClassPattern(model_prefix="E18C", firmware_band="18.30.11.*"),
         _E18C_CURRENT,
+    ),
+    # E18 current firmware — floor band, after E18C to avoid shadowing.
+    (
+        DeviceClassPattern(model_prefix="E18", firmware_band="18.30.10.118+"),
+        _E18_CURRENT,
     ),
     # X916 baseline — glob match (last because most permissive).
     (

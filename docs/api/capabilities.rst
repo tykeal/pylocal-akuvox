@@ -81,6 +81,16 @@ E18C
 Door-phone variant. Same capability set as X916 modulo firmware
 band; aliasing matches X916 byte-for-byte.
 
+E18
+~~~
+
+Door-phone variant with firmware floor ``18.30.10.118+``. Same
+capability set as E18C and X916: user, schedule, group, and contact
+CRUD operations are ``SUPPORTED`` alongside relay status, API relay
+trigger, device config get / set, door and call logs, and key
+discovery. Contact payloads use the door-phone schema shape, and
+``ScheduleRelay`` / ``Schedule-Relay`` aliasing matches E18C and X916.
+
 IT83
 ~~~~
 
