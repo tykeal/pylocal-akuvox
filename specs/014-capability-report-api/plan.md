@@ -284,12 +284,13 @@ async def run_capability_report(
     open_door_user: str | None = None,
     open_door_password: str | None = None,
     timeout: float | None = None,
+    redact_stdout: bool = False,
     emit: Callable[[str], None] | None = None,
 ) -> dict[str, object]: ...
 ```
 
-- `device` — an **entered** `AkuvoxDevice`; the connection template and the
-  read-mode handle (Clarification 2).
+- `device` — an `AkuvoxDevice` connection template; the API opens diagnostic
+  child connections for the probe, write, and read passes (Clarification 2).
 - `write` — default `False` → read-only, zero create/modify/delete requests
   (FR-004). `True` → full CRUD suite against throwaway entities + cleanup
   (FR-005).
@@ -298,6 +299,8 @@ async def run_capability_report(
   `open_door=True` **and** both credentials.
 - `timeout` — caller-supplied request timeout (FR-010); defaults to the
   device's existing timeout when `None`.
+- `redact_stdout` — display-only field-aware redaction threaded into the
+  extracted core for emitted CLI text; it never changes the returned report.
 - `emit` — the console-emitter seam (see below); defaults to a silent sink
   so the library is quiet.
 - **Returns** the redacted report dict (Clarification 5), always the fuller
@@ -317,6 +320,8 @@ single injected emitter `emit: Callable[[str], None]` through the extracted
 core (carried on `TestResults` and passed to the step/`test_*` helpers).
 `run_capability_report` defaults `emit` to a **silent sink**; the CLI passes
 an emitter that calls `print(...)` producing **byte-identical** stdout.
+The CLI's `--redact-stdout` flag is threaded into this extracted core through
+the display-only `redact_stdout` keyword rather than remaining CLI-only.
 `write_json`, argparse, `getpass`, env resolution, and `sys.exit` stay in
 the CLI. The JSON report and return value are independent of `emit` and
 always produced. (This is an internal design decision, not a spec
@@ -373,8 +378,9 @@ appears in the report, logs, or any recorded body excerpt.
 `--redact-stdout` handling, `--json-report` writing, and `sys.exit` error
 mapping. `run_all()` becomes a thin adapter that builds an entered
 `AkuvoxDevice`, calls `run_capability_report(...)` with a `print` emitter,
-and writes/prints the returned report. There is no second copy of the
-report/step/redaction logic to drift (US5 scenario 3).
+threads `redact_stdout` into the core, and writes/prints the returned report.
+There is no second copy of the report/step/redaction logic to drift (US5
+scenario 3).
 
 ## Project Structure
 

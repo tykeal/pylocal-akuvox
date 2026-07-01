@@ -27,6 +27,7 @@ async def run_capability_report(
     open_door_user: str | None = None,
     open_door_password: str | None = None,
     timeout: float | None = None,
+    redact_stdout: bool = False,
     emit: Callable[[str], None] | None = None,
 ) -> dict[str, object]: ...
 ```
@@ -35,12 +36,13 @@ async def run_capability_report(
 
 | Param | Default | Meaning |
 |---|---|---|
-| `device` | — | An **entered** `AkuvoxDevice`. Used as the connection template + read-mode handle; the API owns write-mode reconnects (Clarification 2). |
+| `device` | — | An `AkuvoxDevice` used as the connection template; the API opens its own diagnostic child connections for probe, write, and read passes (Clarification 2). |
 | `write` | `False` | `False` → read-only, **zero** create/modify/delete requests (FR-004). `True` → full CRUD suite against throwaway entities + cleanup (FR-005). |
 | `open_door` | `False` | Opt into the physical OpenDoor relay test. Requires `write=True` **and** both credentials to actuate (FR-006). |
 | `open_door_user` | `None` | OpenDoor relay username (Clarification 1). |
 | `open_door_password` | `None` | OpenDoor relay password, passed programmatically; **never** read from env by the library (Clarification 1). |
 | `timeout` | `None` | Caller-supplied request timeout; falls back to the device's timeout when `None` (FR-010). |
+| `redact_stdout` | `False` | Display-only seam mirroring the CLI `--redact-stdout`: field-aware in-string redaction of emitted lines; **never** affects the returned report, which is always fully redacted. |
 | `emit` | `None` | Console-emitter seam. `None` → **silent** (library is quiet). The CLI passes a `print`-based emitter for byte-identical stdout. |
 
 ## Returns
@@ -83,6 +85,8 @@ per test), in **both** read-only and write modes (Clarification 5). Never the
    pause) to preserve the E18 CGI-state workaround (Clarification 2).
 8. **Quiet by default** — with `emit=None` the library prints nothing; the
    JSON report and return value are independent of `emit`.
+9. **Display-only stdout redaction** — `redact_stdout` is orthogonal to the
+   returned report and only changes values sent through `emit`.
 
 ## Invariants preserved (FR-014)
 
