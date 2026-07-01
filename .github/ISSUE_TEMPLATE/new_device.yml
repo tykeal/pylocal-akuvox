@@ -12,6 +12,9 @@ body:
         Maintainers turn this report into a single `CAPABILITY_MATRIX` entry in
         `src/pylocal_akuvox/capability_matrix.py`.
 
+        - A Home Assistant `local-akuvox` diagnostics download is also accepted
+          as capability evidence.
+
         The most valuable input is output from `examples/mvp_test.py`. Key
         principle: report only confirmed evidence. Mark operations `supported`
         only after they succeeded, mark `unsupported` only after the device
@@ -65,7 +68,7 @@ body:
   - type: textarea
     id: mvp-output
     attributes:
-      label: mvp_test.py output
+      label: Capability evidence (mvp_test.py OR HA diagnostics)
       description: |
         Read-only probe:
 
@@ -94,6 +97,13 @@ body:
         uv run examples/mvp_test.py <device-ip> --auth <basic|digest> --user <user> \
           --json-report report.json
         ```
+
+        Home Assistant `local-akuvox` integration users can alternatively
+        attach the integration diagnostics download: Settings → Devices &
+        Services → the Akuvox device → ... menu → Download diagnostics. The
+        diagnostics contain the same capability evidence: model,
+        firmware/hardware version, capability status map, field aliases, and
+        schema shapes.
 
         Add `--redact-stdout` before sharing terminal logs. JSON body excerpts
         are always redacted in `--json-report` output.
