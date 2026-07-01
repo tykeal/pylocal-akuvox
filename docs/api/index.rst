@@ -15,4 +15,5 @@ API Reference
    config
    auth
    capabilities
+   report
    exceptions

@@ -9,6 +9,7 @@ from pylocal_akuvox._capability_profile import (
     DeviceCapabilities,
     FieldAliases,
 )
+from pylocal_akuvox._capability_report import run_capability_report
 from pylocal_akuvox._capability_types import (
     Capability,
     CapabilityStatus,
@@ -71,6 +72,7 @@ __all__: list[str] = [
     "FieldAliases",
     "Group",
     "Relay",
+    "run_capability_report",
     "SchemaShape",
     "User",
 ]

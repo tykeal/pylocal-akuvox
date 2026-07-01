@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from pylocal_akuvox._capability_matching import lookup_capabilities
 from pylocal_akuvox._device_profiles import _conservative_empty_profile
@@ -67,6 +67,18 @@ def make_context(
         capabilities=require_capabilities(capabilities),
         allow_unknown=allow_unknown,
     )
+
+
+def get_connection_spec(client: AkuvoxHttpClient) -> dict[str, Any]:
+    """Return constructor kwargs for a diagnostic child device."""
+    return {
+        "host": client._base_url.split("://", 1)[1],  # noqa: SLF001
+        "auth": client._auth,  # noqa: SLF001
+        "timeout": client._timeout.total,  # noqa: SLF001
+        "use_ssl": client._use_ssl,  # noqa: SLF001
+        "verify_ssl": client._verify_ssl,  # noqa: SLF001
+        "request_delay": client._request_delay,  # noqa: SLF001
+    }
 
 
 async def enter_device(device: _DeviceRuntime) -> None:

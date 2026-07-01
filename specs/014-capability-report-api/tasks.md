@@ -201,7 +201,7 @@ canonical** if anything drifts. All line numbers are approximate.
 **Purpose**: Confirm the green starting state and capture the **byte-identity
 oracle** before any source moves — this is what makes the extraction safe.
 
-- [ ] T001 Capture the pre-change baseline on `main`.
+- [x] T001 Capture the pre-change baseline on `main`.
 
   - **Goal**: Record that the full suite is green and that the cheat-sheet
     symbols are present at the stated locations, so later red→green
@@ -220,7 +220,7 @@ oracle** before any source moves — this is what makes the extraction safe.
   - **Acceptance criteria**: full suite + all gates green; cheat-sheet
     symbols confirmed.
 
-- [ ] T002 [US5] Capture the golden CLI byte-identity oracle.
+- [x] T002 [US5] Capture the golden CLI byte-identity oracle.
 
   - **Goal**: Freeze the **pre-extraction** CLI output (stdout + the
     `--json-report` bytes) for a deterministic set of mocked-device runs, so
@@ -264,7 +264,7 @@ replay.
 underscore module with a byte-identical `to_json()` contract. Covers FR-002,
 FR-003, FR-014, FR-016; SC-003; US4; US1 scenario 1 (schema).
 
-- [ ] T003 [P] [US4] Red — author `tests/unit/test_diagnostic_report.py`.
+- [x] T003 [P] [US4] Red — author `tests/unit/test_diagnostic_report.py`.
 
   - **Goal**: Pin the frozen JSON contract and the unconditional redaction
     policy against the **new** module path before the module exists.
@@ -306,7 +306,7 @@ FR-003, FR-014, FR-016; SC-003; US4; US1 scenario 1 (schema).
     tests/unit/test_diagnostic_report.py` passes; the suite **fails** (red)
     with `ModuleNotFoundError: pylocal_akuvox._diagnostic_report`.
 
-- [ ] T004 [US4] Green — create `src/pylocal_akuvox/_diagnostic_report.py`.
+- [x] T004 [US4] Green — create `src/pylocal_akuvox/_diagnostic_report.py`.
 
   - **Goal**: Make T003 pass by moving the report dataclasses + redaction
     helpers **verbatim** (behaviour-preserving) into the new module.
@@ -349,7 +349,7 @@ library is silent by default while the CLI reproduces byte-identical stdout.
 Covers FR-004 (partial), FR-008, FR-016; US1; US4 (gating). Introduces the
 `emit`/`redact_stdout` seam (Anomalies §1).
 
-- [ ] T005 [P] [US1] [US4] Red — author `tests/unit/test_report_steps.py`.
+- [x] T005 [P] [US1] [US4] Red — author `tests/unit/test_report_steps.py`.
 
   - **Goal**: Pin capability gating, read-step outcomes, the silent-by-
     default emitter, and the emit/`redact_stdout` seam before the module
@@ -384,7 +384,7 @@ Covers FR-004 (partial), FR-008, FR-016; US1; US4 (gating). Introduces the
   - **Acceptance criteria**: `py_compile` passes; suite **fails** (red) with
     `ModuleNotFoundError: pylocal_akuvox._report_steps`.
 
-- [ ] T006 [US1] [US4] Green — create `src/pylocal_akuvox/_report_steps.py`
+- [x] T006 [US1] [US4] Green — create `src/pylocal_akuvox/_report_steps.py`
   with the emit seam.
 
   - **Goal**: Make T005 pass by moving the step framework + instrumentation +
@@ -439,7 +439,7 @@ settle pauses + dependency skips + throwaway-entity fixtures) into
 `_report_steps.py` and add the byte-neutral best-effort teardown guard.
 Covers FR-005, FR-009, FR-016; SC-004; US2.
 
-- [ ] T007 [US2] Red — author the write-suite tests in
+- [x] T007 [US2] Red — author the write-suite tests in
   `tests/unit/test_capability_report.py`.
 
   - **Goal**: Pin CRUD evidence, cleanup, dependency skips, and the
@@ -476,7 +476,7 @@ Covers FR-005, FR-009, FR-016; SC-004; US2.
     because the write suite / teardown guard are not yet in
     `_report_steps.py`.
 
-- [ ] T008 [US2] Green — move `_run_write_tests` + write `test_*` + teardown
+- [x] T008 [US2] Green — move `_run_write_tests` + write `test_*` + teardown
   guard into `src/pylocal_akuvox/_report_steps.py`.
 
   - **Goal**: Make T007 pass, preserving the connection-per-CRUD-group +
@@ -519,7 +519,7 @@ Covers FR-006, FR-007, FR-016; SC-005; US3. Resolves the US3-scenario-4
 inline marker (library skips when `write=False`; CLI keeps its stricter
 `parser.error`).
 
-- [ ] T009 [US3] Red — author the OpenDoor tests in
+- [x] T009 [US3] Red — author the OpenDoor tests in
   `tests/unit/test_capability_report.py`.
 
   - **Goal**: Pin actuate-iff-opted-in-with-creds, the skip reasons, the
@@ -544,7 +544,7 @@ inline marker (library skips when `write=False`; CLI keeps its stricter
   - **Acceptance criteria**: `py_compile` passes; suite **fails** (red)
     because the OpenDoor step is not yet in `_report_steps.py`.
 
-- [ ] T010 [US3] Green — move `test_open_door` / `_run_open_door_write_step` /
+- [x] T010 [US3] Green — move `test_open_door` / `_run_open_door_write_step` /
   `_open_door_skip_reason` into `src/pylocal_akuvox/_report_steps.py`.
 
   - **Goal**: Make T009 pass with the two explicit credential parameters
@@ -586,7 +586,7 @@ instrumented connections), re-export from `__init__` / `__all__`, and
 preserve error propagation. Covers FR-001, FR-004, FR-010, FR-014, FR-015,
 FR-016; SC-001, SC-004, SC-007; US1, US2.
 
-- [ ] T011 [US1] [US2] Red — author orchestrator + connection-spec + module-
+- [x] T011 [US1] [US2] Red — author orchestrator + connection-spec + module-
   layout + probe-regression tests.
 
   - **Goal**: Pin the public surface, read/write end-to-end behaviour, error
@@ -637,7 +637,7 @@ FR-016; SC-001, SC-004, SC-007; US1, US2.
     `_capability_report` and `AttributeError` for the connection-spec
     accessor.
 
-- [ ] T012 [US1] [US2] Green — create `src/pylocal_akuvox/_capability_report.py`,
+- [x] T012 [US1] [US2] Green — create `src/pylocal_akuvox/_capability_report.py`,
   add the connection-spec accessor, and re-export the public symbol.
 
   - **Goal**: Make T011 pass — the orchestrator ties probe + optional write
@@ -702,7 +702,7 @@ propagates the CLI's errors, and leaves `probe_capabilities()` untouched.
 `run_capability_report()`, with byte-identical stdout + `--json-report`.
 Covers FR-011, FR-012, FR-015; SC-002; US5.
 
-- [ ] T013 [US5] Red — author the CLI byte-parity regression test.
+- [x] T013 [US5] Red — author the CLI byte-parity regression test.
 
   - **Goal**: Assert the refactored CLI reproduces the T002 golden oracle
     byte-for-byte before the wrapper is rewritten.
@@ -726,7 +726,7 @@ Covers FR-011, FR-012, FR-015; SC-002; US5.
     for the still-unchanged CLI — sequence so the "single source of truth"
     grep assertion is red pre-refactor).
 
-- [ ] T014 [US5] Green — rewrite `examples/mvp_test.py` as a thin wrapper.
+- [x] T014 [US5] Green — rewrite `examples/mvp_test.py` as a thin wrapper.
 
   - **Goal**: Make T013 pass — `run_all` delegates to
     `run_capability_report()` with a `print` emitter; the CLI keeps its full
@@ -771,7 +771,7 @@ of truth.
 **Goal**: Document `run_capability_report` under `docs/api/` and wire it into
 the build. Covers FR-013, FR-016; SC-007.
 
-- [ ] T015 [P] Add `docs/api/report.rst`, wire the toctree, and cross-link.
+- [x] T015 [P] Add `docs/api/report.rst`, wire the toctree, and cross-link.
 
   - **Goal**: Publish the public API reference (parameters, returned schema,
     redaction guarantees, OpenDoor opt-in safety note) and make it appear in
@@ -812,7 +812,7 @@ green with `-W`.
 **Purpose**: Whole-suite green, coverage gate, and conventions compliance
 before the implementation PR.
 
-- [ ] T016 Run the full quality gate.
+- [x] T016 Run the full quality gate.
 
   - **Goal**: Confirm every gate is green across the whole change.
   - **Files touched**: none (read-only), modulo auto-formatting fixes.
@@ -828,7 +828,7 @@ before the implementation PR.
     `uv run --extra docs sphinx-build -W -b html docs docs/_build/html`.
   - **Acceptance criteria**: all gates green; 100% branch coverage.
 
-- [ ] T017 Pre-PR conventions & REUSE/SPDX sweep.
+- [x] T017 Pre-PR conventions & REUSE/SPDX sweep.
 
   - **Goal**: Ensure the new source/docs files carry SPDX headers and the
     diffs are Conventional-Commit-ready with no duplicated logic left behind.

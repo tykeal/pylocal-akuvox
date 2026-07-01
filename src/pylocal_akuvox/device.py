@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import pylocal_akuvox._device_runtime as _runtime
 from pylocal_akuvox import (
     _device_access,
     _device_config_logs,
@@ -18,18 +19,6 @@ from pylocal_akuvox._capability_probe import probe_capabilities as _probe_capabi
 from pylocal_akuvox._device_profiles import (
     _DEVICE_NOT_IN_MATRIX_NOTE,
     _merge_probe_with_matrix,
-)
-from pylocal_akuvox._device_runtime import (
-    enter_device,
-    exit_device,
-    make_context,
-    require_capabilities,
-)
-from pylocal_akuvox._device_runtime import (
-    get_info as _runtime_get_info,
-)
-from pylocal_akuvox._device_runtime import (
-    get_status as _runtime_get_status,
 )
 from pylocal_akuvox._http import AkuvoxHttpClient
 from pylocal_akuvox.relay import open_door_http as _open
@@ -82,15 +71,19 @@ class AkuvoxDevice:
 
     def _context(self) -> _DeviceContext:
         """Build the helper context from current facade state."""
-        return make_context(
+        return _runtime.make_context(
             self._http,
             self._capabilities,
             allow_unknown=self.attempt_unknown_capability,
         )
 
+    def _connection_spec(self) -> dict[str, Any]:
+        """Return private connection parameters for diagnostic child sessions."""
+        return _runtime.get_connection_spec(self._http)
+
     def _require_capabilities(self) -> DeviceCapabilities:
         """Return established capabilities or raise the legacy lifecycle error."""
-        return require_capabilities(self._capabilities)
+        return _runtime.require_capabilities(self._capabilities)
 
     async def probe_capabilities(
         self,
@@ -106,7 +99,7 @@ class AkuvoxDevice:
 
     async def __aenter__(self) -> AkuvoxDevice:
         """Open the underlying HTTP session and populate capabilities."""
-        await enter_device(self)
+        await _runtime.enter_device(self)
         return self
 
     async def __aexit__(
@@ -116,15 +109,15 @@ class AkuvoxDevice:
         exc_tb: object,
     ) -> None:
         """Close the underlying HTTP session and clear cached state."""
-        await exit_device(self, exc_type, exc_val, exc_tb)
+        await _runtime.exit_device(self, exc_type, exc_val, exc_tb)
 
     async def get_info(self) -> models.DeviceInfo:
         """Retrieve device identification data."""
-        return await _runtime_get_info(self._http, self._info)
+        return await _runtime.get_info(self._http, self._info)
 
     async def get_status(self) -> models.DeviceStatus:
         """Retrieve device operational status."""
-        return await _runtime_get_status(self._http)
+        return await _runtime.get_status(self._http)
 
     async def add_user(
         self,

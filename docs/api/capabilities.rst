@@ -20,6 +20,9 @@ the matrix maintainer has not classified the operation either way; the
 per-call gate fails fast unless the integrator opts in with
 ``device.attempt_unknown_capability = True``.
 
+For write-capable evidence collection and a redacted support artifact, see
+:doc:`report`.
+
 Public types
 ------------
 
