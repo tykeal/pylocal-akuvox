@@ -7,11 +7,14 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 from typing import Any, cast
 
 import examples.mvp_test as mvp_test
 import pytest
 
+import pylocal_akuvox._capability_report as _capability_report
+import pylocal_akuvox._report_steps as _report_steps
 from pylocal_akuvox import Capability, CapabilityStatus, DeviceCapabilities
 from pylocal_akuvox.exceptions import (
     AkuvoxAuthenticationError,
@@ -139,6 +142,23 @@ class _FakeOpenDoorDevice:
         self.calls.append((user, password, door_num))
 
 
+class _FakeReportTemplate:
+    """Device template double for capability-report orchestration tests."""
+
+    def __init__(self, *, attempt_unknown_capability: bool) -> None:
+        """Store whether UNKNOWN capability probes should run."""
+        self.attempt_unknown_capability = attempt_unknown_capability
+
+    def _connection_spec(self) -> dict[str, Any]:
+        """Return enough connection data for report orchestration."""
+        return {
+            "host": "192.0.2.10",
+            "auth": None,
+            "use_ssl": False,
+            "verify_ssl": True,
+        }
+
+
 class _FakeDeviceContext:
     """Async context manager returning a fake device."""
 
@@ -228,28 +248,28 @@ def _patch_fast_write_steps(
         return None
 
     monkeypatch.setattr(
-        mvp_test,
+        _report_steps,
         "create_device",
         lambda _kwargs, _diagnostics: _FakeDeviceContext(device),
     )
-    monkeypatch.setattr(cast("Any", mvp_test).asyncio, "sleep", no_sleep)
-    monkeypatch.setattr(mvp_test, "test_add_user", return_user_id)
-    monkeypatch.setattr(mvp_test, "test_modify_user", succeed)
-    monkeypatch.setattr(mvp_test, "test_delete_user", succeed)
-    monkeypatch.setattr(mvp_test, "test_verify_user_deletion", succeed)
-    monkeypatch.setattr(mvp_test, "test_add_schedule", return_schedule_id)
-    monkeypatch.setattr(mvp_test, "test_modify_schedule", succeed)
-    monkeypatch.setattr(mvp_test, "test_delete_schedule", succeed)
-    monkeypatch.setattr(mvp_test, "test_verify_schedule_deletion", succeed)
-    monkeypatch.setattr(mvp_test, "test_trigger_relay", succeed)
-    monkeypatch.setattr(mvp_test, "test_set_device_config", succeed)
-    monkeypatch.setattr(mvp_test, "test_add_group", return_group_id)
-    monkeypatch.setattr(mvp_test, "test_delete_group", succeed)
-    monkeypatch.setattr(mvp_test, "test_verify_group_deletion", succeed)
-    monkeypatch.setattr(mvp_test, "test_add_contact", return_contact_id)
-    monkeypatch.setattr(mvp_test, "test_modify_contact", succeed)
-    monkeypatch.setattr(mvp_test, "test_delete_contact", succeed)
-    monkeypatch.setattr(mvp_test, "test_verify_contact_deletion", succeed)
+    monkeypatch.setattr(cast("Any", _report_steps).asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(_report_steps, "test_add_user", return_user_id)
+    monkeypatch.setattr(_report_steps, "test_modify_user", succeed)
+    monkeypatch.setattr(_report_steps, "test_delete_user", succeed)
+    monkeypatch.setattr(_report_steps, "test_verify_user_deletion", succeed)
+    monkeypatch.setattr(_report_steps, "test_add_schedule", return_schedule_id)
+    monkeypatch.setattr(_report_steps, "test_modify_schedule", succeed)
+    monkeypatch.setattr(_report_steps, "test_delete_schedule", succeed)
+    monkeypatch.setattr(_report_steps, "test_verify_schedule_deletion", succeed)
+    monkeypatch.setattr(_report_steps, "test_trigger_relay", succeed)
+    monkeypatch.setattr(_report_steps, "test_set_device_config", succeed)
+    monkeypatch.setattr(_report_steps, "test_add_group", return_group_id)
+    monkeypatch.setattr(_report_steps, "test_delete_group", succeed)
+    monkeypatch.setattr(_report_steps, "test_verify_group_deletion", succeed)
+    monkeypatch.setattr(_report_steps, "test_add_contact", return_contact_id)
+    monkeypatch.setattr(_report_steps, "test_modify_contact", succeed)
+    monkeypatch.setattr(_report_steps, "test_delete_contact", succeed)
+    monkeypatch.setattr(_report_steps, "test_verify_contact_deletion", succeed)
 
 
 def _run_parser_coroutine_without_loop(coro: Any) -> Any:
@@ -260,6 +280,19 @@ def _run_parser_coroutine_without_loop(coro: Any) -> Any:
         return exc.value
     msg = "parser test coroutine unexpectedly yielded"
     raise AssertionError(msg)
+
+
+def test_mvp_script_is_thin_wrapper() -> None:
+    """The CLI must not carry a second copy of the report core."""
+    source = Path(mvp_test.__file__).read_text(encoding="utf-8")
+
+    for duplicate in (
+        "class DiagnosticReport",
+        "def _run_write_tests",
+        "def _redact_json_values",
+        "def test_add_user",
+    ):
+        assert duplicate not in source
 
 
 async def test_run_step_records_success() -> None:
@@ -493,6 +526,123 @@ async def test_write_tests_attempt_open_door_once_with_credentials(
     output = capsys.readouterr().out
     assert mvp_test._REDACTED_VALUE in output
     assert "relay-secret" not in output
+
+
+async def test_report_attempt_unknown_allows_unknown_capabilities(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Honor the caller device's UNKNOWN-capability opt-in in report runs."""
+    passed_capabilities: dict[str, DeviceCapabilities] = {}
+    profile = DeviceCapabilities(
+        device_class="Test",
+        firmware_version="1",
+        capabilities={
+            Capability.USER_LIST: CapabilityStatus.UNKNOWN,
+            Capability.CONTACT_LIST: CapabilityStatus.UNSUPPORTED,
+        },
+        field_aliases={},
+        schema_shapes={},
+    )
+
+    async def skip_validation() -> None:
+        """Avoid the live validation probe in this orchestration test."""
+        return None
+
+    async def return_profile(*_args: object, **_kwargs: object) -> DeviceCapabilities:
+        """Return a profile containing UNKNOWN and UNSUPPORTED evidence."""
+        return profile
+
+    async def capture_read_capabilities(
+        _device: object,
+        _results: object,
+        *,
+        capabilities: DeviceCapabilities,
+        redact_stdout: bool,
+    ) -> None:
+        """Capture the capability profile passed to read tests."""
+        assert redact_stdout is False
+        passed_capabilities["read"] = capabilities
+
+    monkeypatch.setattr(_capability_report, "test_validation", skip_validation)
+    monkeypatch.setattr(
+        _capability_report, "_probe_device_capabilities", return_profile
+    )
+    monkeypatch.setattr(
+        _capability_report, "_run_read_tests", capture_read_capabilities
+    )
+    monkeypatch.setattr(
+        _capability_report,
+        "create_device",
+        lambda _kwargs, _diagnostics: _FakeDeviceContext(_FakeOpenDoorDevice()),
+    )
+
+    await _capability_report._run_capability_report(
+        cast("Any", _FakeReportTemplate(attempt_unknown_capability=True)),
+        write=False,
+        open_door=False,
+        open_door_user=None,
+        open_door_password=None,
+        timeout=None,
+        redact_stdout=False,
+    )
+
+    assert passed_capabilities["read"].status_of(Capability.USER_LIST) is (
+        CapabilityStatus.SUPPORTED
+    )
+    assert passed_capabilities["read"].status_of(Capability.CONTACT_LIST) is (
+        CapabilityStatus.UNSUPPORTED
+    )
+
+
+async def test_report_open_door_read_only_skip_names_write_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Explain that read-only OpenDoor opt-ins need write mode."""
+    profile = _all_supported_capabilities()
+
+    async def skip_validation() -> None:
+        """Avoid the live validation probe in this orchestration test."""
+        return None
+
+    async def return_profile(*_args: object, **_kwargs: object) -> DeviceCapabilities:
+        """Return a profile that lets the read pass continue."""
+        return profile
+
+    async def skip_read_tests(
+        _device: object,
+        _results: object,
+        *,
+        capabilities: DeviceCapabilities,
+        redact_stdout: bool,
+    ) -> None:
+        """Avoid unrelated read steps in this orchestration test."""
+        assert capabilities is profile
+        assert redact_stdout is False
+
+    monkeypatch.setattr(_capability_report, "test_validation", skip_validation)
+    monkeypatch.setattr(
+        _capability_report, "_probe_device_capabilities", return_profile
+    )
+    monkeypatch.setattr(_capability_report, "_run_read_tests", skip_read_tests)
+    monkeypatch.setattr(
+        _capability_report,
+        "create_device",
+        lambda _kwargs, _diagnostics: _FakeDeviceContext(_FakeOpenDoorDevice()),
+    )
+
+    report = await _capability_report._run_capability_report(
+        cast("Any", _FakeReportTemplate(attempt_unknown_capability=False)),
+        write=False,
+        open_door=True,
+        open_door_user="relay-user",
+        open_door_password="relay-secret",
+        timeout=None,
+        redact_stdout=False,
+    )
+
+    tests = cast("list[dict[str, object]]", report["tests"])
+    open_door_test = next(test for test in tests if test["name"] == "open_door_http")
+    assert open_door_test["reason"] == "requires write=True to run OpenDoor HTTP"
 
 
 def test_main_parses_open_door_credentials(
@@ -884,8 +1034,8 @@ def test_scalar_failure_body_excerpt_omits_value() -> None:
     assert mvp_test._SCALAR_JSON_BODY_OMITTED in report_text
 
 
-def test_unknown_success_status_body_gets_safe_excerpt() -> None:
-    """Emit a privacy-safe snippet for HTTP 200 responses with no retcode."""
+def test_unknown_success_status_body_omits_excerpt() -> None:
+    """Omit body snippets for HTTP 200 responses with no retcode."""
     diagnostics = mvp_test.DiagnosticReport(
         host="192.0.2.10",
         auth_method="none",
@@ -911,7 +1061,7 @@ def test_unknown_success_status_body_gets_safe_excerpt() -> None:
 
     report_text = json.dumps(diagnostics.to_json())
     assert "Alice Resident" not in report_text
-    assert mvp_test._NON_JSON_BODY_OMITTED in report_text
+    assert "body_snippet" not in report_text
 
 
 def test_scalar_list_failure_body_excerpt_redacts_values() -> None:
@@ -1084,6 +1234,65 @@ def test_json_report_redacts_device_host() -> None:
 
     assert device["host"] == mvp_test._REDACTED_VALUE
     assert "192.0.2.10" not in json.dumps(report)
+
+
+def test_diagnostic_report_handles_empty_and_identity_paths() -> None:
+    """Cover report no-op and device-identity update branches."""
+    diagnostics = mvp_test.DiagnosticReport(
+        host="192.0.2.10",
+        auth_method="none",
+        use_ssl=False,
+        verify_ssl=True,
+    )
+
+    diagnostics.finish_test("passed")
+    diagnostics.begin_test("EXCEPTION ONLY")
+    diagnostics.record_exception(ValueError("first line\nsecond line"))
+    diagnostics.finish_test("failed", "boom")
+    diagnostics.begin_test("BAD STATUS SHAPE")
+    diagnostics.begin_http_event(
+        method="GET",
+        endpoint="/api/system/info",
+        data=None,
+        params=None,
+    )
+    diagnostics.record_exception(RuntimeError("active event failed"))
+    event = diagnostics.tests[-1].events[-1]
+    setattr(diagnostics, "_current_test", None)
+    diagnostics.record_exception(RuntimeError("active event without test"))
+    assert event.exception_message == "active event without test"
+    setattr(diagnostics, "_current_test", diagnostics.tests[-1])
+    diagnostics.record_http_response(
+        status=200,
+        body_text='{"retcode":0}',
+        body={"data": {"Status": "bad"}},
+        retcode=0,
+        retmsg=None,
+        data={},
+    )
+    diagnostics.finish_test("passed")
+    diagnostics.begin_test("GET DEVICE INFO")
+    diagnostics.begin_http_event(
+        method="GET",
+        endpoint="/api/system/info",
+        data=None,
+        params=None,
+    )
+    diagnostics.record_http_response(
+        status=200,
+        body_text='{"retcode":0}',
+        body={"data": {"Status": {"Model": "X916", "FirmwareVersion": "1.2.3"}}},
+        retcode=0,
+        retmsg=None,
+        data={},
+    )
+
+    report = diagnostics.to_json()
+    device = cast("dict[str, Any]", report["device"])
+    exception_record = diagnostics.tests[0]
+    assert exception_record.exception_message == "first line"
+    assert device["model"] == "X916"
+    assert device["firmware"] == "1.2.3"
 
 
 def test_json_report_includes_failure_shape() -> None:

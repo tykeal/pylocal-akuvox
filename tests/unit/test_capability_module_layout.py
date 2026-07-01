@@ -36,6 +36,7 @@ import pytest
 
 import pylocal_akuvox
 import pylocal_akuvox._capability_profile as _profile
+import pylocal_akuvox._capability_report as _report
 import pylocal_akuvox._capability_types as _types
 
 
@@ -167,6 +168,22 @@ def test_device_subpath_remains_importable() -> None:
 def test_device_public_symbol_in_top_level_all() -> None:
     """``AkuvoxDevice`` remains part of the top-level public exports."""
     assert "AkuvoxDevice" in pylocal_akuvox.__all__
+
+
+def test_capability_report_modules_importable() -> None:
+    """The capability-report split modules must import cleanly."""
+    for name in (
+        "pylocal_akuvox._diagnostic_report",
+        "pylocal_akuvox._report_steps",
+        "pylocal_akuvox._capability_report",
+    ):
+        importlib.import_module(name)
+
+
+def test_capability_report_export_roundtrips() -> None:
+    """The public report API must be re-exported from the package root."""
+    assert pylocal_akuvox.run_capability_report is _report.run_capability_report
+    assert "run_capability_report" in pylocal_akuvox.__all__
 
 
 def test_device_underscore_modules_importable() -> None:
