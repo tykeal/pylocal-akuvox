@@ -15,11 +15,10 @@ modules: this module imports ``DeviceClassPattern`` from
 import of ``CAPABILITY_MATRIX`` from ``_capability_matching``'s
 direction would close the loop.
 
-The module also defines a small ``_library_version`` helper plus
-the ``_LIB_VERSION`` and ``_OBSERVED_AT`` sentinels that every
-:class:`Provenance` instance threads through; these are private and
-exist solely to keep every matrix entry's provenance consistent
-across the process (sampled once at import time).
+The module also defines the ``_LIB_VERSION`` and ``_OBSERVED_AT``
+sentinels that every :class:`Provenance` instance threads through;
+these are private and exist solely to keep every matrix entry's
+provenance consistent across the process (sampled once at import time).
 
 The matrix is curated **most-specific-first**: the first
 ``DeviceClassPattern`` that matches an observed device wins. Adding a
@@ -34,8 +33,7 @@ of the entries below.
 
 from __future__ import annotations
 
-import importlib.metadata
-
+from pylocal_akuvox import __version__ as _LIB_VERSION
 from pylocal_akuvox._capability_defaults import DEFAULT_USER_FIELD_ALIASES
 from pylocal_akuvox._capability_matching import DeviceClassPattern
 from pylocal_akuvox._capability_profile import (
@@ -49,20 +47,6 @@ from pylocal_akuvox._capability_types import (
     SchemaShape,
 )
 
-
-def _library_version() -> str:
-    """Return the installed library version, or a placeholder if unbuilt.
-
-    Sampled at import time so every matrix entry's :class:`Provenance`
-    records the same version string for the duration of the process.
-    """
-    try:
-        return importlib.metadata.version("pylocal-akuvox")
-    except importlib.metadata.PackageNotFoundError:
-        return "0.0.0"
-
-
-_LIB_VERSION = _library_version()
 _OBSERVED_AT = "2026-06-13"
 
 

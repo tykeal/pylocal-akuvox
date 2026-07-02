@@ -31,6 +31,7 @@ from pylocal_akuvox._capability_types import (
 )
 from pylocal_akuvox.capability_matrix import CAPABILITY_MATRIX
 from pylocal_akuvox.models import DeviceInfo
+from tests.unit._helpers import drop_capability_matrix
 
 
 def _info(model: str, firmware: str) -> DeviceInfo:
@@ -272,25 +273,25 @@ def test_x916_capability_deltas() -> None:
     )
 
 
-def test_library_version_fallback_on_package_not_found(
+def test_matrix_library_version_reuses_package_version(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Cover the PackageNotFoundError fallback in _library_version().
-
-    When pylocal-akuvox is imported from a tree that is not installed
-    as a distribution (e.g. zip-app, vendored source), the metadata
-    lookup raises and we fall back to the ``0.0.0`` placeholder.
-    """
+    """Matrix provenance reuses the package version without metadata I/O."""
+    import importlib
     import importlib.metadata
 
-    from pylocal_akuvox import capability_matrix
+    import pylocal_akuvox
 
-    def _raise(_name: str) -> str:  # pragma: no cover - patched below
+    def _raise(_name: str) -> str:
         """Stub importlib.metadata.version that always raises."""
         raise importlib.metadata.PackageNotFoundError(_name)
 
     monkeypatch.setattr(importlib.metadata, "version", _raise)
-    assert capability_matrix._library_version() == "0.0.0"  # noqa: SLF001
+    drop_capability_matrix(pylocal_akuvox)
+
+    capability_matrix = importlib.import_module("pylocal_akuvox.capability_matrix")
+
+    assert getattr(capability_matrix, "_LIB_VERSION") == pylocal_akuvox.__version__
 
 
 # ============================================================================
