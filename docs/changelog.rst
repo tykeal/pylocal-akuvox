@@ -84,6 +84,11 @@ Fixed
 
   Refs #216.
 
+* Avoid a blocking package metadata read when ``AkuvoxDevice.__aenter__()``
+  performs its connect-time capability matrix lookup.
+
+  Refs #215.
+
 * ``open_door_http()`` now checks the ``hcSingleResult`` marker returned
   by IT83-class ``/fcgi/do?action=OpenDoor`` responses so HTTP 200 with
   ``value='-1'`` raises an authentication error instead of reporting a
