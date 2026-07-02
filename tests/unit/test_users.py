@@ -496,17 +496,83 @@ async def test_modify_user_emits_dual_primary_relay_schedule_keys() -> None:
         assert item["Schedule-Relay"] == "1002-2"
 
 
-async def test_modify_user_omits_primary_schedule_keys_when_unset() -> None:
-    """Verify modify_user omits primary schedule fields when unset."""
+async def test_modify_user_preserves_primary_schedule_when_unchanged() -> None:
+    """Verify modify_user preserves primary schedule fields when unchanged."""
+    response: dict[str, object] = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {
+            "num": 1,
+            "item": [
+                {
+                    "ID": "1",
+                    "Name": "Alice",
+                    "UserID": "2001",
+                    "WebRelay": "0",
+                    "ScheduleRelay": "1001-1",
+                    "ScheduleSRelay": "1001-2",
+                    "LiftFloorNum": "0",
+                    "PrivatePIN": "",
+                    "CardCode": "",
+                },
+            ],
+        },
+    }
+
     with aioresponses() as m:
         register_default_info(m)
-        m.get(f"{BASE_URL}/api/user/get?page=1", payload=_USER_GET_RESPONSE)
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=response)
         m.post(
             f"{BASE_URL}/api/user/set",
             payload=_SET_OK_RESPONSE,
         )
         async with AkuvoxDevice("192.168.1.100") as device:
-            await device.modify_user(id="1", name="Updated")
+            await device.modify_user(id="1", private_pin="5678")
+
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+        call = m.requests[url_key][0]
+        body = call.kwargs.get("json")
+        item = body["data"]["item"][0]
+        assert item["ScheduleRelay"] == "1001-1"
+        assert item["Schedule-Relay"] == "1001-1"
+        assert item["ScheduleSRelay"] == "1001-2"
+        assert "Schedule-SRelay" not in item
+        assert item["PrivatePIN"] == "5678"
+
+
+async def test_modify_user_no_schedule_value_emits_no_schedule_aliases() -> None:
+    """Verify no unchanged schedule is emitted when no value exists."""
+    response: dict[str, object] = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {
+            "num": 1,
+            "item": [
+                {
+                    "ID": "1",
+                    "Name": "Alice",
+                    "UserID": "2001",
+                    "WebRelay": "0",
+                    "ScheduleSRelay": "1001-2",
+                    "LiftFloorNum": "0",
+                    "PrivatePIN": "",
+                    "CardCode": "",
+                },
+            ],
+        },
+    }
+
+    with aioresponses() as m:
+        register_default_info(m)
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=response)
+        m.post(
+            f"{BASE_URL}/api/user/set",
+            payload=_SET_OK_RESPONSE,
+        )
+        async with AkuvoxDevice("192.168.1.100") as device:
+            await device.modify_user(id="1", private_pin="5678")
 
         url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
         call = m.requests[url_key][0]
@@ -514,6 +580,9 @@ async def test_modify_user_omits_primary_schedule_keys_when_unset() -> None:
         item = body["data"]["item"][0]
         assert "ScheduleRelay" not in item
         assert "Schedule-Relay" not in item
+        assert "Schedule" not in item
+        assert item["ScheduleSRelay"] == "1001-2"
+        assert item["PrivatePIN"] == "5678"
 
 
 async def test_modify_user_keeps_secondary_relay_single_key() -> None:
@@ -1282,7 +1351,7 @@ async def test_add_user_service_function_empty_write_aliases_raises() -> None:
     from pylocal_akuvox._capability_profile import FieldAliases
     from pylocal_akuvox._http import AkuvoxHttpClient
 
-    bad_aliases = FieldAliases(read=("ScheduleRelay",), write=())
+    bad_aliases = FieldAliases(read=("Schedule", "ScheduleRelay"), write=())
 
     with aioresponses() as m:
         # ``add_user`` should raise before ever issuing the POST,
@@ -1311,16 +1380,15 @@ async def test_modify_user_strips_stale_read_only_alias_keys() -> None:
     ``user/get`` response includes the bare ``Schedule`` read alias.
     The default write list is ``("ScheduleRelay", "Schedule-Relay")``,
     so without the read-alias-strip the merged ``set`` payload would
-    echo ``Schedule`` back alongside the freshly-written write keys —
-    defeating the "omit schedule keys when unset" contract and
-    risking a stale value on subsequent reads. Verifies that ``set``
-    no longer carries the ``Schedule`` key regardless of whether
-    ``schedule_relay`` is supplied or omitted (Copilot review round
-    1, ``users.modify_user``).
+    echo ``Schedule`` back alongside primary write keys, risking a stale
+    value on subsequent reads. Verifies that ``set`` no longer carries
+    the ``Schedule`` key regardless of whether ``schedule_relay`` is
+    supplied or omitted (Copilot review round 1, ``users.modify_user``).
 
     Case A: schedule_relay supplied -> set re-writes write aliases
     and strips the stale read-only alias.
-    Case B: schedule_relay omitted -> all aliases (incl. read-only) stripped.
+    Case B: schedule_relay omitted -> existing primary value is
+    preserved under write aliases and stale read-only alias stripped.
     """
     import aiohttp
 
@@ -1373,7 +1441,8 @@ async def test_modify_user_strips_stale_read_only_alias_keys() -> None:
         assert sent_item["ScheduleRelay"] == "2002-2"
         assert sent_item["Schedule-Relay"] == "2002-2"
 
-    # Case B: schedule_relay omitted -> all aliases (incl. read-only) stripped.
+    # Case B: schedule_relay omitted -> primary schedule preserved and
+    # stale read-only alias stripped.
     with aioresponses() as m:
         m.get(f"{BASE_URL}/api/user/get?page=1", payload=get_with_stale_schedule)
         m.post(f"{BASE_URL}/api/user/set", payload=_SET_OK_RESPONSE)
@@ -1385,8 +1454,203 @@ async def test_modify_user_strips_stale_read_only_alias_keys() -> None:
         sent = post_calls[0].kwargs.get("json")
         sent_item = sent["data"]["item"][0]
         assert "Schedule" not in sent_item
-        assert "ScheduleRelay" not in sent_item
-        assert "Schedule-Relay" not in sent_item
+        assert sent_item["ScheduleRelay"] == "1001-1"
+        assert sent_item["Schedule-Relay"] == "1001-1"
+        assert sent_item["Name"] == "Renamed"
+
+
+async def test_modify_user_reemits_stale_schedule_under_write_aliases() -> None:
+    """``modify_user`` normalizes stale ``Schedule`` when unchanged."""
+    from pylocal_akuvox import users as users_svc
+    from pylocal_akuvox._http import AkuvoxHttpClient
+
+    get_with_stale_schedule = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {
+            "num": 1,
+            "item": [
+                {
+                    "ID": "1",
+                    "Name": "Alice",
+                    "UserID": "2001",
+                    "WebRelay": "0",
+                    "Schedule": "1001-1",
+                    "LiftFloorNum": "0",
+                    "PrivatePIN": "",
+                    "CardCode": "",
+                },
+            ],
+        },
+    }
+
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=get_with_stale_schedule)
+        m.post(f"{BASE_URL}/api/user/set", payload=_SET_OK_RESPONSE)
+        async with AkuvoxHttpClient("192.168.1.100") as http:
+            await users_svc.modify_user(http, id="1", private_pin="5678")
+
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+        post_calls = m.requests.get(url_key, [])
+        assert len(post_calls) == 1
+        sent = post_calls[0].kwargs.get("json")
+        sent_item = sent["data"]["item"][0]
+        assert "Schedule" not in sent_item
+        assert sent_item["ScheduleRelay"] == "1001-1"
+        assert sent_item["Schedule-Relay"] == "1001-1"
+        assert sent_item["PrivatePIN"] == "5678"
+
+
+async def test_modify_user_prefers_primary_schedule_when_read_alias_is_stale() -> None:
+    """``modify_user`` prefers writable primary aliases over stale reads."""
+    from pylocal_akuvox import users as users_svc
+    from pylocal_akuvox._capability_profile import FieldAliases
+    from pylocal_akuvox._http import AkuvoxHttpClient
+
+    aliases = FieldAliases(
+        read=("Schedule", "ScheduleRelay", "Schedule-Relay"),
+        write=("ScheduleRelay", "Schedule-Relay"),
+    )
+    response: dict[str, object] = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {
+            "num": 1,
+            "item": [
+                {
+                    "ID": "1",
+                    "Name": "Alice",
+                    "UserID": "2001",
+                    "WebRelay": "0",
+                    "Schedule": "STALE",
+                    "ScheduleRelay": "1001-1",
+                    "LiftFloorNum": "0",
+                    "PrivatePIN": "",
+                    "CardCode": "",
+                },
+            ],
+        },
+    }
+
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=response)
+        m.post(f"{BASE_URL}/api/user/set", payload=_SET_OK_RESPONSE)
+        async with AkuvoxHttpClient("192.168.1.100") as http:
+            await users_svc.modify_user(
+                http,
+                id="1",
+                private_pin="5678",
+                field_aliases=aliases,
+            )
+
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+        post_calls = m.requests.get(url_key, [])
+        assert len(post_calls) == 1
+        sent = post_calls[0].kwargs.get("json")
+        sent_item = sent["data"]["item"][0]
+        assert "Schedule" not in sent_item
+        assert sent_item["ScheduleRelay"] == "1001-1"
+        assert sent_item["Schedule-Relay"] == "1001-1"
+        assert sent_item["PrivatePIN"] == "5678"
+
+
+async def test_modify_user_empty_write_aliases_preserves_existing_schedule() -> None:
+    """Empty write aliases preserve unchanged schedule without raising."""
+    from pylocal_akuvox import users as users_svc
+    from pylocal_akuvox._capability_profile import FieldAliases
+    from pylocal_akuvox._http import AkuvoxHttpClient
+
+    bad_aliases = FieldAliases(read=("Schedule", "ScheduleRelay"), write=())
+    response: dict[str, object] = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {
+            "num": 1,
+            "item": [
+                {
+                    "ID": "1",
+                    "Name": "Alice",
+                    "UserID": "2001",
+                    "WebRelay": "0",
+                    "ScheduleRelay": "1001-1",
+                    "Schedule": "STALE",
+                    "LiftFloorNum": "0",
+                    "PrivatePIN": "",
+                    "CardCode": "",
+                },
+            ],
+        },
+    }
+
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=response)
+        m.post(f"{BASE_URL}/api/user/set", payload=_SET_OK_RESPONSE)
+        async with AkuvoxHttpClient("192.168.1.100") as http:
+            await users_svc.modify_user(
+                http,
+                id="1",
+                name="Renamed",
+                field_aliases=bad_aliases,
+            )
+
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+        post_calls = m.requests.get(url_key, [])
+        assert len(post_calls) == 1
+        sent = post_calls[0].kwargs.get("json")
+        sent_item = sent["data"]["item"][0]
+        assert sent_item["ScheduleRelay"] == "1001-1"
+        assert "Schedule" not in sent_item
+        assert sent_item["Name"] == "Renamed"
+
+
+async def test_modify_user_empty_write_aliases_keeps_only_stale_schedule() -> None:
+    """Empty write aliases keep the fetched key when no primary exists."""
+    from pylocal_akuvox import users as users_svc
+    from pylocal_akuvox._capability_profile import FieldAliases
+    from pylocal_akuvox._http import AkuvoxHttpClient
+
+    bad_aliases = FieldAliases(read=("Schedule",), write=())
+    response: dict[str, object] = {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": {
+            "num": 1,
+            "item": [
+                {
+                    "ID": "1",
+                    "Name": "Alice",
+                    "UserID": "2001",
+                    "WebRelay": "0",
+                    "Schedule": "1001-1",
+                    "LiftFloorNum": "0",
+                    "PrivatePIN": "",
+                    "CardCode": "",
+                },
+            ],
+        },
+    }
+
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/user/get?page=1", payload=response)
+        m.post(f"{BASE_URL}/api/user/set", payload=_SET_OK_RESPONSE)
+        async with AkuvoxHttpClient("192.168.1.100") as http:
+            await users_svc.modify_user(
+                http,
+                id="1",
+                name="Renamed",
+                field_aliases=bad_aliases,
+            )
+
+        url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+        post_calls = m.requests.get(url_key, [])
+        assert len(post_calls) == 1
+        sent = post_calls[0].kwargs.get("json")
+        sent_item = sent["data"]["item"][0]
+        assert sent_item["Schedule"] == "1001-1"
         assert sent_item["Name"] == "Renamed"
 
 
@@ -1484,8 +1748,9 @@ async def test_modify_user_empty_read_aliases_strips_default_legacy_keys() -> No
         sent = post_calls[0].kwargs.get("json")
         sent_item = sent["data"]["item"][0]
         # The whole point of the fallback: ``Schedule`` must be
-        # stripped even though the supplied ``read`` tuple was empty.
+        # stripped even though the supplied ``read`` tuple was empty,
+        # while the existing primary schedule value is preserved.
         assert "Schedule" not in sent_item
-        assert "ScheduleRelay" not in sent_item
-        assert "Schedule-Relay" not in sent_item
+        assert sent_item["ScheduleRelay"] == "1001-1"
+        assert sent_item["Schedule-Relay"] == "1001-1"
         assert sent_item["Name"] == "Renamed"

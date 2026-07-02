@@ -9,6 +9,12 @@ import re
 from typing import TYPE_CHECKING, Any
 
 from pylocal_akuvox._capability_defaults import DEFAULT_USER_FIELD_ALIASES
+from pylocal_akuvox._user_schedule_aliases import (
+    _find_existing_schedule,
+    _preserve_schedule_without_write_alias,
+    _strip_schedule_aliases,
+    _write_schedule_aliases,
+)
 from pylocal_akuvox.exceptions import AkuvoxValidationError
 from pylocal_akuvox.models import User
 
@@ -224,20 +230,11 @@ def _resolve_alias_lists(
         if field_aliases is not None
         else DEFAULT_USER_FIELD_ALIASES.read
     )
-    # Mirror ``User.from_api_response``'s empty-``read`` fallback
-    # (Copilot round 1 in ``models/users.py``; round 2 caught the
-    # corresponding gap here): a capability record whose ``read``
-    # tuple is empty would otherwise leave ``all_aliases`` without
-    # the legacy ``Schedule`` key — and ``modify_user(...,
-    # schedule_relay=None)`` would silently fail to strip the
-    # stale read-only alias returned by X915S current FW. Fall
-    # back to the default read chain so degenerate matrix data
-    # still produces the documented "omit schedule keys when
-    # unset" behaviour. ``write`` is intentionally NOT
-    # back-filled — an empty ``write`` already triggers an
-    # eager ``AkuvoxValidationError`` in ``modify_user`` whenever
-    # ``schedule_relay`` is supplied, and a pure no-op merge
-    # (``schedule_relay=None``) genuinely wants no writes.
+    # Mirror ``User.from_api_response``'s empty-``read`` fallback so
+    # degenerate matrix data still strips the legacy ``Schedule`` key.
+    # ``write`` is intentionally not back-filled: supplied schedule
+    # updates raise on empty writes, while unchanged updates preserve
+    # fetched primary keys when no safe normalization target exists.
     if not read_aliases:
         read_aliases = DEFAULT_USER_FIELD_ALIASES.read
     all_aliases = list(read_aliases) + [
@@ -251,25 +248,46 @@ def _apply_schedule_to_record(
     schedule_relay: str | None,
     *,
     write_aliases: tuple[str, ...],
+    read_aliases: tuple[str, ...],
     all_aliases: list[str],
 ) -> None:
-    """Mutate ``current`` to set or strip schedule-relay aliases.
+    """Mutate ``current`` to set or normalize schedule-relay aliases.
 
-    When ``schedule_relay`` is supplied, every known alias is first
-    popped (covers stale read-only aliases such as ``Schedule`` on
-    X915S current FW; see Copilot review round 1 — issue #118) and
-    then the value is written under each name in ``write_aliases``.
-    When ``schedule_relay`` is ``None``, every known alias is
-    stripped.
+    Supplied values still strip all known aliases and write the new
+    value under each write alias. ``None`` prefers an existing writable
+    primary value, otherwise falls back to read-alias order, then
+    normalizes through write aliases and purges stale read-only aliases.
+    Missing values are stripped as before; an empty write list preserves
+    existing primary keys instead of dropping a required field.
     """
     if schedule_relay is not None:
-        for alias in all_aliases:
-            current.pop(alias, None)
-        for alias in write_aliases:
-            current[alias] = schedule_relay
-    else:
-        for alias in all_aliases:
-            current.pop(alias, None)
+        _strip_schedule_aliases(current, all_aliases)
+        _write_schedule_aliases(current, write_aliases, schedule_relay)
+        return
+
+    found_schedule, _existing_schedule_alias, existing_schedule = (
+        _find_existing_schedule(current, write_aliases)
+    )
+    if found_schedule:
+        _strip_schedule_aliases(current, all_aliases)
+        _write_schedule_aliases(current, write_aliases, existing_schedule)
+        return
+
+    found_schedule, existing_schedule_alias, existing_schedule = (
+        _find_existing_schedule(current, read_aliases)
+    )
+    if not found_schedule:
+        _strip_schedule_aliases(current, all_aliases)
+        return
+    if not write_aliases:
+        _preserve_schedule_without_write_alias(
+            current,
+            existing_schedule_alias=existing_schedule_alias,
+            all_aliases=all_aliases,
+        )
+        return
+    _strip_schedule_aliases(current, all_aliases)
+    _write_schedule_aliases(current, write_aliases, existing_schedule)
 
 
 async def modify_user(
@@ -300,15 +318,17 @@ async def modify_user(
         )
 
     which mirrors today's hardcoded
-    ``("ScheduleRelay", "Schedule-Relay")`` dual-write. On both
-    the set and the unset paths, every name in the **read+write
-    union** is first stripped from the merged record (so a stale
-    read-only alias such as ``Schedule`` returned by X915S current
-    FW cannot survive the round-trip and re-emerge on the next
-    read); on the set path, the write aliases are then re-populated
-    with the new value. The unset path therefore removes every
-    known alias (read and write) — not just the write list — to
-    avoid conflicting values across firmwares.
+    ``("ScheduleRelay", "Schedule-Relay")`` dual-write. On the set
+    path, every name in the **read+write union** is first stripped from
+    the merged record (so a stale read-only alias such as ``Schedule``
+    returned by X915S current FW cannot survive the round-trip and
+    re-emerge on the next read), and the write aliases are then
+    re-populated with the new value. On the unchanged path
+    (``schedule_relay=None``), an existing writable primary value is
+    preferred over stale read-only aliases, then normalized through the
+    same write aliases, so required primary schedule fields remain
+    present while stale aliases are purged. If no schedule value exists,
+    known aliases are stripped as before.
 
     An empty ``write`` tuple combined with a supplied
     ``schedule_relay`` raises ``AkuvoxValidationError`` (the loop
@@ -316,7 +336,9 @@ async def modify_user(
     ``read`` tuple falls back to
     :data:`DEFAULT_USER_FIELD_ALIASES.read` for the strip union so
     degenerate matrix data still strips the legacy ``Schedule``
-    key.
+    key. On the unchanged path, an empty ``write`` tuple does not
+    raise; if a schedule value exists, fetched primary keys are left in
+    place because there is no safe alias to re-emit it under.
 
     Service-module functions stay capability-unaware: this function
     does **not** consult any global capability matrix or
@@ -332,7 +354,7 @@ async def modify_user(
     validate_pin(private_pin)
     validate_schedule_relay(schedule_relay)
 
-    write_aliases, _read_aliases, all_aliases = _resolve_alias_lists(field_aliases)
+    write_aliases, read_aliases, all_aliases = _resolve_alias_lists(field_aliases)
     # Defensive: same rationale as ``add_user`` — an empty write
     # list would silently drop the schedule key when ``schedule_relay``
     # is supplied, producing a malformed ``set`` payload (Copilot
@@ -361,6 +383,7 @@ async def modify_user(
         current,
         schedule_relay,
         write_aliases=write_aliases,
+        read_aliases=read_aliases,
         all_aliases=all_aliases,
     )
     if lift_floor_num is not None:
