@@ -77,6 +77,13 @@ Changed
 Fixed
 ^^^^^
 
+* Capability probes on matrix-recognised devices now preserve curated
+  write aliases while still refining observed read aliases, so
+  ``add_user()`` and ``modify_user()`` can emit schedule relay keys after
+  probing.
+
+  Refs #216.
+
 * ``open_door_http()`` now checks the ``hcSingleResult`` marker returned
   by IT83-class ``/fcgi/do?action=OpenDoor`` responses so HTTP 200 with
   ``value='-1'`` raises an authentication error instead of reporting a
