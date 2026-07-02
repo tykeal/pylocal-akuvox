@@ -77,6 +77,13 @@ Changed
 Fixed
 ^^^^^
 
+* ``modify_user()`` now preserves and normalizes an existing schedule
+  relay value when ``schedule_relay`` is left unchanged, preventing
+  devices that require ``ScheduleRelay`` on user updates from rejecting
+  PIN-only modifications.
+
+  Refs #219.
+
 * Capability probes on matrix-recognised devices now preserve curated
   write aliases while still refining observed read aliases, so
   ``add_user()`` and ``modify_user()`` can emit schedule relay keys after
