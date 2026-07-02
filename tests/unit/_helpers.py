@@ -20,11 +20,14 @@ touching the gate logic.
 
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING
 
 from aiohttp.client import URL
 
 if TYPE_CHECKING:
+    from types import ModuleType
+
     from aioresponses import aioresponses
 
 BASE_URL = "http://192.168.1.100"
@@ -90,10 +93,18 @@ def register_default_info(
     )
 
 
+def drop_capability_matrix(parent: ModuleType) -> None:
+    """Force the matrix import path to exercise a first import again."""
+    sys.modules.pop("pylocal_akuvox.capability_matrix", None)
+    if hasattr(parent, "capability_matrix"):
+        delattr(parent, "capability_matrix")
+
+
 __all__ = [
     "BASE_URL",
     "DEFAULT_INFO_PAYLOAD",
     "assert_only_connect_time_info",
+    "drop_capability_matrix",
     "register_default_info",
 ]
 

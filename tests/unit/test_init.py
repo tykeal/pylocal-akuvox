@@ -26,28 +26,34 @@ def test_all_is_list() -> None:
 
 def test_version_from_metadata() -> None:
     """Verify version is read from package metadata."""
-    with patch.object(
-        importlib.metadata,
-        "version",
-        return_value="1.2.3",
-    ):
-        import importlib as imp
+    import importlib as imp
 
-        mod = imp.reload(pylocal_akuvox)
-        assert mod.__version__ == "1.2.3"
+    try:
+        with patch.object(
+            importlib.metadata,
+            "version",
+            return_value="1.2.3",
+        ):
+            mod = imp.reload(pylocal_akuvox)
+            assert mod.__version__ == "1.2.3"
+    finally:
+        imp.reload(pylocal_akuvox)
 
 
 def test_version_fallback() -> None:
     """Verify fallback version when package metadata is missing."""
-    with patch.object(
-        importlib.metadata,
-        "version",
-        side_effect=importlib.metadata.PackageNotFoundError("pylocal-akuvox"),
-    ):
-        import importlib as imp
+    import importlib as imp
 
-        mod = imp.reload(pylocal_akuvox)
-        assert mod.__version__ == "0.0.0"
+    try:
+        with patch.object(
+            importlib.metadata,
+            "version",
+            side_effect=importlib.metadata.PackageNotFoundError("pylocal-akuvox"),
+        ):
+            mod = imp.reload(pylocal_akuvox)
+            assert mod.__version__ == "0.0.0"
+    finally:
+        imp.reload(pylocal_akuvox)
 
 
 def test_group_in_all() -> None:
