@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pylocal_akuvox._capability_profile import DeviceCapabilities
+from pylocal_akuvox._capability_profile import DeviceCapabilities, FieldAliases
 from pylocal_akuvox._capability_types import Capability, CapabilityStatus
 
 if TYPE_CHECKING:
@@ -48,7 +48,15 @@ def _merge_probe_with_matrix(
         merged[capability] = probe_status
 
     field_aliases = dict(matrix.field_aliases)
-    field_aliases.update(probe.field_aliases)
+    for field, probe_aliases in probe.field_aliases.items():
+        matrix_aliases = field_aliases.get(field)
+        if matrix_aliases is None:
+            field_aliases[field] = probe_aliases
+            continue
+        field_aliases[field] = FieldAliases(
+            read=probe_aliases.read,
+            write=probe_aliases.write or matrix_aliases.write,
+        )
     schema_shapes = dict(matrix.schema_shapes)
     schema_shapes.update(probe.schema_shapes)
     notes = dict(matrix.notes)

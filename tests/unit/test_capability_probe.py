@@ -1404,6 +1404,113 @@ async def test_merge_matrix_unknown_it83_user_list(
 # --- Write-capability non-regression (FR-003 / BLOCKER 3) ---------------
 
 
+async def test_merge_preserves_matrix_write_aliases_when_probe_refines_read() -> None:
+    """Probe-observed reads must not erase matrix-curated write aliases."""
+    from pylocal_akuvox._capability_defaults import DEFAULT_USER_FIELD_ALIASES
+    from pylocal_akuvox._capability_profile import DeviceCapabilities, FieldAliases
+    from pylocal_akuvox.device import _merge_probe_with_matrix
+
+    matrix_only_aliases = FieldAliases(read=("MatrixOnly",), write=("MatrixOnly",))
+    matrix = DeviceCapabilities(
+        device_class="X916",
+        firmware_version="916.30.10.114",
+        capabilities={Capability.USER_ADD: CapabilityStatus.SUPPORTED},
+        field_aliases={
+            "schedule_relay": DEFAULT_USER_FIELD_ALIASES,
+            "matrix_only": matrix_only_aliases,
+            "custom": FieldAliases(read=("MatrixRead",), write=("MatrixWrite",)),
+        },
+        schema_shapes={},
+    )
+    probe_only_aliases = FieldAliases(read=("ProbeOnly",), write=())
+    probe = DeviceCapabilities(
+        device_class="X916",
+        firmware_version="916.30.10.114",
+        capabilities={},
+        field_aliases={
+            "schedule_relay": FieldAliases(read=("Schedule",), write=()),
+            "custom": FieldAliases(read=("ProbeRead",), write=("ProbeWrite",)),
+            "probe_only": probe_only_aliases,
+        },
+        schema_shapes={},
+    )
+
+    merged = _merge_probe_with_matrix(matrix, probe)
+
+    schedule_aliases = merged.field_aliases["schedule_relay"]
+    assert schedule_aliases.read == ("Schedule",)
+    assert schedule_aliases.write == DEFAULT_USER_FIELD_ALIASES.write
+    assert merged.field_aliases["custom"] == FieldAliases(
+        read=("ProbeRead",),
+        write=("ProbeWrite",),
+    )
+    assert merged.field_aliases["matrix_only"] == matrix_only_aliases
+    assert merged.field_aliases["probe_only"] == probe_only_aliases
+
+
+async def test_probe_refined_aliases_still_emit_schedule_relay_on_add() -> None:
+    """A recognised device can add users after probe read-alias refinement."""
+    import aiohttp
+
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/system/info",
+            payload=_X916_INFO_FOR_MERGE,
+            repeat=True,
+        )
+        m.get(
+            f"{BASE_URL}/api/system/status",
+            payload={
+                "retcode": 0,
+                "action": "status",
+                "message": "",
+                "data": {"SystemTime": 1700000000, "UpTime": 86400},
+            },
+        )
+        keyed_ok = {
+            "retcode": 0,
+            "action": "get",
+            "message": "",
+            "data": {"Item": [{"ID": "1"}], "Total": 1},
+        }
+        m.get(
+            f"{BASE_URL}/api/user/get?page=1",
+            payload={
+                "retcode": 0,
+                "action": "get",
+                "message": "",
+                "data": {
+                    "Item": [{"ID": "1", "Schedule": "1001-1"}],
+                    "Total": 1,
+                },
+            },
+        )
+        m.get(f"{BASE_URL}/api/relay/status", payload=keyed_ok)
+        m.get(f"{BASE_URL}/api/contact/get?page=1", payload=keyed_ok)
+        m.get(f"{BASE_URL}/api/schedule/get", payload=keyed_ok)
+        m.get(f"{BASE_URL}/api/group/get", payload=keyed_ok)
+        m.get(f"{BASE_URL}/api/doorlog/get?page=1", payload=keyed_ok)
+        m.get(f"{BASE_URL}/api/calllog/get?page=1", payload=keyed_ok)
+        m.post(f"{BASE_URL}/api/user/set", payload={"retcode": 0, "message": "ok"})
+
+        async with AkuvoxDevice("192.168.1.100", request_delay=0.0) as device:
+            merged = await device.probe_capabilities()
+            schedule_aliases = merged.field_aliases["schedule_relay"]
+            assert schedule_aliases.read == ("Schedule",)
+
+            await device.add_user(
+                name="Alice",
+                user_id="1",
+                schedule_relay="1001-1",
+                lift_floor_num="0",
+            )
+
+    url_key = ("POST", aiohttp.client.URL(f"{BASE_URL}/api/user/set"))
+    item = m.requests[url_key][0].kwargs.get("json")["data"]["item"][0]
+    assert item["ScheduleRelay"] == "1001-1"
+    assert item["Schedule-Relay"] == "1001-1"
+
+
 async def test_user_list_unsupported_does_not_regress_user_add() -> None:
     """Read-side UNSUPPORTED MUST NOT propagate to the corresponding write.
 
