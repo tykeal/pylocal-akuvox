@@ -208,6 +208,47 @@ _E18_CURRENT = DeviceCapabilities(
     ),
 )
 
+
+# Issue #222: A08S access unit lacks contacts, groups, and call logs.
+_A08S_CURRENT = DeviceCapabilities(
+    device_class="A08S",
+    firmware_version="108.30.10.144",
+    capabilities={
+        Capability.USER_LIST: CapabilityStatus.SUPPORTED,
+        Capability.USER_ADD: CapabilityStatus.SUPPORTED,
+        Capability.USER_MODIFY: CapabilityStatus.SUPPORTED,
+        Capability.USER_DELETE: CapabilityStatus.SUPPORTED,
+        Capability.SCHEDULE_LIST: CapabilityStatus.SUPPORTED,
+        Capability.SCHEDULE_ADD: CapabilityStatus.SUPPORTED,
+        Capability.SCHEDULE_MODIFY: CapabilityStatus.SUPPORTED,
+        Capability.SCHEDULE_DELETE: CapabilityStatus.SUPPORTED,
+        Capability.RELAY_TRIGGER_API: CapabilityStatus.SUPPORTED,
+        Capability.RELAY_STATUS: CapabilityStatus.SUPPORTED,
+        Capability.DEVICE_CONFIG_GET: CapabilityStatus.SUPPORTED,
+        Capability.DEVICE_CONFIG_SET: CapabilityStatus.SUPPORTED,
+        Capability.LOG_DOOR: CapabilityStatus.SUPPORTED,
+        Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
+        Capability.CONTACT_LIST: CapabilityStatus.UNSUPPORTED,
+        Capability.CONTACT_ADD: CapabilityStatus.UNSUPPORTED,
+        Capability.CONTACT_MODIFY: CapabilityStatus.UNSUPPORTED,
+        Capability.CONTACT_DELETE: CapabilityStatus.UNSUPPORTED,
+        Capability.GROUP_LIST: CapabilityStatus.UNSUPPORTED,
+        Capability.GROUP_ADD: CapabilityStatus.UNSUPPORTED,
+        Capability.GROUP_MODIFY: CapabilityStatus.UNSUPPORTED,
+        Capability.GROUP_DELETE: CapabilityStatus.UNSUPPORTED,
+        Capability.LOG_CALL: CapabilityStatus.UNSUPPORTED,
+    },
+    field_aliases={"schedule_relay": DEFAULT_USER_FIELD_ALIASES},
+    schema_shapes={},
+    provenance=Provenance(
+        test_bench_device_id="maintainer's bench unit",
+        firmware_version="108.30.10.144",
+        library_version=_LIB_VERSION,
+        observed_at=_OBSERVED_AT,
+    ),
+)
+
+
 _X916_BASELINE = DeviceCapabilities(
     device_class="X916",
     firmware_version="916.30.10.114",
@@ -270,6 +311,11 @@ CAPABILITY_MATRIX: tuple[tuple[DeviceClassPattern, DeviceCapabilities], ...] = (
     (
         DeviceClassPattern(model_prefix="E18", firmware_band="18.30.10.118+"),
         _E18_CURRENT,
+    ),
+    # A08S access unit — floor band.
+    (
+        DeviceClassPattern(model_prefix="A08S", firmware_band="108.30.10.144+"),
+        _A08S_CURRENT,
     ),
     # X916 baseline — glob match (last because most permissive).
     (

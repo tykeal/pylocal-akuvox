@@ -13,7 +13,7 @@ Per ``specs/008-capability-matrix/contracts/matrix-lookup.md``:
   first match; returns ``None`` for unrecognised devices.
 * Per-device-class capability deltas from ``data-model.md`` §"Capability
   deltas across the four entries" are honoured by the production
-  entries (notably IT83's
+  entries (notably A08S's access-unit profile, IT83's
   ``RELAY_TRIGGER_API``/``RELAY_TRIGGER_FCGI``/``RELAY_STATUS`` row,
   X915S's unsupported contact writes and
   ``schema_shapes["contact"] = APARTMENT_BOOK``).
@@ -51,6 +51,7 @@ _X916 = _info("X916", "916.30.10.114")
 _X915S = _info("X915S", "2915.30.10.114")
 _E18C = _info("E18C", "18.30.11.21")
 _E18 = _info("E18", "18.30.10.118")
+_A08S = _info("A08S", "108.30.10.144")
 _IT83 = _info("IT83", "83.30.10.4")
 
 _DOOR_PHONE_CRUD_CAPABILITIES = (
@@ -100,10 +101,10 @@ def test_every_entry_has_provenance() -> None:
         assert prov.observed_at
 
 
-def test_matrix_covers_all_five_supported_classes() -> None:
-    """All five supported device classes (X916, X915S, E18C, E18, IT83) exist."""
+def test_matrix_covers_all_six_supported_classes() -> None:
+    """All six supported device classes exist."""
     classes = {caps.device_class for _pattern, caps in CAPABILITY_MATRIX}
-    assert classes == {"X916", "X915S", "E18C", "E18", "IT83"}
+    assert classes == {"X916", "X915S", "E18C", "E18", "A08S", "IT83"}
 
 
 # --- Ordered matching -----------------------------------------------------
@@ -116,6 +117,7 @@ def test_matrix_covers_all_five_supported_classes() -> None:
         (_X915S, "X915S", 1),
         (_E18C, "E18C", 2),
         (_E18, "E18", 1),
+        (_A08S, "A08S", 1),
         (_IT83, "IT83", 1),
     ],
 )
@@ -167,6 +169,13 @@ def test_lookup_returns_first_match_e18() -> None:
     assert profile.device_class == "E18"
 
 
+def test_lookup_returns_first_match_a08s() -> None:
+    """A08S current firmware matches the A08S floor-band entry."""
+    profile = lookup_capabilities(_A08S)
+    assert profile is not None
+    assert profile.device_class == "A08S"
+
+
 def test_lookup_returns_first_match_it83() -> None:
     """IT83 exact firmware matches the IT83 entry."""
     profile = lookup_capabilities(_IT83)
@@ -194,6 +203,16 @@ def test_e18_firmware_floor_matches_current_and_newer() -> None:
         assert profile.device_class == "E18"
 
     assert lookup_capabilities(_info("E18", "18.30.10.100")) is None
+
+
+def test_a08s_firmware_floor_matches_current_and_newer() -> None:
+    """A08S firmware floor admits 108.30.10.144 and newer builds only."""
+    for firmware in ("108.30.10.144", "108.30.10.200", "108.31.0.0"):
+        profile = lookup_capabilities(_info("A08S", firmware))
+        assert profile is not None
+        assert profile.device_class == "A08S"
+
+    assert lookup_capabilities(_info("A08S", "108.30.10.100")) is None
 
 
 # --- Capability deltas ----------------------------------------------------
@@ -256,6 +275,52 @@ def test_e18_capability_deltas() -> None:
     assert profile.provenance.firmware_version == "18.30.10.118"
     for capability in _DOOR_PHONE_CRUD_CAPABILITIES:
         assert profile.status_of(capability) is CapabilityStatus.SUPPORTED
+
+
+def test_a08s_capability_deltas() -> None:
+    """A08S supports access-unit APIs and omits door-phone book surfaces."""
+    profile = lookup_capabilities(_A08S)
+    assert profile is not None
+    assert profile.device_class == "A08S"
+    assert "device_not_in_matrix" not in profile.notes
+    assert profile.schema_shapes == {}
+    assert profile.provenance is not None
+    assert profile.provenance.firmware_version == "108.30.10.144"
+
+    for capability in (
+        Capability.USER_LIST,
+        Capability.USER_ADD,
+        Capability.USER_MODIFY,
+        Capability.USER_DELETE,
+        Capability.SCHEDULE_LIST,
+        Capability.SCHEDULE_ADD,
+        Capability.SCHEDULE_MODIFY,
+        Capability.SCHEDULE_DELETE,
+        Capability.RELAY_TRIGGER_API,
+        Capability.RELAY_STATUS,
+        Capability.DEVICE_CONFIG_GET,
+        Capability.DEVICE_CONFIG_SET,
+        Capability.LOG_DOOR,
+        Capability.KEY_DISCOVERY,
+    ):
+        assert profile.status_of(capability) is CapabilityStatus.SUPPORTED
+
+    for capability in (
+        Capability.CONTACT_LIST,
+        Capability.CONTACT_ADD,
+        Capability.CONTACT_MODIFY,
+        Capability.CONTACT_DELETE,
+        Capability.GROUP_LIST,
+        Capability.GROUP_ADD,
+        Capability.GROUP_MODIFY,
+        Capability.GROUP_DELETE,
+        Capability.LOG_CALL,
+    ):
+        assert profile.status_of(capability) is CapabilityStatus.UNSUPPORTED
+
+    assert profile.status_of(Capability.RELAY_TRIGGER_FCGI) is (
+        CapabilityStatus.UNKNOWN
+    )
 
 
 def test_x916_capability_deltas() -> None:
