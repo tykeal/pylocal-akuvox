@@ -106,6 +106,13 @@ Fixed
 Added
 ^^^^^
 
+* Added A08S device-class support for user and schedule CRUD, API relay
+  trigger and status, door logs, device config, and key discovery.
+  Contacts, groups, and call logs are unsupported on this access-unit
+  class.
+
+  Refs #222.
+
 * Added the public ``run_capability_report()`` API for generating the
   redacted capability report used by ``examples/mvp_test.py``.
 
