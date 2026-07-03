@@ -94,6 +94,16 @@ trigger, device config get / set, door and call logs, and key
 discovery. Contact payloads use the door-phone schema shape, and
 ``ScheduleRelay`` / ``Schedule-Relay`` aliasing matches E18C and X916.
 
+A08S
+~~~~
+
+Access-unit class with firmware floor ``108.30.10.144+``. User and
+schedule CRUD operations are ``SUPPORTED`` alongside relay status, API
+relay trigger, device config get / set, door logs, and key discovery.
+The FCGI relay trigger remains ``UNKNOWN``. Contacts, groups, and call
+logs are ``UNSUPPORTED`` on this class, so the matrix leaves contact
+schema-shape parsing unset.
+
 IT83
 ~~~~
 
