@@ -10,7 +10,8 @@ import io
 import sys
 from typing import TYPE_CHECKING, TextIO
 
-from pylocal_akuvox._capability_profile import DeviceCapabilities
+from pylocal_akuvox._capability_defaults import DEFAULT_USER_FIELD_ALIASES
+from pylocal_akuvox._capability_profile import DeviceCapabilities, FieldAliases
 from pylocal_akuvox._capability_types import Capability, CapabilityStatus
 from pylocal_akuvox._diagnostic_report import DiagnosticReport
 from pylocal_akuvox._report_steps import (
@@ -168,10 +169,11 @@ async def _run_capability_report(
     if device.attempt_unknown_capability:
         capabilities = _allow_unknown_capabilities(capabilities)
     if write:
+        write_capabilities = _with_report_write_alias_fallback(capabilities)
         await _run_write_tests(
             device_kwargs,
             results,
-            capabilities=capabilities,
+            capabilities=write_capabilities,
             open_door=open_door,
             open_door_user=open_door_user,
             open_door_password=open_door_password,
@@ -203,6 +205,32 @@ async def _run_capability_report(
     print_header("ALL TESTS COMPLETE ✓")
     results.print_summary()
     return diagnostics.to_json()
+
+
+def _with_report_write_alias_fallback(
+    capabilities: DeviceCapabilities,
+) -> DeviceCapabilities:
+    """Backfill diagnostic user-write aliases without changing statuses."""
+    aliases = capabilities.field_aliases.get("schedule_relay")
+    if aliases is None:
+        return capabilities
+    if aliases.write:
+        return capabilities
+
+    field_aliases = dict(capabilities.field_aliases)
+    field_aliases["schedule_relay"] = FieldAliases(
+        read=aliases.read,
+        write=DEFAULT_USER_FIELD_ALIASES.write,
+    )
+    return DeviceCapabilities(
+        device_class=capabilities.device_class,
+        firmware_version=capabilities.firmware_version,
+        capabilities=capabilities.capabilities,
+        field_aliases=field_aliases,
+        schema_shapes=capabilities.schema_shapes,
+        notes=capabilities.notes,
+        provenance=capabilities.provenance,
+    )
 
 
 def _auth_method(auth: object) -> str:  # pragma: no cover
