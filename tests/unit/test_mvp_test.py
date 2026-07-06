@@ -12,12 +12,16 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 
+import aiohttp
 import examples.mvp_test as mvp_test
 import pytest
+from aioresponses import aioresponses
 
 import pylocal_akuvox._capability_report as _capability_report
 import pylocal_akuvox._report_steps as _report_steps
 from pylocal_akuvox import Capability, CapabilityStatus, DeviceCapabilities
+from pylocal_akuvox._capability_defaults import DEFAULT_USER_FIELD_ALIASES
+from pylocal_akuvox._capability_profile import FieldAliases
 from pylocal_akuvox.exceptions import (
     AkuvoxAuthenticationError,
     AkuvoxConnectionError,
@@ -198,6 +202,7 @@ class _FakeReportTemplate:
         return {
             "host": "192.0.2.10",
             "auth": None,
+            "request_delay": 0.0,
             "use_ssl": False,
             "verify_ssl": True,
         }
@@ -311,6 +316,37 @@ def _patch_fast_write_steps(
     monkeypatch.setattr(_report_steps, "test_delete_group", succeed)
     monkeypatch.setattr(_report_steps, "test_verify_group_deletion", succeed)
     monkeypatch.setattr(_report_steps, "test_add_contact", return_contact_id)
+    monkeypatch.setattr(_report_steps, "test_modify_contact", succeed)
+    monkeypatch.setattr(_report_steps, "test_delete_contact", succeed)
+    monkeypatch.setattr(_report_steps, "test_verify_contact_deletion", succeed)
+
+
+def _patch_non_user_write_steps(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Patch non-user write steps so report tests can focus on user CRUD."""
+
+    async def return_id(*_args: object, **_kwargs: object) -> str:
+        """Return a fake ID for non-user add steps."""
+        return "resource-id"
+
+    async def succeed(*_args: object, **_kwargs: object) -> None:
+        """Pretend a patched write step succeeded."""
+        return None
+
+    async def no_sleep(_delay: float) -> None:
+        """Skip diagnostic cooldown sleeps."""
+        return None
+
+    monkeypatch.setattr(cast("Any", _report_steps).asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(_report_steps, "test_add_schedule", return_id)
+    monkeypatch.setattr(_report_steps, "test_modify_schedule", succeed)
+    monkeypatch.setattr(_report_steps, "test_delete_schedule", succeed)
+    monkeypatch.setattr(_report_steps, "test_verify_schedule_deletion", succeed)
+    monkeypatch.setattr(_report_steps, "test_trigger_relay", succeed)
+    monkeypatch.setattr(_report_steps, "test_set_device_config", succeed)
+    monkeypatch.setattr(_report_steps, "test_add_group", return_id)
+    monkeypatch.setattr(_report_steps, "test_delete_group", succeed)
+    monkeypatch.setattr(_report_steps, "test_verify_group_deletion", succeed)
+    monkeypatch.setattr(_report_steps, "test_add_contact", return_id)
     monkeypatch.setattr(_report_steps, "test_modify_contact", succeed)
     monkeypatch.setattr(_report_steps, "test_delete_contact", succeed)
     monkeypatch.setattr(_report_steps, "test_verify_contact_deletion", succeed)
@@ -985,6 +1021,173 @@ async def test_report_open_door_read_only_skip_names_write_mode(
     tests = cast("list[dict[str, object]]", report["tests"])
     open_door_test = next(test for test in tests if test["name"] == "open_door_http")
     assert open_door_test["reason"] == "requires write=True to run OpenDoor HTTP"
+
+
+def test_report_write_alias_fallback_preserves_statuses() -> None:
+    """Diagnostic write alias fallback must not fabricate support."""
+    profile = DeviceCapabilities(
+        device_class="R20K",
+        firmware_version="1",
+        capabilities={Capability.USER_DELETE: CapabilityStatus.UNSUPPORTED},
+        field_aliases={
+            "schedule_relay": FieldAliases(read=("Schedule",), write=()),
+        },
+        schema_shapes={},
+    )
+
+    normalized = _capability_report._with_report_write_alias_fallback(profile)
+
+    assert normalized.status_of(Capability.USER_ADD) is CapabilityStatus.UNKNOWN
+    assert normalized.status_of(Capability.USER_MODIFY) is CapabilityStatus.UNKNOWN
+    assert normalized.status_of(Capability.USER_DELETE) is CapabilityStatus.UNSUPPORTED
+    aliases = normalized.field_aliases["schedule_relay"]
+    assert aliases.read == ("Schedule",)
+    assert aliases.write == DEFAULT_USER_FIELD_ALIASES.write
+
+
+def test_report_write_alias_fallback_leaves_curated_aliases() -> None:
+    """Recognized matrix write aliases must stay unchanged."""
+    curated = FieldAliases(read=("Schedule",), write=("CuratedSchedule",))
+    profile = DeviceCapabilities(
+        device_class="X916",
+        firmware_version="916.30.10.114",
+        capabilities={Capability.USER_ADD: CapabilityStatus.SUPPORTED},
+        field_aliases={"schedule_relay": curated},
+        schema_shapes={},
+    )
+
+    normalized = _capability_report._with_report_write_alias_fallback(profile)
+
+    assert normalized is profile
+    assert normalized.field_aliases["schedule_relay"] is curated
+
+
+def test_report_write_alias_fallback_leaves_missing_aliases() -> None:
+    """Missing schedule aliases still use the device wrapper default path."""
+    profile = DeviceCapabilities(
+        device_class="Unknown",
+        firmware_version="1",
+        capabilities={},
+        field_aliases={},
+        schema_shapes={},
+    )
+
+    assert _capability_report._with_report_write_alias_fallback(profile) is profile
+
+
+async def test_write_report_backfills_user_write_aliases(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unrecognized write reports attempt add/modify with default write aliases."""
+    base_url = "http://192.0.2.10"
+    profile = DeviceCapabilities(
+        device_class="R20K",
+        firmware_version="1",
+        capabilities={},
+        field_aliases={
+            "schedule_relay": FieldAliases(read=("Schedule",), write=()),
+        },
+        schema_shapes={},
+    )
+
+    async def skip_validation() -> None:
+        """Avoid the live validation probe in this orchestration test."""
+        return None
+
+    async def return_profile(*_args: object, **_kwargs: object) -> DeviceCapabilities:
+        """Return an unrecognized probe profile with read-only aliases."""
+        return profile
+
+    async def skip_read_tests(
+        _device: object,
+        _results: object,
+        *,
+        capabilities: DeviceCapabilities,
+        redact_stdout: bool,
+    ) -> None:
+        """Avoid unrelated read steps in this write-path regression test."""
+        assert capabilities is not profile
+        assert redact_stdout is False
+
+    _patch_non_user_write_steps(monkeypatch)
+    monkeypatch.setattr(_capability_report, "test_validation", skip_validation)
+    monkeypatch.setattr(
+        _capability_report, "_probe_device_capabilities", return_profile
+    )
+    monkeypatch.setattr(_capability_report, "_run_read_tests", skip_read_tests)
+
+    unknown_info = {
+        "retcode": 0,
+        "action": "info",
+        "message": "",
+        "data": {
+            "Status": {
+                "Model": "R20K",
+                "MAC": "AA:BB:CC:DD:EE:FF",
+                "FirmwareVersion": "1",
+                "HardwareVersion": "1.0",
+            }
+        },
+    }
+    created_user = {
+        "ID": "user-id",
+        "Name": "pylocal-test",
+        "UserID": "9999",
+        "WebRelay": "0",
+        "Schedule": "1001-1",
+        "LiftFloorNum": "0",
+        "PrivatePIN": "1234",
+        "CardCode": "",
+    }
+    created_users = {
+        "retcode": 0,
+        "action": "get",
+        "message": "",
+        "data": {"item": [created_user]},
+    }
+    no_users = {
+        "retcode": 0,
+        "action": "get",
+        "message": "",
+        "data": {"item": []},
+    }
+
+    with aioresponses() as responses:
+        responses.get(f"{base_url}/api/system/info", payload=unknown_info, repeat=True)
+        responses.post(
+            f"{base_url}/api/user/set",
+            payload={"retcode": 0, "message": "ok"},
+            repeat=True,
+        )
+        responses.get(f"{base_url}/api/user/get", payload=created_users)
+        responses.get(f"{base_url}/api/user/get?page=1", payload=created_users)
+        responses.get(f"{base_url}/api/user/get", payload=no_users)
+
+        report = await _capability_report._run_capability_report(
+            cast("Any", _FakeReportTemplate(attempt_unknown_capability=True)),
+            write=True,
+            open_door=False,
+            open_door_user=None,
+            open_door_password=None,
+            timeout=None,
+            redact_stdout=False,
+        )
+
+    post_key = ("POST", aiohttp.client.URL(f"{base_url}/api/user/set"))
+    post_calls = responses.requests[post_key]
+    add_item = post_calls[0].kwargs["json"]["data"]["item"][0]
+    modify_item = post_calls[1].kwargs["json"]["data"]["item"][0]
+
+    for alias in DEFAULT_USER_FIELD_ALIASES.write:
+        assert add_item[alias] == "1001-1"
+        assert modify_item[alias] == "1001-1"
+    assert "Schedule" not in add_item
+    assert "Schedule" not in modify_item
+
+    tests = cast("list[dict[str, object]]", report["tests"])
+    outcomes = {test["name"]: test["status"] for test in tests}
+    assert outcomes["add_user"] == "passed"
+    assert outcomes["modify_user"] == "passed"
 
 
 def test_main_parses_open_door_credentials(
