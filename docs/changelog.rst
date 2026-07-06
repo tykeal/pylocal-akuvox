@@ -106,6 +106,13 @@ Fixed
 Added
 ^^^^^
 
+* Added R20K device-class support for the community-reported door-phone
+  profile, including schedule and contact CRUD, group add / delete, API
+  relay trigger, relay status, device config get, logs, and key
+  discovery.
+
+  Refs #229.
+
 * Added A08S device-class support for user and schedule CRUD, API relay
   trigger and status, door logs, device config, and key discovery.
   Contacts, groups, and call logs are unsupported on this access-unit
