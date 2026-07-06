@@ -249,6 +249,41 @@ _A08S_CURRENT = DeviceCapabilities(
 )
 
 
+# Issue #229: R20K door phone community write report.
+_R20K_CURRENT = DeviceCapabilities(
+    device_class="R20K",
+    firmware_version="320.30.3.122",
+    capabilities={
+        Capability.USER_LIST: CapabilityStatus.SUPPORTED,
+        Capability.SCHEDULE_LIST: CapabilityStatus.SUPPORTED,
+        Capability.SCHEDULE_ADD: CapabilityStatus.SUPPORTED,
+        Capability.SCHEDULE_MODIFY: CapabilityStatus.SUPPORTED,
+        Capability.SCHEDULE_DELETE: CapabilityStatus.SUPPORTED,
+        Capability.GROUP_LIST: CapabilityStatus.SUPPORTED,
+        Capability.GROUP_ADD: CapabilityStatus.SUPPORTED,
+        Capability.GROUP_DELETE: CapabilityStatus.SUPPORTED,
+        Capability.CONTACT_LIST: CapabilityStatus.SUPPORTED,
+        Capability.CONTACT_ADD: CapabilityStatus.SUPPORTED,
+        Capability.CONTACT_MODIFY: CapabilityStatus.SUPPORTED,
+        Capability.CONTACT_DELETE: CapabilityStatus.SUPPORTED,
+        Capability.RELAY_TRIGGER_API: CapabilityStatus.SUPPORTED,
+        Capability.RELAY_STATUS: CapabilityStatus.SUPPORTED,
+        Capability.DEVICE_CONFIG_GET: CapabilityStatus.SUPPORTED,
+        Capability.LOG_DOOR: CapabilityStatus.SUPPORTED,
+        Capability.LOG_CALL: CapabilityStatus.SUPPORTED,
+        Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
+    },
+    field_aliases={"schedule_relay": DEFAULT_USER_FIELD_ALIASES},
+    schema_shapes={"contact": SchemaShape.DOOR_PHONE},
+    provenance=Provenance(
+        test_bench_device_id="community-reporter (issue #229)",
+        firmware_version="320.30.3.122",
+        library_version=_LIB_VERSION,
+        observed_at=_OBSERVED_AT,
+    ),
+)
+
+
 _X916_BASELINE = DeviceCapabilities(
     device_class="X916",
     firmware_version="916.30.10.114",
@@ -316,6 +351,11 @@ CAPABILITY_MATRIX: tuple[tuple[DeviceClassPattern, DeviceCapabilities], ...] = (
     (
         DeviceClassPattern(model_prefix="A08S", firmware_band="108.30.10.144+"),
         _A08S_CURRENT,
+    ),
+    # R20K door phone — floor band from community write report.
+    (
+        DeviceClassPattern(model_prefix="R20K", firmware_band="320.30.3.122+"),
+        _R20K_CURRENT,
     ),
     # X916 baseline — glob match (last because most permissive).
     (
