@@ -77,6 +77,12 @@ Changed
 Fixed
 ^^^^^
 
+* Write-mode capability reports now backfill default user write aliases
+  for unrecognized devices whose probe only observes schedule relay read
+  aliases, allowing user add and modify diagnostics to reach the device.
+
+  Refs #230.
+
 * ``modify_user()`` now preserves and normalizes an existing schedule
   relay value when ``schedule_relay`` is left unchanged, preventing
   devices that require ``ScheduleRelay`` on user updates from rejecting
