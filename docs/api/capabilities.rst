@@ -104,6 +104,19 @@ The FCGI relay trigger remains ``UNKNOWN``. Contacts, groups, and call
 logs are ``UNSUPPORTED`` on this class, so the matrix leaves contact
 schema-shape parsing unset.
 
+R20K
+~~~~
+
+Door-phone class with firmware floor ``320.30.3.122+``. A community
+write-capable report confirmed user, schedule, group, contact, door-log,
+call-log, relay-status, and key-discovery reads; schedule and contact
+CRUD; group add / delete; API relay trigger; and device config get as
+``SUPPORTED``. Contact payloads use the door-phone schema shape, and
+``ScheduleRelay`` / ``Schedule-Relay`` aliasing follows the standard
+door-phone profile. User add / modify / delete, group modify, device
+config set, and the FCGI relay trigger remain ``UNKNOWN`` pending
+further testing.
+
 IT83
 ~~~~
 
