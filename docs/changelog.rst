@@ -8,6 +8,17 @@ Changelog
 Unreleased
 ----------
 
+Added
+^^^^^
+
+* Added R20A device-class support for the community-reported door-phone
+  profile, including full user, schedule, and contact CRUD; group add /
+  delete; API relay trigger; relay status; device config get; logs; and
+  key discovery. The legacy FCGI OpenDoor path is unsupported on this
+  firmware.
+
+  Refs #234.
+
 v1.3.0 (2026-07-06)
 -------------------
 
