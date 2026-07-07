@@ -117,6 +117,20 @@ door-phone profile. User add / modify / delete, group modify, device
 config set, and the FCGI relay trigger remain ``UNKNOWN`` pending
 further testing.
 
+R20A
+~~~~
+
+R20-family door-phone class with firmware floor ``320.30.11.63+``. A
+community write-capable report confirmed full user, schedule, and
+contact CRUD; group add / delete; API relay trigger; device config get;
+and all read operations as ``SUPPORTED``. Contact payloads use the
+door-phone schema shape, and ``ScheduleRelay`` / ``Schedule-Relay``
+aliasing follows the standard door-phone profile. The legacy FCGI
+OpenDoor path (``Capability.RELAY_TRIGGER_FCGI``) is ``UNSUPPORTED`` on
+this firmware: the device returns "please use new interface", so callers
+should use the standard API relay trigger. Group modify and device
+config set remain ``UNKNOWN`` pending testing.
+
 IT83
 ~~~~
 
