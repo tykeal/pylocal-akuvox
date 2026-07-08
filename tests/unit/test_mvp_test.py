@@ -1026,7 +1026,7 @@ async def test_report_open_door_read_only_skip_names_write_mode(
 def test_report_write_alias_fallback_preserves_statuses() -> None:
     """Diagnostic write alias fallback must not fabricate support."""
     profile = DeviceCapabilities(
-        device_class="R20K",
+        device_class="Synthetic",
         firmware_version="1",
         capabilities={Capability.USER_DELETE: CapabilityStatus.UNSUPPORTED},
         field_aliases={
@@ -1081,7 +1081,7 @@ async def test_write_report_backfills_user_write_aliases(
     """Unrecognized write reports attempt add/modify with default write aliases."""
     base_url = "http://192.0.2.10"
     profile = DeviceCapabilities(
-        device_class="R20K",
+        device_class="Synthetic",
         firmware_version="1",
         capabilities={},
         field_aliases={
@@ -1122,7 +1122,7 @@ async def test_write_report_backfills_user_write_aliases(
         "message": "",
         "data": {
             "Status": {
-                "Model": "R20K",
+                "Model": "Synthetic",
                 "MAC": "AA:BB:CC:DD:EE:FF",
                 "FirmwareVersion": "1",
                 "HardwareVersion": "1.0",

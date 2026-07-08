@@ -255,6 +255,9 @@ _R20K_CURRENT = DeviceCapabilities(
     firmware_version="320.30.3.122",
     capabilities={
         Capability.USER_LIST: CapabilityStatus.SUPPORTED,
+        Capability.USER_ADD: CapabilityStatus.SUPPORTED,
+        Capability.USER_MODIFY: CapabilityStatus.SUPPORTED,
+        Capability.USER_DELETE: CapabilityStatus.SUPPORTED,
         Capability.SCHEDULE_LIST: CapabilityStatus.SUPPORTED,
         Capability.SCHEDULE_ADD: CapabilityStatus.SUPPORTED,
         Capability.SCHEDULE_MODIFY: CapabilityStatus.SUPPORTED,
