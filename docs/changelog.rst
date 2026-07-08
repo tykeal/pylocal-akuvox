@@ -19,6 +19,14 @@ Added
 
   Refs #234.
 
+Changed
+^^^^^^^
+
+* Confirmed R20K user add, modify, and delete support from a follow-up
+  write-mode capability report.
+
+  Refs #229.
+
 v1.3.0 (2026-07-06)
 -------------------
 
