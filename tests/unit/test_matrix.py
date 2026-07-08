@@ -386,6 +386,9 @@ def test_r20k_capability_deltas() -> None:
     expected_supported = frozenset(
         {
             Capability.USER_LIST,
+            Capability.USER_ADD,
+            Capability.USER_MODIFY,
+            Capability.USER_DELETE,
             Capability.SCHEDULE_LIST,
             Capability.SCHEDULE_ADD,
             Capability.SCHEDULE_MODIFY,
@@ -413,13 +416,13 @@ def test_r20k_capability_deltas() -> None:
         Capability.RELAY_TRIGGER_API,
         Capability.DEVICE_CONFIG_GET,
         Capability.USER_LIST,
+        Capability.USER_ADD,
+        Capability.USER_MODIFY,
+        Capability.USER_DELETE,
     ):
         assert profile.status_of(capability) is CapabilityStatus.SUPPORTED
 
     for capability in (
-        Capability.USER_ADD,
-        Capability.USER_MODIFY,
-        Capability.USER_DELETE,
         Capability.GROUP_MODIFY,
         Capability.DEVICE_CONFIG_SET,
         Capability.RELAY_TRIGGER_FCGI,
