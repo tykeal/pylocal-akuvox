@@ -34,6 +34,8 @@ if TYPE_CHECKING:
 
     import aiohttp
 
+    from pylocal_akuvox.models import DeviceConfig
+
 SEPARATOR = "-" * 60
 _MUTATION_SETTLE_SECS = 2
 _OPEN_DOOR_PASSWORD_ENV = "AKUVOX_OPEN_DOOR_PASSWORD"
@@ -43,6 +45,16 @@ _TEST_USER_PIN = "1234"
 _TEST_SCHEDULE_NAME = "pylocal-test-sched"
 _TEST_GROUP_NAME = "__test_group__"
 _TEST_CONTACT_NAME = "__test_contact__"
+_CONFIG_SET_TOGGLE_KEY = "Config.DoorSetting.RELAY.HoldDelayA"
+_CONFIG_SET_NOOP_KEYS = (
+    # Curated to relay settings documented as writable in the config API
+    # research. The fallback writes the current value back unchanged, so
+    # interruption cannot leave device state modified.
+    "Config.DoorSetting.RELAY.TriggerDelayA",
+    "Config.DoorSetting.RELAY.TrigDelayA",
+    "Config.DoorSetting.RELAY.NameA",
+    "Config.DoorSetting.RELAY.RelayNameA",
+)
 
 
 def _default_emit(message: str) -> None:  # pragma: no cover
@@ -1238,15 +1250,50 @@ async def _run_read_tests(  # pragma: no cover
 async def test_set_device_config(device: AkuvoxDevice) -> None:  # pragma: no cover
     """Test: Set and verify a device configuration value."""
     print_header("SET DEVICE CONFIG (/api/config/set)")
-    key = "Config.DoorSetting.RELAY.HoldDelayA"
-    original: str | None = None
-    # Read current value
     cfg = await device.get_device_config()
-    original = cfg.get(key)
+    original = cfg.get(_CONFIG_SET_TOGGLE_KEY)
     if original is None:
-        msg = f"Config key {key!r} not present"
+        await _probe_config_set_noop(device, cfg)
+        return
+    await _probe_config_set_toggle_with_restore(device, original)
+
+
+async def _probe_config_set_noop(device: AkuvoxDevice, cfg: DeviceConfig) -> None:
+    """Exercise config.set with a curated same-value write when possible."""
+    fallback = _select_config_set_noop_key(cfg)
+    if fallback is None:
+        msg = (
+            f"Config key {_CONFIG_SET_TOGGLE_KEY!r} not present and no safe "
+            "fallback key available"
+        )
         _default_emit(f"  ⚠ {msg}; skipping")
         raise TestStepSkipped(msg)
+
+    key, current = fallback
+    _default_emit(
+        f"  {_CONFIG_SET_TOGGLE_KEY} not present; probing {key} with unchanged value"
+    )
+    await device.set_device_config({key: current})
+    _default_emit(f"  Set {key} to its current value")
+    _default_emit("  ✓ No restore needed; value was unchanged")
+    _default_emit("  ✓ set_device_config() OK")
+
+
+def _select_config_set_noop_key(cfg: DeviceConfig) -> tuple[str, str] | None:
+    """Return the first present same-value config.set fallback candidate."""
+    for key in _CONFIG_SET_NOOP_KEYS:
+        current = cfg.get(key)
+        if current is not None:
+            return key, current
+    return None
+
+
+async def _probe_config_set_toggle_with_restore(
+    device: AkuvoxDevice,
+    original: str,
+) -> None:
+    """Toggle the legacy probe key and restore it afterward."""
+    key = _CONFIG_SET_TOGGLE_KEY
     primary_error = False
     try:
         new_val = "7" if original != "7" else "6"

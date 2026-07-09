@@ -19,7 +19,12 @@ from aioresponses import aioresponses
 
 import pylocal_akuvox._capability_report as _capability_report
 import pylocal_akuvox._report_steps as _report_steps
-from pylocal_akuvox import Capability, CapabilityStatus, DeviceCapabilities
+from pylocal_akuvox import (
+    AkuvoxDevice,
+    Capability,
+    CapabilityStatus,
+    DeviceCapabilities,
+)
 from pylocal_akuvox._capability_defaults import DEFAULT_USER_FIELD_ALIASES
 from pylocal_akuvox._capability_profile import FieldAliases
 from pylocal_akuvox.exceptions import (
@@ -29,6 +34,16 @@ from pylocal_akuvox.exceptions import (
     AkuvoxParseError,
 )
 from pylocal_akuvox.models import CallLogEntry, Contact, DeviceInfo, DoorLogEntry, User
+from tests.unit._helpers import register_default_info
+
+BASE_URL = "http://192.168.1.100"
+_CONFIG_SET_URL = aiohttp.client.URL(f"{BASE_URL}/api/config/set")
+_SET_SUCCESS_RESPONSE = {
+    "retcode": 0,
+    "action": "config",
+    "message": "set successfully!",
+    "data": {},
+}
 
 
 class _FakeResponse:
@@ -360,6 +375,215 @@ def _run_parser_coroutine_without_loop(coro: Any) -> Any:
         return exc.value
     msg = "parser test coroutine unexpectedly yielded"
     raise AssertionError(msg)
+
+
+def _config_get_payload(data: dict[str, str]) -> dict[str, object]:
+    """Build a device-config get response envelope."""
+    return {
+        "retcode": 0,
+        "action": "get",
+        "message": "OK",
+        "data": data,
+    }
+
+
+def _request_json(request: Any) -> dict[str, Any]:
+    """Return the JSON request body captured by aioresponses."""
+    return cast("dict[str, Any]", request.kwargs["json"])
+
+
+async def test_set_device_config_prefers_toggle_restore() -> None:
+    """Keep the legacy HoldDelayA toggle and restore probe unchanged."""
+    with aioresponses() as m:
+        register_default_info(m)
+        m.get(
+            f"{BASE_URL}/api/config/get",
+            payload=_config_get_payload({"Config.DoorSetting.RELAY.HoldDelayA": "7"}),
+        )
+        m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
+        m.get(
+            f"{BASE_URL}/api/config/get",
+            payload=_config_get_payload({"Config.DoorSetting.RELAY.HoldDelayA": "6"}),
+        )
+        m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
+
+        async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
+            await _report_steps.test_set_device_config(device)
+
+    posts = m.requests[("POST", _CONFIG_SET_URL)]
+    assert _request_json(posts[0])["data"] == {
+        "Config.DoorSetting.RELAY.HoldDelayA": "6"
+    }
+    assert _request_json(posts[1])["data"] == {
+        "Config.DoorSetting.RELAY.HoldDelayA": "7"
+    }
+
+
+async def test_set_device_config_noop_fallback_attempts_set() -> None:
+    """Probe config.set with a same-value fallback instead of skipping."""
+    with aioresponses() as m:
+        register_default_info(m)
+        m.get(
+            f"{BASE_URL}/api/config/get",
+            payload=_config_get_payload(
+                {"Config.DoorSetting.RELAY.TriggerDelayA": "0"}
+            ),
+        )
+        m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
+
+        async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
+            await _report_steps.test_set_device_config(device)
+
+    posts = m.requests[("POST", _CONFIG_SET_URL)]
+    assert len(posts) == 1
+    assert _request_json(posts[0])["data"] == {
+        "Config.DoorSetting.RELAY.TriggerDelayA": "0"
+    }
+
+
+async def test_set_device_config_rejected_set_records_unsupported() -> None:
+    """Rejected fallback writes are recorded as failures, not false passes."""
+    diagnostics = mvp_test.DiagnosticReport(
+        host="192.0.2.10",
+        auth_method="none",
+        use_ssl=False,
+        verify_ssl=True,
+    )
+    results = mvp_test.TestResults(diagnostics)
+    device_kwargs = {
+        "host": "192.168.1.100",
+        "auth": None,
+        "request_delay": 0.0,
+        "use_ssl": False,
+        "verify_ssl": True,
+    }
+    reject_response = {
+        "retcode": -1,
+        "action": "config",
+        "message": "unsupported action",
+        "data": {},
+    }
+
+    with aioresponses() as m:
+        register_default_info(m)
+        m.get(
+            f"{BASE_URL}/api/config/get",
+            payload=_config_get_payload(
+                {"Config.DoorSetting.RELAY.TriggerDelayA": "0"}
+            ),
+        )
+        m.post(f"{BASE_URL}/api/config/set", status=501, payload=reject_response)
+
+        async with _report_steps.create_device(device_kwargs, diagnostics) as device:
+            await _report_steps.step(
+                results=results,
+                name="set_device_config",
+                capability=Capability.DEVICE_CONFIG_SET,
+                capabilities=_all_supported_capabilities(),
+                coro_factory=lambda: _report_steps.test_set_device_config(device),
+            )
+
+    tests = cast("list[dict[str, Any]]", diagnostics.to_json()["tests"])
+    assert results.failed == [("set_device_config", "Device error: HTTP 501")]
+    assert tests[0]["status"] == "failed"
+    assert tests[0]["capability_status"] == "unsupported"
+    assert m.requests[("POST", _CONFIG_SET_URL)]
+
+
+async def test_set_device_config_restores_after_readback_mismatch() -> None:
+    """Restore the original HoldDelayA value when read-back verification fails."""
+    with aioresponses() as m:
+        register_default_info(m)
+        m.get(
+            f"{BASE_URL}/api/config/get",
+            payload=_config_get_payload({"Config.DoorSetting.RELAY.HoldDelayA": "5"}),
+        )
+        m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
+        m.get(
+            f"{BASE_URL}/api/config/get",
+            payload=_config_get_payload({"Config.DoorSetting.RELAY.HoldDelayA": "5"}),
+        )
+        m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
+
+        async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
+            with pytest.raises(_report_steps.TestStepFailed, match="mismatch"):
+                await _report_steps.test_set_device_config(device)
+
+    posts = m.requests[("POST", _CONFIG_SET_URL)]
+    assert _request_json(posts[0])["data"] == {
+        "Config.DoorSetting.RELAY.HoldDelayA": "7"
+    }
+    assert _request_json(posts[1])["data"] == {
+        "Config.DoorSetting.RELAY.HoldDelayA": "5"
+    }
+
+
+async def test_set_device_config_suppresses_restore_failure_after_error() -> None:
+    """Keep reporting the primary failure when restore also fails afterward."""
+    restore_error = {
+        "retcode": -1,
+        "action": "config",
+        "message": "restore failed",
+        "data": {},
+    }
+    with aioresponses() as m:
+        register_default_info(m)
+        m.get(
+            f"{BASE_URL}/api/config/get",
+            payload=_config_get_payload({"Config.DoorSetting.RELAY.HoldDelayA": "5"}),
+        )
+        m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
+        m.get(
+            f"{BASE_URL}/api/config/get",
+            payload=_config_get_payload({"Config.DoorSetting.RELAY.HoldDelayA": "5"}),
+        )
+        m.post(f"{BASE_URL}/api/config/set", payload=restore_error)
+
+        async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
+            with pytest.raises(_report_steps.TestStepFailed, match="mismatch"):
+                await _report_steps.test_set_device_config(device)
+
+
+async def test_set_device_config_restore_failure_after_success_raises() -> None:
+    """Surface restore failures when the value-changing probe otherwise passed."""
+    restore_error = {
+        "retcode": -1,
+        "action": "config",
+        "message": "restore failed",
+        "data": {},
+    }
+    with aioresponses() as m:
+        register_default_info(m)
+        m.get(
+            f"{BASE_URL}/api/config/get",
+            payload=_config_get_payload({"Config.DoorSetting.RELAY.HoldDelayA": "5"}),
+        )
+        m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
+        m.get(
+            f"{BASE_URL}/api/config/get",
+            payload=_config_get_payload({"Config.DoorSetting.RELAY.HoldDelayA": "7"}),
+        )
+        m.post(f"{BASE_URL}/api/config/set", payload=restore_error)
+
+        async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
+            with pytest.raises(AkuvoxDeviceError, match="restore failed"):
+                await _report_steps.test_set_device_config(device)
+
+
+async def test_set_device_config_last_resort_skip_without_safe_key() -> None:
+    """Skip only when neither the legacy key nor any safe fallback exists."""
+    with aioresponses() as m:
+        register_default_info(m)
+        m.get(
+            f"{BASE_URL}/api/config/get",
+            payload=_config_get_payload({"Config.Network.LAN.IPAddress": "192.0.2.1"}),
+        )
+
+        async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
+            with pytest.raises(_report_steps.TestStepSkipped, match="fallback"):
+                await _report_steps.test_set_device_config(device)
+
+    assert ("POST", _CONFIG_SET_URL) not in m.requests
 
 
 def test_mvp_script_is_thin_wrapper() -> None:
