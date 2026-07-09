@@ -22,6 +22,12 @@ Added
 Changed
 ^^^^^^^
 
+* The write-mode capability report now exercises ``device.config.set``
+  with a same-value fallback probe on devices that lack the previous
+  hardcoded relay hold-delay key.
+
+  Refs #238.
+
 * Confirmed R20K user add, modify, and delete support from a follow-up
   write-mode capability report.
 
