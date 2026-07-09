@@ -372,7 +372,7 @@ def test_a08s_capability_deltas() -> None:
 
 
 def test_r20k_capability_deltas() -> None:
-    """R20K records only evidence-confirmed supported capabilities."""
+    """R20K records confirmed and R20-family-vouched support."""
     profile = lookup_capabilities(_R20K)
     assert profile is not None
     assert profile.device_class == "R20K"
@@ -403,6 +403,7 @@ def test_r20k_capability_deltas() -> None:
             Capability.RELAY_TRIGGER_API,
             Capability.RELAY_STATUS,
             Capability.DEVICE_CONFIG_GET,
+            Capability.DEVICE_CONFIG_SET,
             Capability.LOG_DOOR,
             Capability.LOG_CALL,
             Capability.KEY_DISCOVERY,
@@ -415,6 +416,7 @@ def test_r20k_capability_deltas() -> None:
         Capability.SCHEDULE_MODIFY,
         Capability.RELAY_TRIGGER_API,
         Capability.DEVICE_CONFIG_GET,
+        Capability.DEVICE_CONFIG_SET,
         Capability.USER_LIST,
         Capability.USER_ADD,
         Capability.USER_MODIFY,
@@ -424,7 +426,6 @@ def test_r20k_capability_deltas() -> None:
 
     for capability in (
         Capability.GROUP_MODIFY,
-        Capability.DEVICE_CONFIG_SET,
         Capability.RELAY_TRIGGER_FCGI,
     ):
         assert profile.status_of(capability) is CapabilityStatus.UNKNOWN
@@ -464,6 +465,7 @@ def test_r20a_capability_deltas() -> None:
             Capability.RELAY_TRIGGER_API,
             Capability.RELAY_STATUS,
             Capability.DEVICE_CONFIG_GET,
+            Capability.DEVICE_CONFIG_SET,
             Capability.LOG_DOOR,
             Capability.LOG_CALL,
             Capability.KEY_DISCOVERY,
@@ -480,6 +482,7 @@ def test_r20a_capability_deltas() -> None:
         Capability.GROUP_ADD,
         Capability.RELAY_TRIGGER_API,
         Capability.DEVICE_CONFIG_GET,
+        Capability.DEVICE_CONFIG_SET,
     ):
         assert profile.status_of(capability) is CapabilityStatus.SUPPORTED
 
@@ -487,11 +490,7 @@ def test_r20a_capability_deltas() -> None:
         CapabilityStatus.UNSUPPORTED
     )
 
-    for capability in (
-        Capability.GROUP_MODIFY,
-        Capability.DEVICE_CONFIG_SET,
-    ):
-        assert profile.status_of(capability) is CapabilityStatus.UNKNOWN
+    assert profile.status_of(Capability.GROUP_MODIFY) is CapabilityStatus.UNKNOWN
 
 
 def test_r20a_and_r20k_prefixes_do_not_shadow_each_other() -> None:
