@@ -272,6 +272,8 @@ _R20K_CURRENT = DeviceCapabilities(
         Capability.RELAY_TRIGGER_API: CapabilityStatus.SUPPORTED,
         Capability.RELAY_STATUS: CapabilityStatus.SUPPORTED,
         Capability.DEVICE_CONFIG_GET: CapabilityStatus.SUPPORTED,
+        # Issue #237: R20-family vouch promotes set support.
+        Capability.DEVICE_CONFIG_SET: CapabilityStatus.SUPPORTED,
         Capability.LOG_DOOR: CapabilityStatus.SUPPORTED,
         Capability.LOG_CALL: CapabilityStatus.SUPPORTED,
         Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
@@ -312,6 +314,8 @@ _R20A_CURRENT = DeviceCapabilities(
         Capability.RELAY_TRIGGER_FCGI: CapabilityStatus.UNSUPPORTED,
         Capability.RELAY_STATUS: CapabilityStatus.SUPPORTED,
         Capability.DEVICE_CONFIG_GET: CapabilityStatus.SUPPORTED,
+        # Issue #237: webhook config writes confirm set support.
+        Capability.DEVICE_CONFIG_SET: CapabilityStatus.SUPPORTED,
         Capability.LOG_DOOR: CapabilityStatus.SUPPORTED,
         Capability.LOG_CALL: CapabilityStatus.SUPPORTED,
         Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
