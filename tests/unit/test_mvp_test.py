@@ -441,8 +441,65 @@ async def test_set_device_config_noop_fallback_attempts_set() -> None:
     }
 
 
-async def test_set_device_config_rejected_set_records_unsupported() -> None:
-    """Rejected fallback writes are recorded as failures, not false passes."""
+async def test_set_device_config_device_name_only_fallback() -> None:
+    """Probe config.set on non-relay devices via a device-name fallback."""
+    with aioresponses() as m:
+        register_default_info(m)
+        m.get(
+            f"{BASE_URL}/api/config/get",
+            payload=_config_get_payload(
+                {"Config.DoorSetting.GENERAL.DeviceName": "Indoor Monitor"}
+            ),
+        )
+        m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
+
+        async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
+            await _report_steps.test_set_device_config(device)
+
+    posts = m.requests[("POST", _CONFIG_SET_URL)]
+    assert len(posts) == 1
+    assert _request_json(posts[0])["data"] == {
+        "Config.DoorSetting.GENERAL.DeviceName": "Indoor Monitor"
+    }
+
+
+async def test_set_device_config_rejected_key_tries_next() -> None:
+    """Continue past a rejected same-value candidate until one is accepted."""
+    unsupported_response = {
+        "retcode": 0,
+        "action": "config",
+        "message": "Api unsupported",
+        "data": {},
+    }
+    with aioresponses() as m:
+        register_default_info(m)
+        m.get(
+            f"{BASE_URL}/api/config/get",
+            payload=_config_get_payload(
+                {
+                    "Config.DoorSetting.RELAY.TriggerDelayA": "0",
+                    "Config.DoorSetting.GENERAL.DeviceName": "Lobby",
+                }
+            ),
+        )
+        m.post(f"{BASE_URL}/api/config/set", payload=unsupported_response)
+        m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
+
+        async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
+            await _report_steps.test_set_device_config(device)
+
+    posts = m.requests[("POST", _CONFIG_SET_URL)]
+    assert len(posts) == 2
+    assert _request_json(posts[0])["data"] == {
+        "Config.DoorSetting.RELAY.TriggerDelayA": "0"
+    }
+    assert _request_json(posts[1])["data"] == {
+        "Config.DoorSetting.GENERAL.DeviceName": "Lobby"
+    }
+
+
+async def test_set_device_config_all_rejected_records_unsupported() -> None:
+    """All rejected fallback writes are failures, not skips or false passes."""
     diagnostics = mvp_test.DiagnosticReport(
         host="192.0.2.10",
         auth_method="none",
@@ -469,9 +526,13 @@ async def test_set_device_config_rejected_set_records_unsupported() -> None:
         m.get(
             f"{BASE_URL}/api/config/get",
             payload=_config_get_payload(
-                {"Config.DoorSetting.RELAY.TriggerDelayA": "0"}
+                {
+                    "Config.DoorSetting.RELAY.TriggerDelayA": "0",
+                    "Config.DoorSetting.GENERAL.DeviceName": "Lobby",
+                }
             ),
         )
+        m.post(f"{BASE_URL}/api/config/set", status=501, payload=reject_response)
         m.post(f"{BASE_URL}/api/config/set", status=501, payload=reject_response)
 
         async with _report_steps.create_device(device_kwargs, diagnostics) as device:
@@ -484,10 +545,48 @@ async def test_set_device_config_rejected_set_records_unsupported() -> None:
             )
 
     tests = cast("list[dict[str, Any]]", diagnostics.to_json()["tests"])
-    assert results.failed == [("set_device_config", "Device error: HTTP 501")]
+    assert len(results.failed) == 1
+    assert results.failed[0][0] == "set_device_config"
+    assert (
+        "All safe config.set fallback candidates were rejected" in results.failed[0][1]
+    )
     assert tests[0]["status"] == "failed"
     assert tests[0]["capability_status"] == "unsupported"
-    assert m.requests[("POST", _CONFIG_SET_URL)]
+    posts = m.requests[("POST", _CONFIG_SET_URL)]
+    assert len(posts) == 2
+    assert _request_json(posts[0])["data"] == {
+        "Config.DoorSetting.RELAY.TriggerDelayA": "0"
+    }
+    assert _request_json(posts[1])["data"] == {
+        "Config.DoorSetting.GENERAL.DeviceName": "Lobby"
+    }
+
+
+async def test_set_device_config_transport_error_propagates() -> None:
+    """Do not treat transport failures as rejected fallback candidates."""
+    with aioresponses() as m:
+        register_default_info(m)
+        m.get(
+            f"{BASE_URL}/api/config/get",
+            payload=_config_get_payload(
+                {
+                    "Config.DoorSetting.RELAY.TriggerDelayA": "0",
+                    "Config.DoorSetting.GENERAL.DeviceName": "Lobby",
+                }
+            ),
+        )
+        m.post(
+            f"{BASE_URL}/api/config/set",
+            exception=aiohttp.ClientConnectionError("refused"),
+        )
+        m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
+
+        async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
+            with pytest.raises(AkuvoxConnectionError):
+                await _report_steps.test_set_device_config(device)
+
+    posts = m.requests[("POST", _CONFIG_SET_URL)]
+    assert len(posts) == 1
 
 
 async def test_set_device_config_restores_after_readback_mismatch() -> None:
