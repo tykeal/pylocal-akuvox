@@ -441,6 +441,32 @@ async def test_set_device_config_noop_fallback_attempts_set() -> None:
     }
 
 
+async def test_set_device_config_noop_prefers_sntp_anchor() -> None:
+    """Lead with broadly available SNTP settings before model-specific keys."""
+    with aioresponses() as m:
+        register_default_info(m)
+        m.get(
+            f"{BASE_URL}/api/config/get",
+            payload=_config_get_payload(
+                {
+                    "Config.Settings.SNTP.NTPServer1": "0.pool.ntp.org",
+                    "Config.DoorSetting.GENERAL.DeviceName": "Door",
+                    "Config.DoorSetting.RELAY.TriggerDelayA": "0",
+                }
+            ),
+        )
+        m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
+
+        async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
+            await _report_steps.test_set_device_config(device)
+
+    posts = m.requests[("POST", _CONFIG_SET_URL)]
+    assert len(posts) == 1
+    assert _request_json(posts[0])["data"] == {
+        "Config.Settings.SNTP.NTPServer1": "0.pool.ntp.org"
+    }
+
+
 async def test_set_device_config_device_name_only_fallback() -> None:
     """Probe config.set on non-relay devices via a device-name fallback."""
     with aioresponses() as m:
@@ -477,8 +503,8 @@ async def test_set_device_config_rejected_key_tries_next() -> None:
             f"{BASE_URL}/api/config/get",
             payload=_config_get_payload(
                 {
-                    "Config.DoorSetting.RELAY.TriggerDelayA": "0",
-                    "Config.DoorSetting.GENERAL.DeviceName": "Lobby",
+                    "Config.Settings.SNTP.NTPServer1": "0.pool.ntp.org",
+                    "Config.Settings.GENERAL.WebTitle": "Door Phone",
                 }
             ),
         )
@@ -491,10 +517,10 @@ async def test_set_device_config_rejected_key_tries_next() -> None:
     posts = m.requests[("POST", _CONFIG_SET_URL)]
     assert len(posts) == 2
     assert _request_json(posts[0])["data"] == {
-        "Config.DoorSetting.RELAY.TriggerDelayA": "0"
+        "Config.Settings.SNTP.NTPServer1": "0.pool.ntp.org"
     }
     assert _request_json(posts[1])["data"] == {
-        "Config.DoorSetting.GENERAL.DeviceName": "Lobby"
+        "Config.Settings.GENERAL.WebTitle": "Door Phone"
     }
 
 
@@ -527,8 +553,8 @@ async def test_set_device_config_all_rejected_records_unsupported() -> None:
             f"{BASE_URL}/api/config/get",
             payload=_config_get_payload(
                 {
-                    "Config.DoorSetting.RELAY.TriggerDelayA": "0",
-                    "Config.DoorSetting.GENERAL.DeviceName": "Lobby",
+                    "Config.Settings.SNTP.NTPServer1": "0.pool.ntp.org",
+                    "Config.Settings.GENERAL.WebTitle": "Door Phone",
                 }
             ),
         )
@@ -555,10 +581,10 @@ async def test_set_device_config_all_rejected_records_unsupported() -> None:
     posts = m.requests[("POST", _CONFIG_SET_URL)]
     assert len(posts) == 2
     assert _request_json(posts[0])["data"] == {
-        "Config.DoorSetting.RELAY.TriggerDelayA": "0"
+        "Config.Settings.SNTP.NTPServer1": "0.pool.ntp.org"
     }
     assert _request_json(posts[1])["data"] == {
-        "Config.DoorSetting.GENERAL.DeviceName": "Lobby"
+        "Config.Settings.GENERAL.WebTitle": "Door Phone"
     }
 
 
@@ -570,8 +596,8 @@ async def test_set_device_config_transport_error_propagates() -> None:
             f"{BASE_URL}/api/config/get",
             payload=_config_get_payload(
                 {
-                    "Config.DoorSetting.RELAY.TriggerDelayA": "0",
-                    "Config.DoorSetting.GENERAL.DeviceName": "Lobby",
+                    "Config.Settings.SNTP.NTPServer1": "0.pool.ntp.org",
+                    "Config.Settings.GENERAL.WebTitle": "Door Phone",
                 }
             ),
         )
