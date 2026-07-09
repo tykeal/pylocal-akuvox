@@ -49,22 +49,21 @@ _TEST_GROUP_NAME = "__test_group__"
 _TEST_CONTACT_NAME = "__test_contact__"
 _CONFIG_SET_TOGGLE_KEY = "Config.DoorSetting.RELAY.HoldDelayA"
 _CONFIG_SET_NOOP_KEYS = (
-    # Lead with common SNTP / general settings that were live-validated as
-    # writable by same-value no-op on an E18 (fw 18.30.10.118) and are also
-    # present in the R20A schema. No single key is universal, so keep the
-    # try-until-accepted loop and retain R20A DeviceName plus proven relay-A
-    # fallbacks for models where the broader settings are absent or read-only.
-    "Config.Settings.SNTP.NTPServer1",
-    "Config.Settings.SNTP.TimeZone",
+    # Lead with benign UI / localization / label settings, avoiding network,
+    # account, server, and management-protocol config. The first four were
+    # live-validated as writable by same-value no-op on an E18 (fw
+    # 18.30.10.118) and are present in the R20A schema. No single key is
+    # universal, so keep the try-until-accepted loop and retain R20A
+    # DeviceName plus proven relay-A label/settings fallbacks.
     "Config.Settings.GENERAL.WebTitle",
-    "Config.Settings.GENERAL.HttpUserAgent",
-    "Config.Settings.SNTP.Name",
+    "Config.Settings.LANGUAGE.WebLang",
+    "Config.Settings.LANGUAGE.Type",
+    "Config.Settings.BACKLIGHT.Level",
     "Config.DoorSetting.GENERAL.DeviceName",
-    "Config.TR069.DeviceInfo.DeviceName",
-    "Config.DoorSetting.RELAY.TriggerDelayA",
-    "Config.DoorSetting.RELAY.TrigDelayA",
     "Config.DoorSetting.RELAY.NameA",
     "Config.DoorSetting.RELAY.RelayNameA",
+    "Config.DoorSetting.RELAY.TriggerDelayA",
+    "Config.DoorSetting.RELAY.TrigDelayA",
 )
 _CONFIG_SET_NOOP_REJECTION_ERRORS = (
     AkuvoxUnsupportedError,
