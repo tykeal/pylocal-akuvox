@@ -35,8 +35,9 @@ Changed
   Refs #238.
 
 * The ``device.config.set`` fallback probe now covers non-relay devices
-  with near-universal device-name keys and tries safe same-value
-  candidates until one write is accepted.
+  with broadly available SNTP / general keys, R20A-family device-name
+  keys, and relay-A fallbacks; it tries safe same-value candidates until
+  one write is accepted.
 
   Refs #241.
 
