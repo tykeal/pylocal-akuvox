@@ -441,15 +441,16 @@ async def test_set_device_config_noop_fallback_attempts_set() -> None:
     }
 
 
-async def test_set_device_config_noop_prefers_sntp_anchor() -> None:
-    """Lead with broadly available SNTP settings before model-specific keys."""
+async def test_set_device_config_noop_prefers_web_title_anchor() -> None:
+    """Lead with benign UI settings before model-specific keys."""
     with aioresponses() as m:
         register_default_info(m)
         m.get(
             f"{BASE_URL}/api/config/get",
             payload=_config_get_payload(
                 {
-                    "Config.Settings.SNTP.NTPServer1": "0.pool.ntp.org",
+                    "Config.Settings.GENERAL.WebTitle": "Door Phone",
+                    "Config.Settings.LANGUAGE.WebLang": "English",
                     "Config.DoorSetting.GENERAL.DeviceName": "Door",
                     "Config.DoorSetting.RELAY.TriggerDelayA": "0",
                 }
@@ -463,7 +464,7 @@ async def test_set_device_config_noop_prefers_sntp_anchor() -> None:
     posts = m.requests[("POST", _CONFIG_SET_URL)]
     assert len(posts) == 1
     assert _request_json(posts[0])["data"] == {
-        "Config.Settings.SNTP.NTPServer1": "0.pool.ntp.org"
+        "Config.Settings.GENERAL.WebTitle": "Door Phone"
     }
 
 
@@ -503,8 +504,8 @@ async def test_set_device_config_rejected_key_tries_next() -> None:
             f"{BASE_URL}/api/config/get",
             payload=_config_get_payload(
                 {
-                    "Config.Settings.SNTP.NTPServer1": "0.pool.ntp.org",
                     "Config.Settings.GENERAL.WebTitle": "Door Phone",
+                    "Config.Settings.LANGUAGE.WebLang": "English",
                 }
             ),
         )
@@ -517,10 +518,10 @@ async def test_set_device_config_rejected_key_tries_next() -> None:
     posts = m.requests[("POST", _CONFIG_SET_URL)]
     assert len(posts) == 2
     assert _request_json(posts[0])["data"] == {
-        "Config.Settings.SNTP.NTPServer1": "0.pool.ntp.org"
+        "Config.Settings.GENERAL.WebTitle": "Door Phone"
     }
     assert _request_json(posts[1])["data"] == {
-        "Config.Settings.GENERAL.WebTitle": "Door Phone"
+        "Config.Settings.LANGUAGE.WebLang": "English"
     }
 
 
@@ -553,8 +554,8 @@ async def test_set_device_config_all_rejected_records_unsupported() -> None:
             f"{BASE_URL}/api/config/get",
             payload=_config_get_payload(
                 {
-                    "Config.Settings.SNTP.NTPServer1": "0.pool.ntp.org",
                     "Config.Settings.GENERAL.WebTitle": "Door Phone",
+                    "Config.Settings.LANGUAGE.WebLang": "English",
                 }
             ),
         )
@@ -581,10 +582,10 @@ async def test_set_device_config_all_rejected_records_unsupported() -> None:
     posts = m.requests[("POST", _CONFIG_SET_URL)]
     assert len(posts) == 2
     assert _request_json(posts[0])["data"] == {
-        "Config.Settings.SNTP.NTPServer1": "0.pool.ntp.org"
+        "Config.Settings.GENERAL.WebTitle": "Door Phone"
     }
     assert _request_json(posts[1])["data"] == {
-        "Config.Settings.GENERAL.WebTitle": "Door Phone"
+        "Config.Settings.LANGUAGE.WebLang": "English"
     }
 
 
@@ -596,8 +597,8 @@ async def test_set_device_config_transport_error_propagates() -> None:
             f"{BASE_URL}/api/config/get",
             payload=_config_get_payload(
                 {
-                    "Config.Settings.SNTP.NTPServer1": "0.pool.ntp.org",
                     "Config.Settings.GENERAL.WebTitle": "Door Phone",
+                    "Config.Settings.LANGUAGE.WebLang": "English",
                 }
             ),
         )
