@@ -23,14 +23,16 @@ from pylocal_akuvox.device import AkuvoxDevice
 from pylocal_akuvox.exceptions import (
     AkuvoxAuthenticationError,
     AkuvoxConnectionError,
+    AkuvoxDeviceError,
     AkuvoxError,
     AkuvoxParseError,
+    AkuvoxRequestError,
     AkuvoxUnsupportedError,
     AkuvoxValidationError,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable, Coroutine
+    from collections.abc import Awaitable, Callable, Coroutine, Iterator
 
     import aiohttp
 
@@ -47,13 +49,22 @@ _TEST_GROUP_NAME = "__test_group__"
 _TEST_CONTACT_NAME = "__test_contact__"
 _CONFIG_SET_TOGGLE_KEY = "Config.DoorSetting.RELAY.HoldDelayA"
 _CONFIG_SET_NOOP_KEYS = (
-    # Curated to relay settings documented as writable in the config API
-    # research. The fallback writes the current value back unchanged, so
-    # interruption cannot leave device state modified.
+    # Keep the proven relay fallbacks first for door-phone continuity, then
+    # try near-universal display-name keys so non-relay indoor monitors can
+    # still exercise config.set. Every fallback writes the current value back
+    # unchanged, so interruption cannot leave device state modified.
     "Config.DoorSetting.RELAY.TriggerDelayA",
     "Config.DoorSetting.RELAY.TrigDelayA",
     "Config.DoorSetting.RELAY.NameA",
     "Config.DoorSetting.RELAY.RelayNameA",
+    "Config.DoorSetting.GENERAL.DeviceName",
+    "Config.TR069.DeviceInfo.DeviceName",
+    "Config.Settings.GENERAL.WebTitle",
+)
+_CONFIG_SET_NOOP_REJECTION_ERRORS = (
+    AkuvoxUnsupportedError,
+    AkuvoxRequestError,
+    AkuvoxDeviceError,
 )
 
 
@@ -1259,9 +1270,29 @@ async def test_set_device_config(device: AkuvoxDevice) -> None:  # pragma: no co
 
 
 async def _probe_config_set_noop(device: AkuvoxDevice, cfg: DeviceConfig) -> None:
-    """Exercise config.set with a curated same-value write when possible."""
-    fallback = _select_config_set_noop_key(cfg)
-    if fallback is None:
+    """Exercise config.set with the first accepted same-value fallback."""
+    rejections: list[tuple[str, BaseException]] = []
+    saw_candidate = False
+
+    for key, current in _iter_config_set_noop_candidates(cfg):
+        saw_candidate = True
+        _default_emit(
+            f"  {_CONFIG_SET_TOGGLE_KEY} not present; probing {key} "
+            "with unchanged value"
+        )
+        try:
+            await device.set_device_config({key: current})
+        except _CONFIG_SET_NOOP_REJECTION_ERRORS as exc:
+            rejections.append((key, exc))
+            _default_emit(f"  ⚠ {key} rejected: {_first_line(str(exc))}")
+            continue
+
+        _default_emit(f"  Set {key} to its current value")
+        _default_emit("  ✓ No restore needed; value was unchanged")
+        _default_emit("  ✓ set_device_config() OK")
+        return
+
+    if not saw_candidate:
         msg = (
             f"Config key {_CONFIG_SET_TOGGLE_KEY!r} not present and no safe "
             "fallback key available"
@@ -1269,23 +1300,24 @@ async def _probe_config_set_noop(device: AkuvoxDevice, cfg: DeviceConfig) -> Non
         _default_emit(f"  ⚠ {msg}; skipping")
         raise TestStepSkipped(msg)
 
-    key, current = fallback
-    _default_emit(
-        f"  {_CONFIG_SET_TOGGLE_KEY} not present; probing {key} with unchanged value"
-    )
-    await device.set_device_config({key: current})
-    _default_emit(f"  Set {key} to its current value")
-    _default_emit("  ✓ No restore needed; value was unchanged")
-    _default_emit("  ✓ set_device_config() OK")
+    msg = _format_config_set_noop_rejections(rejections)
+    raise TestStepFailed(msg) from rejections[-1][1]
 
 
-def _select_config_set_noop_key(cfg: DeviceConfig) -> tuple[str, str] | None:
-    """Return the first present same-value config.set fallback candidate."""
+def _iter_config_set_noop_candidates(cfg: DeviceConfig) -> Iterator[tuple[str, str]]:
+    """Yield present same-value config.set fallback candidates in probe order."""
     for key in _CONFIG_SET_NOOP_KEYS:
         current = cfg.get(key)
         if current is not None:
-            return key, current
-    return None
+            yield key, current
+
+
+def _format_config_set_noop_rejections(
+    rejections: list[tuple[str, BaseException]],
+) -> str:
+    """Summarize rejected same-value config.set fallback attempts."""
+    details = "; ".join(f"{key}: {_first_line(str(exc))}" for key, exc in rejections)
+    return f"All safe config.set fallback candidates were rejected ({details})"
 
 
 async def _probe_config_set_toggle_with_restore(
