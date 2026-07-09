@@ -22,6 +22,12 @@ Added
 Changed
 ^^^^^^^
 
+* R20A now reports confirmed device config set support from webhook
+  configuration writes; R20K is promoted to the same support by
+  R20-family equivalence (maintainer vouch), not direct evidence.
+
+  Refs #237.
+
 * The write-mode capability report now exercises ``device.config.set``
   with a same-value fallback probe on devices that lack the previous
   hardcoded relay hold-delay key.
