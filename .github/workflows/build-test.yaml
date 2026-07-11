@@ -25,7 +25,7 @@ jobs:
       contents: read
       pull-requests: read
     # yamllint disable-line rule:line-length
-    uses: lfreleng-actions/python-workflows/.github/workflows/build-test.yaml@4f48e1cd660f94ab9f1d4bbc15a948c1aca105ad  # v0.1.1
+    uses: lfreleng-actions/python-workflows/.github/workflows/build-test.yaml@097060f907512f93b3fd4c912a61283543d60b91  # v0.2.0
     with:
       audit_ignore_vulns: 'GHSA-58qw-9mgm-455v'
       audit_permit_fail: ${{ vars.NO_BLOCK_AUDIT_FAIL == 'true' }}
