@@ -20,6 +20,7 @@ X916 matrix entry agree).
 ```python
 # pylocal_akuvox/capability_adapters.py
 
+
 @dataclass(frozen=True, kw_only=True)
 class RelayTriggerArgs:
     num: int
@@ -34,24 +35,22 @@ RelayTriggerAdapter: TypeAlias = Callable[
 ]
 
 
-async def _api_relay_trigger(
-    http: AkuvoxHttpClient, args: RelayTriggerArgs
-) -> None:
+async def _api_relay_trigger(http: AkuvoxHttpClient, args: RelayTriggerArgs) -> None:
     """Relay trigger via /api/relay/trig (X916, X915S, E18C)."""
     body = {
         "target": "relay",
         "action": "trig",
         "data": {
-            "num": args.num, "mode": args.mode,
-            "level": args.level, "delay": args.delay,
+            "num": args.num,
+            "mode": args.mode,
+            "level": args.level,
+            "delay": args.delay,
         },
     }
     await http.post("/api/relay/trig", data=body)
 
 
-async def _fcgi_relay_trigger(
-    http: AkuvoxHttpClient, args: RelayTriggerArgs
-) -> None:
+async def _fcgi_relay_trigger(http: AkuvoxHttpClient, args: RelayTriggerArgs) -> None:
     """Relay trigger via /fcgi/do?action=OpenDoor (IT83 indoor monitor).
 
     Per issue #122. Note: the FCGI variant accepts only ``num`` (mapped
@@ -156,8 +155,7 @@ async def trigger_relay(
     fn = RELAY_TRIGGER_ADAPTERS.get((chosen, variant))
     if fn is None:
         raise AkuvoxUnsupportedError(
-            f"No adapter registered for {chosen.value} on "
-            f"{caps.device_class}",
+            f"No adapter registered for {chosen.value} on {caps.device_class}",
             capability=chosen,
             device_class=caps.device_class,
             reason="adapter_missing",

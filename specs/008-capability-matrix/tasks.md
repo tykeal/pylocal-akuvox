@@ -140,7 +140,11 @@ Tests in this section MUST fail before any implementation work in T017–T024.
            payload = json.loads(body)
        except json.JSONDecodeError as exc:
            raise AkuvoxParseError("step-1 body is not valid JSON") from exc
-       if not isinstance(payload, dict) or "retcode" not in payload or not isinstance(payload["retcode"], int):
+       if (
+           not isinstance(payload, dict)
+           or "retcode" not in payload
+           or not isinstance(payload["retcode"], int)
+       ):
            raise AkuvoxParseError(f"step-1 envelope missing fields: {payload!r}")
        data = payload.get("data", {})
        if not isinstance(data, dict):

@@ -191,10 +191,10 @@ single-source-of-truth reasons.
 **four** optional fields, all defaulting to `None`:
 
 ```python
-apt_name: str | None = None   # source key: APTName
-apt_num: str | None = None    # source key: APTNum
-building: str | None = None   # source key: Building
-landline: str | None = None   # source key: Landline
+apt_name: str | None = None  # source key: APTName
+apt_num: str | None = None  # source key: APTNum
+building: str | None = None  # source key: Building
+landline: str | None = None  # source key: Landline
 ```
 
 Because the dataclass is `kw_only`, appending fields with defaults is a

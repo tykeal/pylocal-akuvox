@@ -17,10 +17,12 @@ pip install pylocal-akuvox
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
 
+
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
         info = await device.get_info()
         print(f"{info.model} — FW {info.firmware_version}")
+
 
 asyncio.run(main())
 ```
@@ -136,11 +138,14 @@ from pylocal_akuvox.exceptions import (
 
 try:
     async with AkuvoxDevice("192.168.1.100") as device:
-        await device.add_user(name="Bob", user_id="2002",
-                              private_pin="12ab",
-                              web_relay="0",
-                              schedule_relay="1001-1",
-                              lift_floor_num="0")
+        await device.add_user(
+            name="Bob",
+            user_id="2002",
+            private_pin="12ab",
+            web_relay="0",
+            schedule_relay="1001-1",
+            lift_floor_num="0",
+        )
 except AkuvoxConnectionError as e:
     print(f"Cannot reach device: {e}")
 except AkuvoxAuthenticationError as e:

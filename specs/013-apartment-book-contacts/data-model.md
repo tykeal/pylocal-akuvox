@@ -71,8 +71,16 @@ Shape is selected by
 
 ```python
 # {"ID": "1", "Name": "Alice", "Phone": "555-0100", "Group": "Residents"}
-Contact(name="Alice", id="1", phone="555-0100", group="Residents",
-        apt_name=None, apt_num=None, building=None, landline=None)
+Contact(
+    name="Alice",
+    id="1",
+    phone="555-0100",
+    group="Residents",
+    apt_name=None,
+    apt_num=None,
+    building=None,
+    landline=None,
+)
 ```
 
 **Apartment-book branch (CHANGED — now populates the four fields):**
@@ -80,15 +88,31 @@ Contact(name="Alice", id="1", phone="555-0100", group="Residents",
 ```python
 # {"APTName": "1", "APTNum": "1", "Building": "", "Landline": "",
 #  "Name": "01_monitor", "Phone": "192.168.0.10"}
-Contact(name="01_monitor", id=None, phone="192.168.0.10", group=None,
-        apt_name="1", apt_num="1", building="", landline="")
+Contact(
+    name="01_monitor",
+    id=None,
+    phone="192.168.0.10",
+    group=None,
+    apt_name="1",
+    apt_num="1",
+    building="",
+    landline="",
+)
 ```
 
 ```python
 # apartment-book payload omitting ID — succeeds, id is None (FR-003)
 # {"APTName": "2", "Name": "02_monitor", "Phone": "192.168.0.11"}
-Contact(name="02_monitor", id=None, phone="192.168.0.11", group=None,
-        apt_name="2", apt_num=None, building=None, landline=None)
+Contact(
+    name="02_monitor",
+    id=None,
+    phone="192.168.0.11",
+    group=None,
+    apt_name="2",
+    apt_num=None,
+    building=None,
+    landline=None,
+)
 ```
 
 ## Method: `Contact.to_api_payload` (UNCHANGED)

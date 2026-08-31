@@ -94,9 +94,9 @@ callers").
 class CapabilityStatus(enum.Enum):
     """Three-valued capability status."""
 
-    SUPPORTED = "supported"      # confirmed positive evidence
+    SUPPORTED = "supported"  # confirmed positive evidence
     UNSUPPORTED = "unsupported"  # confirmed negative evidence (e.g. unsupported action)
-    UNKNOWN = "unknown"          # no positive evidence either way
+    UNKNOWN = "unknown"  # no positive evidence either way
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -117,10 +117,10 @@ class DeviceCapabilities:
     device_class: str
     firmware_version: str
     capabilities: Mapping[Capability, CapabilityStatus]
-    field_aliases: Mapping[str, FieldAliases]   # logical-field name → aliases
-    schema_shapes: Mapping[str, SchemaShape]     # resource name → shape
+    field_aliases: Mapping[str, FieldAliases]  # logical-field name → aliases
+    schema_shapes: Mapping[str, SchemaShape]  # resource name → shape
     notes: Mapping[str, str] = field(default_factory=dict)
-    provenance: Provenance | None = None         # None when probe-derived
+    provenance: Provenance | None = None  # None when probe-derived
 
     def __post_init__(self) -> None:
         """Wrap each mapping field in a read-only view (``MappingProxyType``).
@@ -234,17 +234,25 @@ Ordered most-specific-first; the first matching pattern wins:
 ```python
 CAPABILITY_MATRIX = (
     # IT83 indoor monitor — exact firmware match
-    (DeviceClassPattern(model_prefix="IT83", firmware_band="83.30.10.4"),
-     _IT83_83_30_10_4),
+    (
+        DeviceClassPattern(model_prefix="IT83", firmware_band="83.30.10.4"),
+        _IT83_83_30_10_4,
+    ),
     # X915S current firmware — floor match (excludes the historical 113)
-    (DeviceClassPattern(model_prefix="X915S", firmware_band="2915.30.10.114+"),
-     _X915S_CURRENT),
+    (
+        DeviceClassPattern(model_prefix="X915S", firmware_band="2915.30.10.114+"),
+        _X915S_CURRENT,
+    ),
     # E18C current firmware — glob match
-    (DeviceClassPattern(model_prefix="E18C", firmware_band="18.30.11.*"),
-     _E18C_CURRENT),
+    (
+        DeviceClassPattern(model_prefix="E18C", firmware_band="18.30.11.*"),
+        _E18C_CURRENT,
+    ),
     # X916 baseline — glob match (last because most permissive)
-    (DeviceClassPattern(model_prefix="X916", firmware_band="916.30.10.*"),
-     _X916_BASELINE),
+    (
+        DeviceClassPattern(model_prefix="X916", firmware_band="916.30.10.*"),
+        _X916_BASELINE,
+    ),
 )
 ```
 

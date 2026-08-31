@@ -575,8 +575,7 @@ def test_device_subpath_remains_importable() -> None:
     assert module.__file__ is not None
     module_path = Path(module.__file__)
     assert module_path.name == "device.py" or (
-        module_path.suffix == ".pyc"
-        and module_path.name.startswith("device.")
+        module_path.suffix == ".pyc" and module_path.name.startswith("device.")
     )
 
 

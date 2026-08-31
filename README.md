@@ -43,10 +43,12 @@ pip install pylocal-akuvox
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
 
+
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
         info = await device.get_info()
         print(f"{info.model} — FW {info.firmware_version}")
+
 
 asyncio.run(main())
 ```
@@ -60,6 +62,7 @@ the safe read-only probe and then act only on confirmed capabilities:
 ```python
 import asyncio
 from pylocal_akuvox import AkuvoxDevice, Capability, CapabilityStatus
+
 
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
@@ -77,6 +80,7 @@ async def main():
             )
         else:
             print("User creation is not confirmed for this device")
+
 
 asyncio.run(main())
 ```
@@ -110,6 +114,7 @@ device web UI, provisioning, or another vendor-supported channel.
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
 
+
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
         await device.add_user(
@@ -125,6 +130,7 @@ async def main():
         for user in users:
             print(f"{user.name} (ID: {user.user_id})")
 
+
 asyncio.run(main())
 ```
 
@@ -137,9 +143,11 @@ which sends `/api/relay/trig` with the connection's `AuthConfig`:
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
 
+
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
         await device.trigger_relay(num=1, delay=5)
+
 
 asyncio.run(main())
 ```
@@ -152,12 +160,14 @@ relay-specific credentials per call:
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
 
+
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
         await device.open_door_http(
             user="relay-user",
             password="relay-password",
         )
+
 
 asyncio.run(main())
 ```
@@ -174,11 +184,13 @@ OpenDoor request.
 import asyncio
 from pylocal_akuvox import AkuvoxDevice, AuthConfig, AuthMethod
 
+
 async def main():
     # Basic Auth
     auth = AuthConfig(method=AuthMethod.BASIC, username="admin", password="secret")
     async with AkuvoxDevice("192.168.1.100", auth=auth) as device:
         info = await device.get_info()
+
 
 asyncio.run(main())
 ```
