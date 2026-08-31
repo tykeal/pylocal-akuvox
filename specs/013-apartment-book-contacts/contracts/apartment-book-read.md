@@ -20,16 +20,20 @@ name: str
 id: str | None = None
 phone: str | None = None
 group: str | None = None
-apt_name: str | None = None   # NEW — source key APTName
-apt_num: str | None = None    # NEW — source key APTNum
-building: str | None = None   # NEW — source key Building
-landline: str | None = None   # NEW — source key Landline
+apt_name: str | None = None  # NEW — source key APTName
+apt_num: str | None = None  # NEW — source key APTNum
+building: str | None = None  # NEW — source key Building
+landline: str | None = None  # NEW — source key Landline
+
 
 @classmethod
 def from_api_response(
-    cls, data: dict[str, Any], *,
+    cls,
+    data: dict[str, Any],
+    *,
     capabilities: DeviceCapabilities | None = None,
 ) -> Contact: ...
+
 
 # pylocal_akuvox/device.py — AkuvoxDevice
 async def list_contacts(self, *, page: int | None = None) -> list[Contact]: ...
@@ -76,8 +80,16 @@ GET /api/contact/get[?page=<n>]
 →
 
 ```python
-Contact(name="01_monitor", id=None, phone="192.168.0.10", group=None,
-        apt_name="1", apt_num="1", building="", landline="")
+Contact(
+    name="01_monitor",
+    id=None,
+    phone="192.168.0.10",
+    group=None,
+    apt_name="1",
+    apt_num="1",
+    building="",
+    landline="",
+)
 ```
 
 **Apartment-book record omitting `ID`:**
@@ -89,8 +101,16 @@ Contact(name="01_monitor", id=None, phone="192.168.0.10", group=None,
 →
 
 ```python
-Contact(name="02_monitor", id=None, phone="192.168.0.11", group=None,
-        apt_name="2", apt_num=None, building=None, landline=None)
+Contact(
+    name="02_monitor",
+    id=None,
+    phone="192.168.0.11",
+    group=None,
+    apt_name="2",
+    apt_num=None,
+    building=None,
+    landline=None,
+)
 ```
 
 **Door-phone record (byte-identical to today, FR-004):**
@@ -102,8 +122,16 @@ Contact(name="02_monitor", id=None, phone="192.168.0.11", group=None,
 →
 
 ```python
-Contact(name="Alice", id="1", phone="555-0100", group="Residents",
-        apt_name=None, apt_num=None, building=None, landline=None)
+Contact(
+    name="Alice",
+    id="1",
+    phone="555-0100",
+    group="Residents",
+    apt_name=None,
+    apt_num=None,
+    building=None,
+    landline=None,
+)
 ```
 
 ## Guarantees

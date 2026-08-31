@@ -17,13 +17,17 @@ HTTP-envelope translation that backs the opt-in / unrecognised-device path.
 
 ```python
 # pylocal_akuvox/device.py — AkuvoxDevice
-async def add_contact(self, *, name: str,
-                      phone: str | None = None,
-                      group: str | None = None) -> None: ...
-async def modify_contact(self, *, id: str,
-                         name: str | None = None,
-                         phone: str | None = None,
-                         group: str | None = None) -> None: ...
+async def add_contact(
+    self, *, name: str, phone: str | None = None, group: str | None = None
+) -> None: ...
+async def modify_contact(
+    self,
+    *,
+    id: str,
+    name: str | None = None,
+    phone: str | None = None,
+    group: str | None = None,
+) -> None: ...
 async def delete_contact(self, *, id: str | list[str]) -> None: ...
 ```
 
@@ -112,8 +116,7 @@ No new API. A caller checks support before writing via the existing surface:
 ```python
 from pylocal_akuvox import Capability, CapabilityStatus
 
-if device.capabilities.status_of(Capability.CONTACT_ADD) \
-        is CapabilityStatus.SUPPORTED:
+if device.capabilities.status_of(Capability.CONTACT_ADD) is CapabilityStatus.SUPPORTED:
     await device.add_contact(name="Alice")
 # X915S -> status_of(...) is UNSUPPORTED; skip without a failed write
 ```

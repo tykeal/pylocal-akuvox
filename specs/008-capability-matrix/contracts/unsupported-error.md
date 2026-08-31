@@ -124,8 +124,14 @@ class AkuvoxUnsupportedError(AkuvoxError):
 Reason values are a closed set, validated by the test suite:
 
 ```python
-{"capability_missing", "capability_unknown", "device_unrecognized",
- "adapter_missing", "envelope_unsupported", None}
+{
+    "capability_missing",
+    "capability_unknown",
+    "device_unrecognized",
+    "adapter_missing",
+    "envelope_unsupported",
+    None,
+}
 ```
 
 A test in `test_unsupported_error.py` enumerates this set and ensures

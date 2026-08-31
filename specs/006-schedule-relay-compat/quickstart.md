@@ -21,6 +21,7 @@ import asyncio
 
 from pylocal_akuvox import AkuvoxDevice, AuthConfig, AuthMethod
 
+
 async def main() -> None:
     auth = AuthConfig(method=AuthMethod.BASIC, username="admin", password="...")
     async with AkuvoxDevice(host="10.0.0.50", auth=auth) as device:
@@ -28,9 +29,10 @@ async def main() -> None:
         await device.add_user(
             name="Alice",
             user_id="1001",
-            schedule_relay="1001-1",   # primary-relay schedule
+            schedule_relay="1001-1",  # primary-relay schedule
             lift_floor_num="",
         )
+
 
 asyncio.run(main())
 ```

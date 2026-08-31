@@ -100,8 +100,16 @@ during implementation):
 ```python
 import pylocal_akuvox.models as shim
 from pylocal_akuvox.models import (
-    AccessSchedule, CallLogEntry, Contact, DeviceConfig, DeviceInfo,
-    DeviceStatus, DoorLogEntry, Group, Relay, User,
+    AccessSchedule,
+    CallLogEntry,
+    Contact,
+    DeviceConfig,
+    DeviceInfo,
+    DeviceStatus,
+    DoorLogEntry,
+    Group,
+    Relay,
+    User,
 )
 from pylocal_akuvox.models import config as config_mod
 from pylocal_akuvox.models import contacts as contacts_mod

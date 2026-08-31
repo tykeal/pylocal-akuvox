@@ -16,12 +16,14 @@ After this feature is implemented, all existing code automatically benefits from
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
 
+
 async def main():
     async with AkuvoxDevice(host="192.168.1.100") as device:
         # These requests will have 0.25s delay between them automatically
         users = await device.list_users()
         groups = await device.list_groups()
         contacts = await device.list_contacts()
+
 
 asyncio.run(main())
 ```
@@ -37,6 +39,7 @@ contacts = [
     ("Bob", "555-0101"),
 ]
 
+
 async def main():
     async with AkuvoxDevice(
         host="192.168.1.100",
@@ -44,6 +47,7 @@ async def main():
     ) as device:
         for name, phone in contacts:
             await device.add_contact(name=name, phone=phone)
+
 
 asyncio.run(main())
 ```
@@ -54,6 +58,7 @@ asyncio.run(main())
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
 
+
 async def main():
     async with AkuvoxDevice(
         host="192.168.1.100",
@@ -61,6 +66,7 @@ async def main():
     ) as device:
         info = await device.get_info()
         print(info)
+
 
 asyncio.run(main())
 ```
@@ -71,6 +77,7 @@ asyncio.run(main())
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
 
+
 async def main():
     async with AkuvoxDevice(
         host="192.168.1.100",
@@ -79,6 +86,7 @@ async def main():
         await device.get_info()
         # 1.0s delay happens here before the next request starts
         await device.get_status()
+
 
 asyncio.run(main())
 ```
@@ -89,12 +97,14 @@ asyncio.run(main())
 import asyncio
 from pylocal_akuvox import AkuvoxConnectionError, AkuvoxDevice
 
+
 async def main():
     try:
         async with AkuvoxDevice(host="192.168.1.100") as device:
             await device.get_info()  # If this fails, no delay
     except AkuvoxConnectionError:
         pass  # Error raised immediately, no 0.25s wait
+
 
 asyncio.run(main())
 
