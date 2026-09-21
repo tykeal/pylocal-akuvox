@@ -25,11 +25,13 @@ SPDX-License-Identifier: Apache-2.0
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
 
+
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
         groups = await device.list_groups()
         for group in groups:
             print(f"ID={group.id}  Name={group.name}")
+
 
 asyncio.run(main())
 ```
@@ -40,9 +42,11 @@ asyncio.run(main())
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
 
+
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
         await device.add_group(name="Residents")
+
 
 asyncio.run(main())
 ```
@@ -53,9 +57,11 @@ asyncio.run(main())
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
 
+
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
         await device.modify_group(id="1", name="Updated Residents")
+
 
 asyncio.run(main())
 ```
@@ -66,9 +72,11 @@ asyncio.run(main())
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
 
+
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
         await device.delete_group(id="1")
+
 
 asyncio.run(main())
 ```
@@ -78,6 +86,7 @@ asyncio.run(main())
 ```python
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
+
 
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
@@ -99,6 +108,7 @@ async def main():
         # Delete the group
         await device.delete_group(id=new_group.id)
 
+
 asyncio.run(main())
 ```
 
@@ -107,6 +117,7 @@ asyncio.run(main())
 ```python
 import asyncio
 from pylocal_akuvox import AkuvoxDevice, AuthConfig, AuthMethod
+
 
 async def main():
     auth = AuthConfig(
@@ -118,6 +129,7 @@ async def main():
         groups = await device.list_groups()
         print(f"Found {len(groups)} group(s)")
 
+
 asyncio.run(main())
 ```
 
@@ -126,6 +138,7 @@ asyncio.run(main())
 ```python
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
+
 
 async def main():
     # verify_ssl=False only for local/dev with self-signed certs;
@@ -138,6 +151,7 @@ async def main():
         groups = await device.list_groups()
         print(f"Found {len(groups)} group(s)")
 
+
 asyncio.run(main())
 ```
 
@@ -147,11 +161,13 @@ asyncio.run(main())
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
 
+
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
         # Get page 1 of groups
         page1 = await device.list_groups(page=1)
         print(f"Page 1: {len(page1)} group(s)")
+
 
 asyncio.run(main())
 ```
@@ -167,6 +183,7 @@ from pylocal_akuvox.exceptions import (
     AkuvoxValidationError,
 )
 
+
 async def main():
     try:
         async with AkuvoxDevice("192.168.1.100") as device:
@@ -178,6 +195,7 @@ async def main():
         print(f"Device error: {e}")
     except AkuvoxConnectionError as e:
         print(f"Connection error: {e}")
+
 
 asyncio.run(main())
 ```
