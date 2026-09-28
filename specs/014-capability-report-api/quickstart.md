@@ -68,10 +68,10 @@ as skipped when their parent `add_*` fails or is skipped.
 ```python
 report = await run_capability_report(
     device,
-    write=True,             # OpenDoor requires write mode
+    write=True,  # OpenDoor requires write mode
     open_door=True,
     open_door_user="relay-user",
-    open_door_password="relay-secret",   # passed programmatically; the library never reads env
+    open_door_password="relay-secret",  # passed programmatically; the library never reads env
 )
 ```
 

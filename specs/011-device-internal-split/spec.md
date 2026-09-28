@@ -185,6 +185,7 @@ Both supported import forms continue to resolve to the same class object:
 ```python
 from pylocal_akuvox import AkuvoxDevice
 from pylocal_akuvox.device import AkuvoxDevice as DeviceFromSubpath
+
 assert AkuvoxDevice is DeviceFromSubpath
 ```
 

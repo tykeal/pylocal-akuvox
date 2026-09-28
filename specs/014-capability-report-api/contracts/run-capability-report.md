@@ -19,6 +19,7 @@ behaviour, and return shape below are fixed by the spec and this plan.
 # Importable from the package root:
 from pylocal_akuvox import run_capability_report
 
+
 async def run_capability_report(
     device: AkuvoxDevice,
     *,
