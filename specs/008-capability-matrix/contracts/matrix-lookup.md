@@ -19,6 +19,7 @@ data-only).
 ```python
 # pylocal_akuvox/capabilities.py
 
+
 @dataclass(frozen=True, kw_only=True)
 class DeviceClassPattern:
     """A model-prefix + firmware-band matcher used as a matrix key."""

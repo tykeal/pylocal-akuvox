@@ -588,16 +588,22 @@ The reason taxonomy is fixed in code (not a free string) because Phase
 stores the result. Each demo step is wrapped:
 
 ```python
-async def step(name: str, capability: Capability, fn: Callable[[], Awaitable[None]]) -> None:
+async def step(
+    name: str, capability: Capability, fn: Callable[[], Awaitable[None]]
+) -> None:
     status = device.capabilities.status_of(capability)
     if status is CapabilityStatus.UNSUPPORTED:
-        print(f"  SKIP: {name}: not supported on this device class "
-              f"({device.capabilities.device_class})")
+        print(
+            f"  SKIP: {name}: not supported on this device class "
+            f"({device.capabilities.device_class})"
+        )
         return
     if status is CapabilityStatus.UNKNOWN:
-        print(f"  SKIP: {name}: capability unknown for this device class "
-              f"({device.capabilities.device_class}); "
-              f"add a matrix entry or set device.attempt_unknown_capability=True")
+        print(
+            f"  SKIP: {name}: capability unknown for this device class "
+            f"({device.capabilities.device_class}); "
+            f"add a matrix entry or set device.attempt_unknown_capability=True"
+        )
         return
     try:
         await fn()

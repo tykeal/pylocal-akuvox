@@ -22,13 +22,13 @@ from pylocal_akuvox import AkuvoxDevice, AuthConfig, AuthMethod
 auth = AuthConfig(method=AuthMethod.DIGEST, username="admin", password="secret")
 
 async with AkuvoxDevice("192.168.0.2", auth=auth) as device:
-    await device.probe_capabilities()          # selects APARTMENT_BOOK shape
+    await device.probe_capabilities()  # selects APARTMENT_BOOK shape
     contacts = await device.list_contacts()
 
     for c in contacts:
         # Door-phone fields still work; apartment-book metadata is preserved:
         print(c.name, c.phone, c.apt_name, c.apt_num, c.building, c.landline)
-        assert c.id is None                     # X915S assigns no device ID
+        assert c.id is None  # X915S assigns no device ID
 ```
 
 For an X915S record
@@ -36,8 +36,16 @@ For an X915S record
 "Name": "01_monitor", "Phone": "192.168.0.10"}` you get:
 
 ```python
-Contact(name="01_monitor", id=None, phone="192.168.0.10", group=None,
-        apt_name="1", apt_num="1", building="", landline="")
+Contact(
+    name="01_monitor",
+    id=None,
+    phone="192.168.0.10",
+    group=None,
+    apt_name="1",
+    apt_num="1",
+    building="",
+    landline="",
+)
 ```
 
 Empty `building` / `landline` are preserved as `""` (the device returned the
@@ -52,8 +60,9 @@ fields but makes **no** uniqueness guarantee. Correlate records with the
 ```python
 def record_key(c):
     if c.apt_num and c.phone:
-        return ("apt", c.apt_num, c.phone)     # recommended composite
-    return ("name", c.name)                    # fallback
+        return ("apt", c.apt_num, c.phone)  # recommended composite
+    return ("name", c.name)  # fallback
+
 
 by_key = {record_key(c): c for c in contacts}
 ```
@@ -69,8 +78,7 @@ There is no bespoke `contacts_writable` helper — use the capability surface:
 from pylocal_akuvox import Capability, CapabilityStatus
 
 writable = (
-    device.capabilities.status_of(Capability.CONTACT_ADD)
-    is CapabilityStatus.SUPPORTED
+    device.capabilities.status_of(Capability.CONTACT_ADD) is CapabilityStatus.SUPPORTED
 )
 if writable:
     await device.add_contact(name="Alice", phone="555-0100")
@@ -96,9 +104,9 @@ for call in (
     try:
         await call
     except AkuvoxUnsupportedError as exc:
-        assert exc.capability is not None            # CONTACT_ADD/MODIFY/DELETE
+        assert exc.capability is not None  # CONTACT_ADD/MODIFY/DELETE
         assert exc.device_class == "X915S"
-        assert exc.reason == "capability_missing"    # uniform across all three
+        assert exc.reason == "capability_missing"  # uniform across all three
         # exc message names the device class + operation and points to the
         # out-of-band management channel.
 ```

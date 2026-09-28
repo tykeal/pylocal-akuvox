@@ -166,13 +166,13 @@ guard condition (e.g., recording user aliases when the outcome is
 
 ```python
 DeviceCapabilities(
-    device_class=device_info.model,           # from step 1
+    device_class=device_info.model,  # from step 1
     firmware_version=device_info.firmware_version,  # from step 1
-    capabilities=capabilities,                # dict accumulator, includes KEY_DISCOVERY=SUPPORTED
-    field_aliases=field_aliases,              # dict accumulator, possibly empty
-    schema_shapes=schema_shapes,              # dict accumulator, possibly empty
-    notes=notes,                              # dict accumulator, includes system_status
-    provenance=None,                          # the "this came from a probe" marker
+    capabilities=capabilities,  # dict accumulator, includes KEY_DISCOVERY=SUPPORTED
+    field_aliases=field_aliases,  # dict accumulator, possibly empty
+    schema_shapes=schema_shapes,  # dict accumulator, possibly empty
+    notes=notes,  # dict accumulator, includes system_status
+    provenance=None,  # the "this came from a probe" marker
 )
 ```
 

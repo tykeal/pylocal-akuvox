@@ -25,12 +25,16 @@ SPDX-License-Identifier: Apache-2.0
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
 
+
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
         contacts = await device.list_contacts()
         for contact in contacts:
-            print(f"ID={contact.id}  Name={contact.name}  "
-                  f"Phone={contact.phone}  Group={contact.group}")
+            print(
+                f"ID={contact.id}  Name={contact.name}  "
+                f"Phone={contact.phone}  Group={contact.group}"
+            )
+
 
 asyncio.run(main())
 ```
@@ -40,6 +44,7 @@ asyncio.run(main())
 ```python
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
+
 
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
@@ -53,6 +58,7 @@ async def main():
             group="Residents",
         )
 
+
 asyncio.run(main())
 ```
 
@@ -61,6 +67,7 @@ asyncio.run(main())
 ```python
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
+
 
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
@@ -77,6 +84,7 @@ async def main():
             group="Contractors",
         )
 
+
 asyncio.run(main())
 ```
 
@@ -86,6 +94,7 @@ asyncio.run(main())
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
 
+
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
         # Single delete
@@ -93,6 +102,7 @@ async def main():
 
         # Batch delete (multiple contacts in one request)
         await device.delete_contact(id=["2", "3", "4"])
+
 
 asyncio.run(main())
 ```
@@ -102,6 +112,7 @@ asyncio.run(main())
 ```python
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
+
 
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
@@ -125,6 +136,7 @@ async def main():
         charlie = next(c for c in contacts if c.name == "Charlie")
         print(f"Charlie is now in group: {charlie.group}")
 
+
 asyncio.run(main())
 ```
 
@@ -133,6 +145,7 @@ asyncio.run(main())
 ```python
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
+
 
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
@@ -167,6 +180,7 @@ async def main():
         # Delete the contact
         await device.delete_contact(id=diana.id)
 
+
 asyncio.run(main())
 ```
 
@@ -175,6 +189,7 @@ asyncio.run(main())
 ```python
 import asyncio
 from pylocal_akuvox import AkuvoxDevice, AuthConfig, AuthMethod
+
 
 async def main():
     auth = AuthConfig(
@@ -186,6 +201,7 @@ async def main():
         contacts = await device.list_contacts()
         print(f"Found {len(contacts)} contact(s)")
 
+
 asyncio.run(main())
 ```
 
@@ -194,6 +210,7 @@ asyncio.run(main())
 ```python
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
+
 
 async def main():
     # verify_ssl=False only for local/dev with self-signed certs;
@@ -206,6 +223,7 @@ async def main():
         contacts = await device.list_contacts()
         print(f"Found {len(contacts)} contact(s)")
 
+
 asyncio.run(main())
 ```
 
@@ -215,11 +233,13 @@ asyncio.run(main())
 import asyncio
 from pylocal_akuvox import AkuvoxDevice
 
+
 async def main():
     async with AkuvoxDevice("192.168.1.100") as device:
         # Get page 1 of contacts
         page1 = await device.list_contacts(page=1)
         print(f"Page 1: {len(page1)} contact(s)")
+
 
 asyncio.run(main())
 ```
@@ -235,6 +255,7 @@ from pylocal_akuvox.exceptions import (
     AkuvoxValidationError,
 )
 
+
 async def main():
     try:
         async with AkuvoxDevice("192.168.1.100") as device:
@@ -246,6 +267,7 @@ async def main():
         print(f"Device error: {e}")
     except AkuvoxConnectionError as e:
         print(f"Connection error: {e}")
+
 
 asyncio.run(main())
 ```
