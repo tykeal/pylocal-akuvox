@@ -142,7 +142,7 @@ def test_field_aliases_is_frozen_kw_only_dataclass() -> None:
 def test_field_aliases_is_kw_only() -> None:
     """FieldAliases must be constructed with keyword arguments."""
     with pytest.raises(TypeError):
-        FieldAliases(("a",), ("b",))  # type: ignore[misc]
+        FieldAliases(("a",), ("b",))  # type: ignore[call-arg]
 
 
 def test_schema_shape_members() -> None:
@@ -170,7 +170,7 @@ def test_provenance_carries_required_fields() -> None:
 def test_provenance_is_kw_only() -> None:
     """Provenance must be constructed with keyword arguments."""
     with pytest.raises(TypeError):
-        Provenance("x", "y", "z", "2026-01-01")  # type: ignore[misc]
+        Provenance("x", "y", "z", "2026-01-01")  # type: ignore[call-arg]
 
 
 # ---------- T012: DeviceCapabilities ----------------------------------------
