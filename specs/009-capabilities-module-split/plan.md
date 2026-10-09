@@ -417,6 +417,7 @@ if TYPE_CHECKING:
 ```python
 def lookup_capabilities(device_info: DeviceInfo) -> DeviceCapabilities | None:
     from pylocal_akuvox.capability_matrix import CAPABILITY_MATRIX
+
     ...
 ```
 

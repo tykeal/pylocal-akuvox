@@ -26,6 +26,7 @@ async def open_door_http(
     door_num: int = 1,
 ) -> None: ...
 
+
 # pylocal_akuvox/device.py — AkuvoxDevice
 async def open_door_http(
     self,

@@ -30,7 +30,7 @@ async with AkuvoxDevice("192.168.1.100") as device:
     await device.open_door_http(
         user="relayuser",
         password="relaypass",
-        door_num=1,          # defaults to 1
+        door_num=1,  # defaults to 1
     )
     # Returns None on success; raises on failure.
 ```
@@ -66,15 +66,15 @@ from pylocal_akuvox import (
 try:
     await device.open_door_http(user="relayuser", password="relaypass")
 except AkuvoxValidationError:
-    ...   # invalid door_num — no request was issued
+    ...  # invalid door_num — no request was issued
 except AkuvoxAuthenticationError:
-    ...   # HTTP 401 — wrong relay credentials or feature disabled
+    ...  # HTTP 401 — wrong relay credentials or feature disabled
 except AkuvoxRequestError:
-    ...   # HTTP 403 / other 4xx
+    ...  # HTTP 403 / other 4xx
 except AkuvoxDeviceError:
-    ...   # HTTP 5xx / other non-2xx
+    ...  # HTTP 5xx / other non-2xx
 except AkuvoxConnectionError:
-    ...   # transport failure (refused / DNS / timeout)
+    ...  # transport failure (refused / DNS / timeout)
 ```
 
 ## Choosing the mechanism

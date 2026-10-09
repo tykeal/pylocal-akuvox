@@ -665,7 +665,7 @@ FR-016; SC-001, SC-004, SC-007; US1, US2.
            open_door_user: str | None = None,
            open_door_password: str | None = None,
            timeout: float | None = None,
-           redact_stdout: bool = False,   # display-only seam — see Anomalies §1
+           redact_stdout: bool = False,  # display-only seam — see Anomalies §1
            emit: Callable[[str], None] | None = None,
        ) -> dict[str, object]: ...
        ```

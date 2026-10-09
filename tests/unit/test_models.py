@@ -912,7 +912,7 @@ def test_group_is_frozen() -> None:
 def test_group_kw_only() -> None:
     """Verify Group requires keyword arguments."""
     with pytest.raises(TypeError):
-        Group("Staff")  # type: ignore[misc]
+        Group("Staff")  # type: ignore[call-arg]
 
 
 def test_group_from_api_response_valid() -> None:
@@ -986,7 +986,7 @@ def test_contact_frozen() -> None:
 def test_contact_kw_only() -> None:
     """Verify Contact requires keyword arguments."""
     with pytest.raises(TypeError):
-        Contact("Alice")  # type: ignore[misc]
+        Contact("Alice")  # type: ignore[call-arg]
 
 
 def test_contact_from_api_response() -> None:
