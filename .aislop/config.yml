@@ -8,11 +8,12 @@ version: 1
 # aislop honors ci.failBelow from this project config.
 # Fail the CI quality gate if the project score drops below a perfect
 # 100. The whole tree is at 100/100; this prevents silent regressions.
-# failOnMissingTools makes the gate fail rather than silently skip
-# checks whose underlying tools are unavailable.
+# ci.failOnMissingTools is intentionally left at its default (false):
+# pre-commit.ci runs the hook offline in a node-only environment with
+# no ruff, so aislop's format/lint engines are skipped there. Those
+# checks are still enforced by the dedicated ruff pre-commit hooks.
 ci:
   failBelow: 100
-  failOnMissingTools: true
 
 # Per-file limits (aislop >= 0.17.0); flagged only above limit * 1.1.
 # Owner-approved replacements for former inline aislop-ignore comments.
