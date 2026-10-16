@@ -54,6 +54,13 @@ Changed
 
   Refs #229.
 
+* Split the capability matrix device entries into focused internal
+  ``_matrix_entries_*`` device-family modules while preserving
+  ``pylocal_akuvox.capability_matrix``, its importable names, and the
+  ``CAPABILITY_MATRIX`` registration order.
+
+  Refs #301.
+
 v1.3.0 (2026-07-06)
 -------------------
 

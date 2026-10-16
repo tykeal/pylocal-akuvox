@@ -638,8 +638,12 @@ def test_matrix_library_version_reuses_package_version(
     drop_capability_matrix(pylocal_akuvox)
 
     capability_matrix = importlib.import_module("pylocal_akuvox.capability_matrix")
+    provenance = importlib.import_module("pylocal_akuvox._matrix_provenance")
 
-    assert getattr(capability_matrix, "_LIB_VERSION") == pylocal_akuvox.__version__
+    assert provenance.LIB_VERSION == pylocal_akuvox.__version__
+    for _pattern, capabilities in capability_matrix.CAPABILITY_MATRIX:
+        assert capabilities.provenance is not None
+        assert capabilities.provenance.library_version == pylocal_akuvox.__version__
 
 
 # ============================================================================

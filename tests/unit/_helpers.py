@@ -34,7 +34,7 @@ BASE_URL = "http://192.168.1.100"
 
 # X916 baseline payload — model "X916S" with firmware "916.30.10.114"
 # both startswith("X916") and match the "916.30.10.*" glob band, so
-# ``lookup_capabilities`` resolves to ``_X916_BASELINE`` (every
+# ``lookup_capabilities`` resolves to ``X916_BASELINE`` (every
 # operation SUPPORTED). This keeps existing gated-method tests green
 # without per-test capability fiddling.
 DEFAULT_INFO_PAYLOAD: dict[str, object] = {
@@ -93,11 +93,27 @@ def register_default_info(
     )
 
 
+def _is_matrix_module(attr: str) -> bool:
+    """Return whether ``attr`` names a capability-matrix (sub)module."""
+    return attr in {"capability_matrix", "_matrix_provenance"} or (
+        attr.startswith("_matrix_entries_")
+    )
+
+
 def drop_capability_matrix(parent: ModuleType) -> None:
-    """Force the matrix import path to exercise a first import again."""
-    sys.modules.pop("pylocal_akuvox.capability_matrix", None)
-    if hasattr(parent, "capability_matrix"):
-        delattr(parent, "capability_matrix")
+    """Force the matrix import path to exercise a first import again.
+
+    Clears ``capability_matrix`` together with its private provenance
+    and device-family entry modules so provenance values such as
+    ``LIB_VERSION`` are re-sampled on the next import.
+    """
+    prefix = f"{parent.__name__}."
+    for name in list(sys.modules):
+        if name.startswith(prefix) and _is_matrix_module(name[len(prefix) :]):
+            sys.modules.pop(name, None)
+    for attr in list(vars(parent)):
+        if _is_matrix_module(attr):
+            delattr(parent, attr)
 
 
 __all__ = [

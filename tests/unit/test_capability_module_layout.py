@@ -24,6 +24,9 @@ silently undone:
 * ``AkuvoxDevice.probe_capabilities`` remains the public consumer-
   facing handle for the capability probe (presence pin only — the
   behaviour suite lives in ``test_capability_probe.py``).
+* ``pylocal_akuvox.capability_matrix`` keeps its public names while the
+  per-device entries live in private ``_matrix_entries_*`` family
+  modules (non-breaking split).
 """
 
 from __future__ import annotations
@@ -224,5 +227,69 @@ def test_device_modules_under_aislop_limit() -> None:
         "pylocal_akuvox._device_access",
         "pylocal_akuvox._device_contacts",
         "pylocal_akuvox._device_config_logs",
+    ):
+        assert _module_line_count(name) < 400
+
+
+_MATRIX_FAMILY_MODULES = (
+    "pylocal_akuvox._matrix_entries_e_series",
+    "pylocal_akuvox._matrix_entries_indoor_access",
+    "pylocal_akuvox._matrix_entries_r_series",
+    "pylocal_akuvox._matrix_entries_x_series",
+)
+
+
+def test_matrix_split_modules_importable() -> None:
+    """The matrix provenance and device-family modules must import cleanly."""
+    for name in ("pylocal_akuvox._matrix_provenance", *_MATRIX_FAMILY_MODULES):
+        importlib.import_module(name)
+
+
+def test_capability_matrix_public_names_still_resolve() -> None:
+    """Names importable before the split still resolve on the public path."""
+    import pylocal_akuvox._capability_defaults as defaults
+    import pylocal_akuvox._capability_matching as matching
+
+    module = importlib.import_module("pylocal_akuvox.capability_matrix")
+
+    assert module.__all__ == ["CAPABILITY_MATRIX"]
+    assert isinstance(module.CAPABILITY_MATRIX, tuple)
+    expected = {
+        "Capability": _types.Capability,
+        "CapabilityStatus": _types.CapabilityStatus,
+        "SchemaShape": _types.SchemaShape,
+        "DeviceCapabilities": _profile.DeviceCapabilities,
+        "FieldAliases": _profile.FieldAliases,
+        "Provenance": _profile.Provenance,
+        "DeviceClassPattern": matching.DeviceClassPattern,
+        "DEFAULT_USER_FIELD_ALIASES": defaults.DEFAULT_USER_FIELD_ALIASES,
+    }
+    for name, symbol in expected.items():
+        assert getattr(module, name) is symbol, name
+
+
+def test_capability_matrix_entries_come_from_family_modules() -> None:
+    """Every registered entry must be defined by a device-family module."""
+    module = importlib.import_module("pylocal_akuvox.capability_matrix")
+    family_entries = [
+        value
+        for name in _MATRIX_FAMILY_MODULES
+        for value in vars(importlib.import_module(name)).values()
+        if isinstance(value, _profile.DeviceCapabilities)
+    ]
+
+    registered = [entry for _pattern, entry in module.CAPABILITY_MATRIX]
+
+    assert len(registered) == len(family_entries)
+    for entry in registered:
+        assert any(entry is candidate for candidate in family_entries)
+
+
+def test_capability_matrix_modules_under_aislop_limit() -> None:
+    """The matrix facade and its split modules must stay below 400 lines."""
+    for name in (
+        "pylocal_akuvox.capability_matrix",
+        "pylocal_akuvox._matrix_provenance",
+        *_MATRIX_FAMILY_MODULES,
     ):
         assert _module_line_count(name) < 400
