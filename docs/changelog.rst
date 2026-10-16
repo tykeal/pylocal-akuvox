@@ -27,6 +27,14 @@ Added
 
   Refs #299.
 
+* Added R20BX3 device-class support (firmware ``320.30.10.153+``) from
+  a community write-mode capability report, including full user,
+  schedule, and contact CRUD; group add / delete; API relay trigger;
+  relay status; device config get / set; logs; and key discovery.
+  Group modify and the FCGI OpenDoor path remain unknown.
+
+  Refs #298.
+
 Changed
 ^^^^^^^
 
