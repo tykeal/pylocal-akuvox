@@ -57,6 +57,7 @@ _IT83 = _info("IT83", "83.30.10.4")
 _R20K = _info("R20K", "320.30.3.122")
 _R20A = _info("R20A", "320.30.11.63")
 _E12W = _info("E12W", "312.30.11.15")
+_R20BX3 = _info("R20BX3", "320.30.10.153")
 
 _DOOR_PHONE_CRUD_CAPABILITIES = (
     Capability.USER_LIST,
@@ -105,8 +106,8 @@ def test_every_entry_has_provenance() -> None:
         assert prov.observed_at
 
 
-def test_matrix_covers_all_nine_supported_classes() -> None:
-    """All nine supported device classes exist."""
+def test_matrix_covers_all_ten_supported_classes() -> None:
+    """All ten supported device classes exist."""
     classes = {caps.device_class for _pattern, caps in CAPABILITY_MATRIX}
     assert classes == {
         "X916",
@@ -118,6 +119,7 @@ def test_matrix_covers_all_nine_supported_classes() -> None:
         "R20K",
         "R20A",
         "E12W",
+        "R20BX3",
     }
 
 
@@ -136,6 +138,7 @@ def test_matrix_covers_all_nine_supported_classes() -> None:
         (_R20K, "R20K", 1),
         (_R20A, "R20A", 1),
         (_E12W, "E12W", 1),
+        (_R20BX3, "R20BX3", 1),
     ],
 )
 def test_matching_order_returns_intended_entry(
@@ -221,6 +224,13 @@ def test_lookup_returns_first_match_e12w() -> None:
     assert profile.device_class == "E12W"
 
 
+def test_lookup_returns_first_match_r20bx3() -> None:
+    """R20BX3 current firmware matches the R20BX3 floor-band entry."""
+    profile = lookup_capabilities(_R20BX3)
+    assert profile is not None
+    assert profile.device_class == "R20BX3"
+
+
 def test_lookup_returns_none_for_unrecognised_device() -> None:
     """An unknown model returns ``None`` from the lookup helper."""
     profile = lookup_capabilities(_info("UnknownDevice", "1.0.0.0"))
@@ -281,6 +291,16 @@ def test_e12w_firmware_floor_matches_current_and_newer() -> None:
         assert profile.device_class == "E12W"
 
     assert lookup_capabilities(_info("E12W", "312.30.11.14")) is None
+
+
+def test_r20bx3_firmware_floor_matches_current_and_newer() -> None:
+    """R20BX3 firmware floor admits 320.30.10.153 and newer builds only."""
+    for firmware in ("320.30.10.153", "320.30.10.200", "320.31.0.0"):
+        profile = lookup_capabilities(_info("R20BX3", firmware))
+        assert profile is not None
+        assert profile.device_class == "R20BX3"
+
+    assert lookup_capabilities(_info("R20BX3", "320.30.10.152")) is None
 
 
 # --- Capability deltas ----------------------------------------------------
@@ -580,6 +600,48 @@ def test_e12w_capability_deltas() -> None:
 def test_e12w_prefix_does_not_shadow_e18_family() -> None:
     """E12W and the E18 / E18C prefixes resolve independently."""
     for info, expected in ((_E12W, "E12W"), (_E18, "E18"), (_E18C, "E18C")):
+        profile = lookup_capabilities(info)
+        assert profile is not None
+        assert profile.device_class == expected
+
+
+def test_r20bx3_capability_deltas() -> None:
+    """R20BX3 records only report-confirmed SUPPORTED capabilities."""
+    profile = lookup_capabilities(_R20BX3)
+    assert profile is not None
+    assert profile.device_class == "R20BX3"
+    assert "device_not_in_matrix" not in profile.notes
+    assert profile.schema_shapes.get("contact") is SchemaShape.DOOR_PHONE
+    assert profile.field_aliases.get("schedule_relay") == DEFAULT_USER_FIELD_ALIASES
+    assert profile.provenance is not None
+    assert profile.provenance.test_bench_device_id == (
+        "community reporter (issue #298)"
+    )
+    assert profile.provenance.firmware_version == "320.30.10.153"
+    assert profile.provenance.observed_at == "2026-10-16"
+
+    expected_supported = frozenset(_DOOR_PHONE_CRUD_CAPABILITIES) - {
+        Capability.GROUP_MODIFY
+    }
+    assert profile.supported_set == expected_supported
+    assert profile.status_of(Capability.DEVICE_CONFIG_SET) is (
+        CapabilityStatus.SUPPORTED
+    )
+
+    for capability in (
+        Capability.GROUP_MODIFY,
+        Capability.RELAY_TRIGGER_FCGI,
+    ):
+        assert profile.status_of(capability) is CapabilityStatus.UNKNOWN
+
+
+def test_r20bx3_prefix_does_not_shadow_r20_family() -> None:
+    """R20BX3 and the R20A / R20K prefixes resolve independently."""
+    for info, expected in (
+        (_R20BX3, "R20BX3"),
+        (_R20A, "R20A"),
+        (_R20K, "R20K"),
+    ):
         profile = lookup_capabilities(info)
         assert profile is not None
         assert profile.device_class == expected

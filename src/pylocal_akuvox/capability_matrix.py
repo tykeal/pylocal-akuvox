@@ -74,6 +74,9 @@ from pylocal_akuvox._matrix_entries_indoor_access import (
     IT83_83_30_10_4 as _IT83_83_30_10_4,
 )
 from pylocal_akuvox._matrix_entries_r_series import R20A_CURRENT as _R20A_CURRENT
+from pylocal_akuvox._matrix_entries_r_series import (
+    R20BX3_CURRENT as _R20BX3_CURRENT,
+)
 from pylocal_akuvox._matrix_entries_r_series import R20K_CURRENT as _R20K_CURRENT
 from pylocal_akuvox._matrix_entries_x_series import X915S_CURRENT as _X915S_CURRENT
 from pylocal_akuvox._matrix_entries_x_series import X916_BASELINE as _X916_BASELINE
@@ -117,6 +120,11 @@ CAPABILITY_MATRIX: tuple[tuple[DeviceClassPattern, DeviceCapabilities], ...] = (
     (
         DeviceClassPattern(model_prefix="R20A", firmware_band="320.30.11.63+"),
         _R20A_CURRENT,
+    ),
+    # R20BX3 door phone — floor band from community write report.
+    (
+        DeviceClassPattern(model_prefix="R20BX3", firmware_band="320.30.10.153+"),
+        _R20BX3_CURRENT,
     ),
     # E12W door phone — floor band from community write report.
     (
