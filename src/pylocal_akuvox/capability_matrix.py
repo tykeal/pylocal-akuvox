@@ -367,7 +367,8 @@ _E12W_CURRENT = DeviceCapabilities(
         test_bench_device_id="community reporter (issue #299)",
         firmware_version="312.30.11.15",
         library_version=_LIB_VERSION,
-        observed_at=_OBSERVED_AT,
+        # Date the write-mode report was attached to the issue.
+        observed_at="2026-10-15",
     ),
 )
 

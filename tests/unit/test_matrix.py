@@ -537,6 +537,7 @@ def test_e12w_capability_deltas() -> None:
         "community reporter (issue #299)"
     )
     assert profile.provenance.firmware_version == "312.30.11.15"
+    assert profile.provenance.observed_at == "2026-10-15"
 
     expected_supported = frozenset(
         {
