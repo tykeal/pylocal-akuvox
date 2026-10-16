@@ -19,10 +19,6 @@ ci:
 # Owner-approved replacements for former inline aislop-ignore comments.
 # Temporary: each override is to be tightened/removed by refactor issues.
 overrides:
-  # Tracked by #301
-  - files: ["src/pylocal_akuvox/capability_matrix.py"]
-    quality:
-      maxFileLoc: 450
   # Tracked by #302
   - files: ["src/pylocal_akuvox/_diagnostic_report.py"]
     quality:

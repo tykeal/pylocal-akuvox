@@ -15,15 +15,20 @@ modules: this module imports ``DeviceClassPattern`` from
 import of ``CAPABILITY_MATRIX`` from ``_capability_matching``'s
 direction would close the loop.
 
-The module also defines the ``_LIB_VERSION`` and ``_OBSERVED_AT``
-sentinels that every :class:`Provenance` instance threads through;
-these are private and exist solely to keep every matrix entry's
-provenance consistent across the process (sampled once at import time).
+The per-device ``DeviceCapabilities`` entries live in private
+device-family modules (``_matrix_entries_e_series``,
+``_matrix_entries_r_series``, ``_matrix_entries_x_series``, and
+``_matrix_entries_indoor_access``); this module only registers them.
+The shared ``LIB_VERSION`` and ``OBSERVED_AT`` provenance sentinels
+live in :mod:`pylocal_akuvox._matrix_provenance` so every entry's
+provenance stays consistent across the process (sampled once when
+that module loads). Names that were importable from this module
+before the split are kept importable via redundant-alias re-exports.
 
 The matrix is curated **most-specific-first**: the first
 ``DeviceClassPattern`` that matches an observed device wins. Adding a
-more-permissive entry is a one-line append at the end; adding a
-narrower entry is a one-line insert above broader entries.
+more-permissive entry is an append at the end; adding a narrower
+entry is an insert above broader entries.
 
 See ``specs/008-capability-matrix/contracts/matrix-lookup.md`` and
 ``specs/008-capability-matrix/data-model.md`` §"`CAPABILITY_MATRIX`
@@ -33,386 +38,49 @@ of the entries below.
 
 from __future__ import annotations
 
-from pylocal_akuvox import __version__ as _LIB_VERSION
-from pylocal_akuvox._capability_defaults import DEFAULT_USER_FIELD_ALIASES
+from pylocal_akuvox import _capability_profile
+from pylocal_akuvox._capability_defaults import (
+    DEFAULT_USER_FIELD_ALIASES as DEFAULT_USER_FIELD_ALIASES,
+)
 from pylocal_akuvox._capability_matching import DeviceClassPattern
 from pylocal_akuvox._capability_profile import (
-    DeviceCapabilities,
-    FieldAliases,
-    Provenance,
+    FieldAliases as FieldAliases,
+)
+from pylocal_akuvox._capability_profile import (
+    Provenance as Provenance,
 )
 from pylocal_akuvox._capability_types import (
-    Capability,
-    CapabilityStatus,
-    SchemaShape,
+    Capability as Capability,
 )
-
-_OBSERVED_AT = "2026-06-13"
-
-
-_IT83_83_30_10_4 = DeviceCapabilities(
-    device_class="IT83",
-    firmware_version="83.30.10.4",
-    capabilities={
-        # Issue #122: IT83 relay uses open_door_http; FCGI dispatch is a guard.
-        Capability.RELAY_TRIGGER_API: CapabilityStatus.UNSUPPORTED,
-        Capability.RELAY_TRIGGER_FCGI: CapabilityStatus.SUPPORTED,
-        Capability.RELAY_STATUS: CapabilityStatus.UNSUPPORTED,
-        Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
-    },
-    # Alias / schema-shape mappings left empty — the matrix-marked
-    # user/contact CRUD capabilities are all ``UNKNOWN`` for IT83 so
-    # the relevant parsers/payload-builders are never reached on this
-    # device class. Leaving these empty makes the wrapper fall back to
-    # the safe defaults if a caller opts in via
-    # ``attempt_unknown_capability=True`` (FR-017).
-    field_aliases={},
-    schema_shapes={},
-    provenance=Provenance(
-        test_bench_device_id="community-reporter (issue #130 / #122)",
-        firmware_version="83.30.10.4",
-        library_version=_LIB_VERSION,
-        observed_at=_OBSERVED_AT,
-    ),
+from pylocal_akuvox._capability_types import (
+    CapabilityStatus as CapabilityStatus,
 )
-
-_X915S_CURRENT = DeviceCapabilities(
-    device_class="X915S",
-    firmware_version="2915.30.10.114",
-    capabilities={
-        Capability.USER_LIST: CapabilityStatus.SUPPORTED,
-        Capability.USER_ADD: CapabilityStatus.SUPPORTED,
-        Capability.USER_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.USER_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_LIST: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_ADD: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_LIST: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_ADD: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_LIST: CapabilityStatus.SUPPORTED,
-        # Issue #121: apartment-book contact writes are unsupported over HTTP.
-        Capability.CONTACT_ADD: CapabilityStatus.UNSUPPORTED,
-        Capability.CONTACT_MODIFY: CapabilityStatus.UNSUPPORTED,
-        Capability.CONTACT_DELETE: CapabilityStatus.UNSUPPORTED,
-        Capability.RELAY_TRIGGER_API: CapabilityStatus.SUPPORTED,
-        Capability.RELAY_STATUS: CapabilityStatus.SUPPORTED,
-        Capability.DEVICE_CONFIG_GET: CapabilityStatus.SUPPORTED,
-        Capability.DEVICE_CONFIG_SET: CapabilityStatus.SUPPORTED,
-        Capability.LOG_DOOR: CapabilityStatus.SUPPORTED,
-        Capability.LOG_CALL: CapabilityStatus.SUPPORTED,
-        Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
-    },
-    # X915S current FW returns the bare ``Schedule`` key on user
-    # reads (issue #118 / PR #120). Order matters: the parser walks
-    # ``read`` in declared order and uses the first match, so
-    # ``Schedule`` comes first to win against any future payload
-    # that happens to also carry ``ScheduleRelay``. Write list keeps
-    # parity with X916 (``ScheduleRelay`` + ``Schedule-Relay`` —
-    # dual-write satisfies both firmware bands and preserves the
-    # E18C compatibility contract).
-    field_aliases={
-        "schedule_relay": FieldAliases(
-            read=("Schedule", "ScheduleRelay", "Schedule-Relay"),
-            write=("ScheduleRelay", "Schedule-Relay"),
-        ),
-    },
-    schema_shapes={"contact": SchemaShape.APARTMENT_BOOK},
-    provenance=Provenance(
-        test_bench_device_id="maintainer's bench unit",
-        firmware_version="2915.30.10.114",
-        library_version=_LIB_VERSION,
-        observed_at=_OBSERVED_AT,
-    ),
+from pylocal_akuvox._capability_types import (
+    SchemaShape as SchemaShape,
 )
-
-_E18C_CURRENT = DeviceCapabilities(
-    device_class="E18C",
-    firmware_version="18.30.11.21",
-    capabilities={
-        Capability.USER_LIST: CapabilityStatus.SUPPORTED,
-        Capability.USER_ADD: CapabilityStatus.SUPPORTED,
-        Capability.USER_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.USER_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_LIST: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_ADD: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_LIST: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_ADD: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_LIST: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_ADD: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.RELAY_TRIGGER_API: CapabilityStatus.SUPPORTED,
-        Capability.RELAY_STATUS: CapabilityStatus.SUPPORTED,
-        Capability.DEVICE_CONFIG_GET: CapabilityStatus.SUPPORTED,
-        Capability.DEVICE_CONFIG_SET: CapabilityStatus.SUPPORTED,
-        Capability.LOG_DOOR: CapabilityStatus.SUPPORTED,
-        Capability.LOG_CALL: CapabilityStatus.SUPPORTED,
-        Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
-    },
-    # E18C aliasing matches X916 — accepts both ``ScheduleRelay`` and
-    # ``Schedule-Relay`` on read; emits both on write (the spec-line-119
-    # collision rule observed in issues #99/#101).
-    field_aliases={"schedule_relay": DEFAULT_USER_FIELD_ALIASES},
-    schema_shapes={"contact": SchemaShape.DOOR_PHONE},
-    provenance=Provenance(
-        test_bench_device_id="maintainer's bench unit",
-        firmware_version="18.30.11.21",
-        library_version=_LIB_VERSION,
-        observed_at=_OBSERVED_AT,
-    ),
+from pylocal_akuvox._matrix_entries_e_series import (
+    E12W_CURRENT as _E12W_CURRENT,
 )
-
-# Issue #207: E18 shares the E18C/X916 door-phone capability set.
-_E18_CURRENT = DeviceCapabilities(
-    device_class="E18",
-    firmware_version="18.30.10.118",
-    capabilities={
-        Capability.USER_LIST: CapabilityStatus.SUPPORTED,
-        Capability.USER_ADD: CapabilityStatus.SUPPORTED,
-        Capability.USER_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.USER_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_LIST: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_ADD: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_LIST: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_ADD: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_LIST: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_ADD: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.RELAY_TRIGGER_API: CapabilityStatus.SUPPORTED,
-        Capability.RELAY_STATUS: CapabilityStatus.SUPPORTED,
-        Capability.DEVICE_CONFIG_GET: CapabilityStatus.SUPPORTED,
-        Capability.DEVICE_CONFIG_SET: CapabilityStatus.SUPPORTED,
-        Capability.LOG_DOOR: CapabilityStatus.SUPPORTED,
-        Capability.LOG_CALL: CapabilityStatus.SUPPORTED,
-        Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
-    },
-    field_aliases={"schedule_relay": DEFAULT_USER_FIELD_ALIASES},
-    schema_shapes={"contact": SchemaShape.DOOR_PHONE},
-    provenance=Provenance(
-        test_bench_device_id="maintainer's bench unit",
-        firmware_version="18.30.10.118",
-        library_version=_LIB_VERSION,
-        observed_at=_OBSERVED_AT,
-    ),
+from pylocal_akuvox._matrix_entries_e_series import (
+    E18_CURRENT as _E18_CURRENT,
 )
-
-
-# Issue #222: A08S access unit lacks contacts, groups, and call logs.
-_A08S_CURRENT = DeviceCapabilities(
-    device_class="A08S",
-    firmware_version="108.30.10.144",
-    capabilities={
-        Capability.USER_LIST: CapabilityStatus.SUPPORTED,
-        Capability.USER_ADD: CapabilityStatus.SUPPORTED,
-        Capability.USER_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.USER_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_LIST: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_ADD: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.RELAY_TRIGGER_API: CapabilityStatus.SUPPORTED,
-        Capability.RELAY_STATUS: CapabilityStatus.SUPPORTED,
-        Capability.DEVICE_CONFIG_GET: CapabilityStatus.SUPPORTED,
-        Capability.DEVICE_CONFIG_SET: CapabilityStatus.SUPPORTED,
-        Capability.LOG_DOOR: CapabilityStatus.SUPPORTED,
-        Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_LIST: CapabilityStatus.UNSUPPORTED,
-        Capability.CONTACT_ADD: CapabilityStatus.UNSUPPORTED,
-        Capability.CONTACT_MODIFY: CapabilityStatus.UNSUPPORTED,
-        Capability.CONTACT_DELETE: CapabilityStatus.UNSUPPORTED,
-        Capability.GROUP_LIST: CapabilityStatus.UNSUPPORTED,
-        Capability.GROUP_ADD: CapabilityStatus.UNSUPPORTED,
-        Capability.GROUP_MODIFY: CapabilityStatus.UNSUPPORTED,
-        Capability.GROUP_DELETE: CapabilityStatus.UNSUPPORTED,
-        Capability.LOG_CALL: CapabilityStatus.UNSUPPORTED,
-    },
-    field_aliases={"schedule_relay": DEFAULT_USER_FIELD_ALIASES},
-    schema_shapes={},
-    provenance=Provenance(
-        test_bench_device_id="maintainer's bench unit",
-        firmware_version="108.30.10.144",
-        library_version=_LIB_VERSION,
-        observed_at=_OBSERVED_AT,
-    ),
+from pylocal_akuvox._matrix_entries_e_series import (
+    E18C_CURRENT as _E18C_CURRENT,
 )
-
-
-# Issue #229: R20K door phone community write report.
-_R20K_CURRENT = DeviceCapabilities(
-    device_class="R20K",
-    firmware_version="320.30.3.122",
-    capabilities={
-        Capability.USER_LIST: CapabilityStatus.SUPPORTED,
-        Capability.USER_ADD: CapabilityStatus.SUPPORTED,
-        Capability.USER_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.USER_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_LIST: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_ADD: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_LIST: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_ADD: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_LIST: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_ADD: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.RELAY_TRIGGER_API: CapabilityStatus.SUPPORTED,
-        Capability.RELAY_STATUS: CapabilityStatus.SUPPORTED,
-        Capability.DEVICE_CONFIG_GET: CapabilityStatus.SUPPORTED,
-        # Issue #237: R20-family vouch promotes set support.
-        Capability.DEVICE_CONFIG_SET: CapabilityStatus.SUPPORTED,
-        Capability.LOG_DOOR: CapabilityStatus.SUPPORTED,
-        Capability.LOG_CALL: CapabilityStatus.SUPPORTED,
-        Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
-    },
-    field_aliases={"schedule_relay": DEFAULT_USER_FIELD_ALIASES},
-    schema_shapes={"contact": SchemaShape.DOOR_PHONE},
-    provenance=Provenance(
-        test_bench_device_id="community-reporter (issue #229)",
-        firmware_version="320.30.3.122",
-        library_version=_LIB_VERSION,
-        observed_at=_OBSERVED_AT,
-    ),
+from pylocal_akuvox._matrix_entries_indoor_access import (
+    A08S_CURRENT as _A08S_CURRENT,
 )
-
-
-# Issue #234: R20A shares the R20-family door-phone shape, but this
-# firmware returns "please use new interface" for legacy FCGI OpenDoor.
-_R20A_CURRENT = DeviceCapabilities(
-    device_class="R20A",
-    firmware_version="320.30.11.63",
-    capabilities={
-        Capability.USER_LIST: CapabilityStatus.SUPPORTED,
-        Capability.USER_ADD: CapabilityStatus.SUPPORTED,
-        Capability.USER_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.USER_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_LIST: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_ADD: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_LIST: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_ADD: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_LIST: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_ADD: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.RELAY_TRIGGER_API: CapabilityStatus.SUPPORTED,
-        Capability.RELAY_TRIGGER_FCGI: CapabilityStatus.UNSUPPORTED,
-        Capability.RELAY_STATUS: CapabilityStatus.SUPPORTED,
-        Capability.DEVICE_CONFIG_GET: CapabilityStatus.SUPPORTED,
-        # Issue #237: webhook config writes confirm set support.
-        Capability.DEVICE_CONFIG_SET: CapabilityStatus.SUPPORTED,
-        Capability.LOG_DOOR: CapabilityStatus.SUPPORTED,
-        Capability.LOG_CALL: CapabilityStatus.SUPPORTED,
-        Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
-    },
-    field_aliases={"schedule_relay": DEFAULT_USER_FIELD_ALIASES},
-    schema_shapes={"contact": SchemaShape.DOOR_PHONE},
-    provenance=Provenance(
-        test_bench_device_id="community reporter (issue #234)",
-        firmware_version="320.30.11.63",
-        library_version=_LIB_VERSION,
-        observed_at=_OBSERVED_AT,
-    ),
+from pylocal_akuvox._matrix_entries_indoor_access import (
+    IT83_83_30_10_4 as _IT83_83_30_10_4,
 )
+from pylocal_akuvox._matrix_entries_r_series import R20A_CURRENT as _R20A_CURRENT
+from pylocal_akuvox._matrix_entries_r_series import R20K_CURRENT as _R20K_CURRENT
+from pylocal_akuvox._matrix_entries_x_series import X915S_CURRENT as _X915S_CURRENT
+from pylocal_akuvox._matrix_entries_x_series import X916_BASELINE as _X916_BASELINE
 
-
-# Issue #299: E12W door phone community write report. Group modify and
-# the FCGI OpenDoor path were not exercised, so they stay UNKNOWN.
-_E12W_CURRENT = DeviceCapabilities(
-    device_class="E12W",
-    firmware_version="312.30.11.15",
-    capabilities={
-        Capability.USER_LIST: CapabilityStatus.SUPPORTED,
-        Capability.USER_ADD: CapabilityStatus.SUPPORTED,
-        Capability.USER_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.USER_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_LIST: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_ADD: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_LIST: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_ADD: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_LIST: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_ADD: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.RELAY_TRIGGER_API: CapabilityStatus.SUPPORTED,
-        Capability.RELAY_STATUS: CapabilityStatus.SUPPORTED,
-        Capability.DEVICE_CONFIG_GET: CapabilityStatus.SUPPORTED,
-        Capability.DEVICE_CONFIG_SET: CapabilityStatus.SUPPORTED,
-        Capability.LOG_DOOR: CapabilityStatus.SUPPORTED,
-        Capability.LOG_CALL: CapabilityStatus.SUPPORTED,
-        Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
-    },
-    field_aliases={"schedule_relay": DEFAULT_USER_FIELD_ALIASES},
-    schema_shapes={"contact": SchemaShape.DOOR_PHONE},
-    provenance=Provenance(
-        test_bench_device_id="community reporter (issue #299)",
-        firmware_version="312.30.11.15",
-        library_version=_LIB_VERSION,
-        # Date the write-mode report was attached to the issue.
-        observed_at="2026-10-15",
-    ),
-)
-
-
-_X916_BASELINE = DeviceCapabilities(
-    device_class="X916",
-    firmware_version="916.30.10.114",
-    capabilities={
-        Capability.USER_LIST: CapabilityStatus.SUPPORTED,
-        Capability.USER_ADD: CapabilityStatus.SUPPORTED,
-        Capability.USER_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.USER_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_LIST: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_ADD: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.SCHEDULE_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_LIST: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_ADD: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.GROUP_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_LIST: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_ADD: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_MODIFY: CapabilityStatus.SUPPORTED,
-        Capability.CONTACT_DELETE: CapabilityStatus.SUPPORTED,
-        Capability.RELAY_TRIGGER_API: CapabilityStatus.SUPPORTED,
-        Capability.RELAY_STATUS: CapabilityStatus.SUPPORTED,
-        Capability.DEVICE_CONFIG_GET: CapabilityStatus.SUPPORTED,
-        Capability.DEVICE_CONFIG_SET: CapabilityStatus.SUPPORTED,
-        Capability.LOG_DOOR: CapabilityStatus.SUPPORTED,
-        Capability.LOG_CALL: CapabilityStatus.SUPPORTED,
-        Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
-    },
-    # X916 baseline aliasing — matches today's hardcoded default chain
-    # byte-for-byte. Door-phone contact schema (no apartment-book
-    # keys observed on this class).
-    field_aliases={"schedule_relay": DEFAULT_USER_FIELD_ALIASES},
-    schema_shapes={"contact": SchemaShape.DOOR_PHONE},
-    provenance=Provenance(
-        test_bench_device_id="maintainer's bench unit",
-        firmware_version="916.30.10.114",
-        library_version=_LIB_VERSION,
-        observed_at=_OBSERVED_AT,
-    ),
-)
-
+# Runtime binding (not a type-only import) so ``DeviceCapabilities`` stays
+# importable from this module alongside the re-exports above.
+DeviceCapabilities = _capability_profile.DeviceCapabilities
 
 CAPABILITY_MATRIX: tuple[tuple[DeviceClassPattern, DeviceCapabilities], ...] = (
     # IT83 indoor monitor — exact firmware match (most specific).

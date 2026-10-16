@@ -47,9 +47,10 @@ async def test_device_entry_does_not_read_package_metadata(
 def test_matrix_version_matches_package_version() -> None:
     """Matrix provenance uses the package version sampled at import time."""
     import pylocal_akuvox
+    import pylocal_akuvox._matrix_provenance as provenance
     import pylocal_akuvox.capability_matrix as capability_matrix
 
-    assert getattr(capability_matrix, "_LIB_VERSION") == pylocal_akuvox.__version__
+    assert provenance.LIB_VERSION == pylocal_akuvox.__version__
     for _pattern, capabilities in capability_matrix.CAPABILITY_MATRIX:
         assert capabilities.provenance is not None
         assert capabilities.provenance.library_version == pylocal_akuvox.__version__

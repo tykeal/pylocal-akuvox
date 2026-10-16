@@ -161,14 +161,23 @@ Contributing a new device class
 
 Adding support for a new firmware band whose variation is limited to
 the known axes (endpoint availability, field-name aliasing, schema
-shape, action availability) requires a single-file edit to
+shape, action availability) requires adding the entry to the
+matching private device-family module and registering it in
 :mod:`pylocal_akuvox.capability_matrix`. The recipe below is the
 worked walkthrough referenced from
 ``specs/008-capability-matrix/contracts/matrix-lookup.md``
 §"Adding a new entry":
 
-1. Add a new ``(DeviceClassPattern(...), DeviceCapabilities(...))``
-   tuple to :data:`CAPABILITY_MATRIX` in the most-specific-first
+1. Define the new ``DeviceCapabilities(...)`` entry in the private
+   ``src/pylocal_akuvox/_matrix_entries_*.py`` module for its device
+   family (``_matrix_entries_e_series.py``, ``_matrix_entries_r_series.py``,
+   ``_matrix_entries_x_series.py``, or ``_matrix_entries_indoor_access.py``;
+   start a new family module if none fits or a module nears the
+   400-line limit). Use ``LIB_VERSION`` and ``OBSERVED_AT`` from
+   ``pylocal_akuvox._matrix_provenance`` for its provenance. Then
+   import it in :mod:`pylocal_akuvox.capability_matrix` and add a
+   ``(DeviceClassPattern(...), <entry>)`` tuple to
+   :data:`CAPABILITY_MATRIX` in the most-specific-first
    position. ``DeviceClassPattern`` accepts a ``model_prefix``
    (matched with :py:meth:`str.startswith` against the device's
    reported model) and a ``firmware_band`` in one of three forms —
