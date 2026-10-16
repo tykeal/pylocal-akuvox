@@ -1,6 +1,5 @@
 # SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
 # SPDX-License-Identifier: Apache-2.0
-# aislop-ignore-file complexity/file-too-large -- curated per-device data table
 
 """Curated capability matrix for known Akuvox device classes.
 

@@ -5,8 +5,35 @@
 
 version: 1
 
-# aislop 0.12.x honors ci.failBelow from this project config.
+# aislop honors ci.failBelow from this project config.
 # Fail the CI quality gate if the project score drops below a perfect
 # 100. The whole tree is at 100/100; this prevents silent regressions.
+# ci.failOnMissingTools is intentionally left at its default (false):
+# pre-commit.ci runs the hook offline in a node-only environment with
+# no ruff, so aislop's format/lint engines are skipped there. Those
+# checks are still enforced by the dedicated ruff pre-commit hooks.
 ci:
   failBelow: 100
+
+# Per-file limits (aislop >= 0.17.0); flagged only above limit * 1.1.
+# Owner-approved replacements for former inline aislop-ignore comments.
+# Temporary: each override is to be tightened/removed by refactor issues.
+overrides:
+  # Tracked by #301
+  - files: ["src/pylocal_akuvox/capability_matrix.py"]
+    quality:
+      maxFileLoc: 450
+  # Tracked by #302
+  - files: ["src/pylocal_akuvox/_diagnostic_report.py"]
+    quality:
+      maxFileLoc: 500
+  # Tracked by #304
+  - files: ["src/pylocal_akuvox/_capability_report.py"]
+    quality:
+      maxParams: 7
+  # Tracked by #303
+  - files: ["src/pylocal_akuvox/_report_steps.py"]
+    quality:
+      maxFileLoc: 1650
+      maxFunctionLoc: 240
+      maxParams: 7

@@ -1,6 +1,5 @@
 # SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
 # SPDX-License-Identifier: Apache-2.0
-# aislop-ignore-file complexity/file-too-large -- extracted CLI parity steps
 
 """Capability report diagnostic step helpers."""
 
@@ -1408,7 +1407,6 @@ async def test_verify_contact_deletion(  # pragma: no cover
     _default_emit("  ✓ Contact successfully removed")
 
 
-# aislop-ignore-next-line complexity/function-too-long complexity/too-many-params
 async def _run_write_tests(  # pragma: no cover  # noqa: C901
     device_kwargs: dict[str, Any],
     results: TestResults,

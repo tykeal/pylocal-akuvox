@@ -141,7 +141,6 @@ async def run_capability_report(
         )
 
 
-# aislop-ignore-next-line complexity/too-many-params -- public kwargs mirror CLI flags
 async def _run_capability_report(
     device: AkuvoxDevice,
     *,
