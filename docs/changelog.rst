@@ -19,6 +19,14 @@ Added
 
   Refs #234.
 
+* Added E12W device-class support (firmware ``312.30.11.15+``) from a
+  community write-mode capability report, including full user,
+  schedule, and contact CRUD; group add / delete; API relay trigger;
+  relay status; device config get / set; logs; and key discovery.
+  Group modify and the FCGI OpenDoor path remain unknown.
+
+  Refs #299.
+
 Changed
 ^^^^^^^
 
