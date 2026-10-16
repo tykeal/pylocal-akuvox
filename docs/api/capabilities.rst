@@ -132,6 +132,19 @@ this firmware: the device returns "please use new interface", so callers
 should use the standard API relay trigger. Group modify remains
 ``UNKNOWN`` pending testing.
 
+E12W
+~~~~
+
+Door-phone class with firmware floor ``312.30.11.15+``. A community
+write-capable report confirmed full user, schedule, and contact CRUD;
+group list / add / delete; API relay trigger; relay status; device
+config get / set; door-log and call-log reads; and key discovery as
+``SUPPORTED``. Contact payloads use the door-phone schema shape, and
+``ScheduleRelay`` / ``Schedule-Relay`` aliasing follows the standard
+door-phone profile. Group modify and the FCGI relay trigger
+(``Capability.RELAY_TRIGGER_FCGI``) remain ``UNKNOWN`` because the
+report did not exercise them.
+
 IT83
 ~~~~
 
