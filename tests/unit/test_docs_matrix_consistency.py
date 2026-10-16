@@ -134,7 +134,7 @@ def test_every_doc_heading_maps_to_matrix(capabilities_rst_text: str) -> None:
 
 def test_canonical_prefixes_present(capabilities_rst_text: str) -> None:
     """Sanity: the canonical prefixes are each a heading."""
-    expected = {"X916", "X915S", "E18C", "E18", "A08S", "IT83", "R20K", "R20A"}
+    expected = {"X916", "X915S", "E18C", "E18", "A08S", "IT83", "R20K", "R20A", "E12W"}
     headings = _collect_rst_headings(capabilities_rst_text, expected)
     assert headings == expected, (
         f"Expected all canonical prefixes to be section headings; "

@@ -56,6 +56,7 @@ _A08S = _info("A08S", "108.30.10.144")
 _IT83 = _info("IT83", "83.30.10.4")
 _R20K = _info("R20K", "320.30.3.122")
 _R20A = _info("R20A", "320.30.11.63")
+_E12W = _info("E12W", "312.30.11.15")
 
 _DOOR_PHONE_CRUD_CAPABILITIES = (
     Capability.USER_LIST,
@@ -104,8 +105,8 @@ def test_every_entry_has_provenance() -> None:
         assert prov.observed_at
 
 
-def test_matrix_covers_all_eight_supported_classes() -> None:
-    """All eight supported device classes exist."""
+def test_matrix_covers_all_nine_supported_classes() -> None:
+    """All nine supported device classes exist."""
     classes = {caps.device_class for _pattern, caps in CAPABILITY_MATRIX}
     assert classes == {
         "X916",
@@ -116,6 +117,7 @@ def test_matrix_covers_all_eight_supported_classes() -> None:
         "IT83",
         "R20K",
         "R20A",
+        "E12W",
     }
 
 
@@ -133,6 +135,7 @@ def test_matrix_covers_all_eight_supported_classes() -> None:
         (_IT83, "IT83", 1),
         (_R20K, "R20K", 1),
         (_R20A, "R20A", 1),
+        (_E12W, "E12W", 1),
     ],
 )
 def test_matching_order_returns_intended_entry(
@@ -211,6 +214,13 @@ def test_lookup_returns_first_match_r20a() -> None:
     assert profile.device_class == "R20A"
 
 
+def test_lookup_returns_first_match_e12w() -> None:
+    """E12W current firmware matches the E12W floor-band entry."""
+    profile = lookup_capabilities(_E12W)
+    assert profile is not None
+    assert profile.device_class == "E12W"
+
+
 def test_lookup_returns_none_for_unrecognised_device() -> None:
     """An unknown model returns ``None`` from the lookup helper."""
     profile = lookup_capabilities(_info("UnknownDevice", "1.0.0.0"))
@@ -261,6 +271,16 @@ def test_r20a_firmware_floor_matches_current_and_newer() -> None:
         assert profile.device_class == "R20A"
 
     assert lookup_capabilities(_info("R20A", "320.30.11.50")) is None
+
+
+def test_e12w_firmware_floor_matches_current_and_newer() -> None:
+    """E12W firmware floor admits 312.30.11.15 and newer builds only."""
+    for firmware in ("312.30.11.15", "312.30.11.100", "312.31.0.0"):
+        profile = lookup_capabilities(_info("E12W", firmware))
+        assert profile is not None
+        assert profile.device_class == "E12W"
+
+    assert lookup_capabilities(_info("E12W", "312.30.11.14")) is None
 
 
 # --- Capability deltas ----------------------------------------------------
@@ -502,6 +522,67 @@ def test_r20a_and_r20k_prefixes_do_not_shadow_each_other() -> None:
     assert r20k_profile is not None
     assert r20a_profile.device_class == "R20A"
     assert r20k_profile.device_class == "R20K"
+
+
+def test_e12w_capability_deltas() -> None:
+    """E12W records only report-confirmed SUPPORTED capabilities."""
+    profile = lookup_capabilities(_E12W)
+    assert profile is not None
+    assert profile.device_class == "E12W"
+    assert "device_not_in_matrix" not in profile.notes
+    assert profile.schema_shapes.get("contact") is SchemaShape.DOOR_PHONE
+    assert profile.field_aliases.get("schedule_relay") == DEFAULT_USER_FIELD_ALIASES
+    assert profile.provenance is not None
+    assert profile.provenance.test_bench_device_id == (
+        "community reporter (issue #299)"
+    )
+    assert profile.provenance.firmware_version == "312.30.11.15"
+    assert profile.provenance.observed_at == "2026-10-15"
+
+    expected_supported = frozenset(
+        {
+            Capability.USER_LIST,
+            Capability.USER_ADD,
+            Capability.USER_MODIFY,
+            Capability.USER_DELETE,
+            Capability.SCHEDULE_LIST,
+            Capability.SCHEDULE_ADD,
+            Capability.SCHEDULE_MODIFY,
+            Capability.SCHEDULE_DELETE,
+            Capability.GROUP_LIST,
+            Capability.GROUP_ADD,
+            Capability.GROUP_DELETE,
+            Capability.CONTACT_LIST,
+            Capability.CONTACT_ADD,
+            Capability.CONTACT_MODIFY,
+            Capability.CONTACT_DELETE,
+            Capability.RELAY_TRIGGER_API,
+            Capability.RELAY_STATUS,
+            Capability.DEVICE_CONFIG_GET,
+            Capability.DEVICE_CONFIG_SET,
+            Capability.LOG_DOOR,
+            Capability.LOG_CALL,
+            Capability.KEY_DISCOVERY,
+        }
+    )
+    assert profile.supported_set == expected_supported
+    assert profile.status_of(Capability.DEVICE_CONFIG_SET) is (
+        CapabilityStatus.SUPPORTED
+    )
+
+    for capability in (
+        Capability.GROUP_MODIFY,
+        Capability.RELAY_TRIGGER_FCGI,
+    ):
+        assert profile.status_of(capability) is CapabilityStatus.UNKNOWN
+
+
+def test_e12w_prefix_does_not_shadow_e18_family() -> None:
+    """E12W and the E18 / E18C prefixes resolve independently."""
+    for info, expected in ((_E12W, "E12W"), (_E18, "E18"), (_E18C, "E18C")):
+        profile = lookup_capabilities(info)
+        assert profile is not None
+        assert profile.device_class == expected
 
 
 def test_x916_capability_deltas() -> None:

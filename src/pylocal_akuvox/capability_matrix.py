@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
 # SPDX-License-Identifier: Apache-2.0
+# aislop-ignore-file complexity/file-too-large -- curated per-device data table
 
 """Curated capability matrix for known Akuvox device classes.
 
@@ -331,6 +332,47 @@ _R20A_CURRENT = DeviceCapabilities(
 )
 
 
+# Issue #299: E12W door phone community write report. Group modify and
+# the FCGI OpenDoor path were not exercised, so they stay UNKNOWN.
+_E12W_CURRENT = DeviceCapabilities(
+    device_class="E12W",
+    firmware_version="312.30.11.15",
+    capabilities={
+        Capability.USER_LIST: CapabilityStatus.SUPPORTED,
+        Capability.USER_ADD: CapabilityStatus.SUPPORTED,
+        Capability.USER_MODIFY: CapabilityStatus.SUPPORTED,
+        Capability.USER_DELETE: CapabilityStatus.SUPPORTED,
+        Capability.SCHEDULE_LIST: CapabilityStatus.SUPPORTED,
+        Capability.SCHEDULE_ADD: CapabilityStatus.SUPPORTED,
+        Capability.SCHEDULE_MODIFY: CapabilityStatus.SUPPORTED,
+        Capability.SCHEDULE_DELETE: CapabilityStatus.SUPPORTED,
+        Capability.GROUP_LIST: CapabilityStatus.SUPPORTED,
+        Capability.GROUP_ADD: CapabilityStatus.SUPPORTED,
+        Capability.GROUP_DELETE: CapabilityStatus.SUPPORTED,
+        Capability.CONTACT_LIST: CapabilityStatus.SUPPORTED,
+        Capability.CONTACT_ADD: CapabilityStatus.SUPPORTED,
+        Capability.CONTACT_MODIFY: CapabilityStatus.SUPPORTED,
+        Capability.CONTACT_DELETE: CapabilityStatus.SUPPORTED,
+        Capability.RELAY_TRIGGER_API: CapabilityStatus.SUPPORTED,
+        Capability.RELAY_STATUS: CapabilityStatus.SUPPORTED,
+        Capability.DEVICE_CONFIG_GET: CapabilityStatus.SUPPORTED,
+        Capability.DEVICE_CONFIG_SET: CapabilityStatus.SUPPORTED,
+        Capability.LOG_DOOR: CapabilityStatus.SUPPORTED,
+        Capability.LOG_CALL: CapabilityStatus.SUPPORTED,
+        Capability.KEY_DISCOVERY: CapabilityStatus.SUPPORTED,
+    },
+    field_aliases={"schedule_relay": DEFAULT_USER_FIELD_ALIASES},
+    schema_shapes={"contact": SchemaShape.DOOR_PHONE},
+    provenance=Provenance(
+        test_bench_device_id="community reporter (issue #299)",
+        firmware_version="312.30.11.15",
+        library_version=_LIB_VERSION,
+        # Date the write-mode report was attached to the issue.
+        observed_at="2026-10-15",
+    ),
+)
+
+
 _X916_BASELINE = DeviceCapabilities(
     device_class="X916",
     firmware_version="916.30.10.114",
@@ -408,6 +450,11 @@ CAPABILITY_MATRIX: tuple[tuple[DeviceClassPattern, DeviceCapabilities], ...] = (
     (
         DeviceClassPattern(model_prefix="R20A", firmware_band="320.30.11.63+"),
         _R20A_CURRENT,
+    ),
+    # E12W door phone — floor band from community write report.
+    (
+        DeviceClassPattern(model_prefix="E12W", firmware_band="312.30.11.15+"),
+        _E12W_CURRENT,
     ),
     # X916 baseline — glob match (last because most permissive).
     (
