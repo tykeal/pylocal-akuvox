@@ -116,7 +116,7 @@ issues. The project currently holds a clean 100/100 score; keep it
 there.
 
 - The hook is a `local` pre-commit hook wired to:
-  `additional_dependencies: ['aislop@0.12.0']` (the npm-published
+  `additional_dependencies: ['aislop@0.18.1']` (the npm-published
   package). It is NOT installed from the upstream `scanaislop/aislop`
   git tag, because that tag does not ship the built `dist/` directory
   and registers a broken bin.
@@ -124,12 +124,19 @@ there.
   form — positional path arguments are rejected:
 
   ```bash
-  npx --yes aislop@0.12.0 scan \
+  npx --yes aislop@0.18.1 scan \
     --include 'src/pylocal_akuvox/device.py,src/pylocal_akuvox/_device_users.py'
   ```
 
-- Run a full local gate with `npx --yes aislop@0.12.0 ci --human` before
+- Run a full local gate with `npx --yes aislop@0.18.1 ci --human` before
   pushing.
+- Inline `aislop-ignore-file` / `aislop-ignore-next-line` /
+  `aislop-ignore-line` comments are PROHIBITED without explicit owner
+  approval. If a change trips an aislop rule, refactor instead; if that
+  is out of scope, stop and escalate to the owner.
+- Owner-approved per-file tuning lives in the `overrides` list of
+  `.aislop/config.yml` (aislop >= 0.17.0). Each override is temporary
+  and references the refactor issue that will remove it.
 
 ## Atomic Commits
 
