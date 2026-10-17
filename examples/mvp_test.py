@@ -41,23 +41,25 @@ from pylocal_akuvox import (
     AuthMethod,
     run_capability_report,
 )
-from pylocal_akuvox._diagnostic_report import (
+from pylocal_akuvox._diagnostic_redaction import (
     _BODY_SNIPPET_CHARS,
     _NON_JSON_BODY_OMITTED,
     _REDACTED_VALUE,
     _SCALAR_JSON_BODY_OMITTED,
-    DiagnosticHttpEvent,
-    DiagnosticReport,
-    DiagnosticTestRecord,
     _clip,
     _decode_json_body,
     _display_value,
     _drop_none,
-    _event_failed,
-    _event_succeeded,
     _extract_observed_fields,
     _failure_body_snippet,
     _redact_json_values,
+)
+from pylocal_akuvox._diagnostic_report import (
+    DiagnosticHttpEvent,
+    DiagnosticReport,
+    DiagnosticTestRecord,
+    _event_failed,
+    _event_succeeded,
 )
 from pylocal_akuvox._report_steps import (
     SEPARATOR,

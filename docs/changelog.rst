@@ -69,6 +69,12 @@ Changed
 
   Refs #301.
 
+* Moved the capability report's diagnostic redaction and field
+  extraction helpers into a focused internal ``_diagnostic_redaction``
+  module; the report output and redaction behavior are unchanged.
+
+  Refs #302.
+
 v1.3.0 (2026-07-06)
 -------------------
 

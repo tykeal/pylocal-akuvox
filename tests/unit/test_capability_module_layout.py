@@ -27,6 +27,9 @@ silently undone:
 * ``pylocal_akuvox.capability_matrix`` keeps its public names while the
   per-device entries live in private ``_matrix_entries_*`` family
   modules (non-breaking split).
+* ``pylocal_akuvox._diagnostic_report`` keeps the diagnostic report
+  data structures while the redaction / field helpers live in the
+  private ``_diagnostic_redaction`` sibling module (non-breaking split).
 """
 
 from __future__ import annotations
@@ -176,6 +179,7 @@ def test_device_public_symbol_in_top_level_all() -> None:
 def test_capability_report_modules_importable() -> None:
     """The capability-report split modules must import cleanly."""
     for name in (
+        "pylocal_akuvox._diagnostic_redaction",
         "pylocal_akuvox._diagnostic_report",
         "pylocal_akuvox._report_steps",
         "pylocal_akuvox._capability_report",
@@ -291,5 +295,39 @@ def test_capability_matrix_modules_under_aislop_limit() -> None:
         "pylocal_akuvox.capability_matrix",
         "pylocal_akuvox._matrix_provenance",
         *_MATRIX_FAMILY_MODULES,
+    ):
+        assert _module_line_count(name) < 400
+
+
+def test_diagnostic_report_split_keeps_structures_and_moves_helpers() -> None:
+    """Report classes stay put; redaction helpers live in the sibling."""
+    report = importlib.import_module("pylocal_akuvox._diagnostic_report")
+    redaction = importlib.import_module("pylocal_akuvox._diagnostic_redaction")
+
+    for name in (
+        "DiagnosticHttpEvent",
+        "DiagnosticReport",
+        "DiagnosticTestRecord",
+        "_event_failed",
+        "_event_succeeded",
+    ):
+        assert getattr(report, name).__module__ == report.__name__, name
+    for name in (
+        "_clip",
+        "_decode_json_body",
+        "_display_value",
+        "_drop_none",
+        "_failure_body_snippet",
+        "_first_line",
+        "_redact_json_values",
+    ):
+        assert getattr(redaction, name).__module__ == redaction.__name__, name
+
+
+def test_diagnostic_report_modules_under_aislop_limit() -> None:
+    """The diagnostic report and redaction modules stay below 400 lines."""
+    for name in (
+        "pylocal_akuvox._diagnostic_report",
+        "pylocal_akuvox._diagnostic_redaction",
     ):
         assert _module_line_count(name) < 400
