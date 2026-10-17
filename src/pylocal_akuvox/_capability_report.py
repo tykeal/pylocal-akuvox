@@ -15,17 +15,19 @@ from pylocal_akuvox._capability_defaults import DEFAULT_USER_FIELD_ALIASES
 from pylocal_akuvox._capability_profile import DeviceCapabilities, FieldAliases
 from pylocal_akuvox._capability_types import Capability, CapabilityStatus
 from pylocal_akuvox._diagnostic_report import DiagnosticReport
+from pylocal_akuvox._report_instrumentation import (
+    _probe_device_capabilities,
+    create_device,
+)
+from pylocal_akuvox._report_read_tests import _run_read_tests
 from pylocal_akuvox._report_steps import (
     TestResults,
     _default_emit,
-    _probe_device_capabilities,
-    _run_read_tests,
-    _run_write_tests,
-    create_device,
     print_header,
     skip_step,
-    test_validation,
 )
+from pylocal_akuvox._report_validation import test_validation
+from pylocal_akuvox._report_write_tests import _run_write_tests, _WriteOptions
 from pylocal_akuvox.auth import AuthMethod
 
 if TYPE_CHECKING:
@@ -182,10 +184,12 @@ async def _run_capability_report(
             device_kwargs,
             results,
             capabilities=write_capabilities,
-            open_door=options.open_door,
-            open_door_user=options.open_door_user,
-            open_door_password=options.open_door_password,
-            redact_stdout=options.redact_stdout,
+            options=_WriteOptions(
+                open_door=options.open_door,
+                open_door_user=options.open_door_user,
+                open_door_password=options.open_door_password,
+                redact_stdout=options.redact_stdout,
+            ),
         )
 
     async with create_device(device_kwargs, diagnostics) as read_device:

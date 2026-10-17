@@ -14,14 +14,3 @@ version: 1
 # checks are still enforced by the dedicated ruff pre-commit hooks.
 ci:
   failBelow: 100
-
-# Per-file limits (aislop >= 0.17.0); flagged only above limit * 1.1.
-# Owner-approved replacements for former inline aislop-ignore comments.
-# Temporary: each override is to be tightened/removed by refactor issues.
-overrides:
-  # Tracked by #303
-  - files: ["src/pylocal_akuvox/_report_steps.py"]
-    quality:
-      maxFileLoc: 1650
-      maxFunctionLoc: 240
-      maxParams: 7
