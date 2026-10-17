@@ -18,7 +18,12 @@ import pytest
 from aioresponses import aioresponses
 
 import pylocal_akuvox._capability_report as _capability_report
+import pylocal_akuvox._report_config_probe as _report_config_probe
+import pylocal_akuvox._report_instrumentation as _report_instrumentation
 import pylocal_akuvox._report_steps as _report_steps
+import pylocal_akuvox._report_write_chains as _report_write_chains
+import pylocal_akuvox._report_write_cleanup as _report_write_cleanup
+import pylocal_akuvox._report_write_tests as _report_write_tests
 from pylocal_akuvox import (
     AkuvoxDevice,
     Capability,
@@ -312,28 +317,28 @@ def _patch_fast_write_steps(
         return None
 
     monkeypatch.setattr(
-        _report_steps,
+        _report_write_tests,
         "create_device",
         lambda _kwargs, _diagnostics: _FakeDeviceContext(device),
     )
-    monkeypatch.setattr(cast("Any", _report_steps).asyncio, "sleep", no_sleep)
-    monkeypatch.setattr(_report_steps, "test_add_user", return_user_id)
-    monkeypatch.setattr(_report_steps, "test_modify_user", succeed)
-    monkeypatch.setattr(_report_steps, "test_delete_user", succeed)
-    monkeypatch.setattr(_report_steps, "test_verify_user_deletion", succeed)
-    monkeypatch.setattr(_report_steps, "test_add_schedule", return_schedule_id)
-    monkeypatch.setattr(_report_steps, "test_modify_schedule", succeed)
-    monkeypatch.setattr(_report_steps, "test_delete_schedule", succeed)
-    monkeypatch.setattr(_report_steps, "test_verify_schedule_deletion", succeed)
-    monkeypatch.setattr(_report_steps, "test_trigger_relay", succeed)
-    monkeypatch.setattr(_report_steps, "test_set_device_config", succeed)
-    monkeypatch.setattr(_report_steps, "test_add_group", return_group_id)
-    monkeypatch.setattr(_report_steps, "test_delete_group", succeed)
-    monkeypatch.setattr(_report_steps, "test_verify_group_deletion", succeed)
-    monkeypatch.setattr(_report_steps, "test_add_contact", return_contact_id)
-    monkeypatch.setattr(_report_steps, "test_modify_contact", succeed)
-    monkeypatch.setattr(_report_steps, "test_delete_contact", succeed)
-    monkeypatch.setattr(_report_steps, "test_verify_contact_deletion", succeed)
+    monkeypatch.setattr(cast("Any", _report_write_tests).asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(_report_write_chains, "test_add_user", return_user_id)
+    monkeypatch.setattr(_report_write_chains, "test_modify_user", succeed)
+    monkeypatch.setattr(_report_write_chains, "test_delete_user", succeed)
+    monkeypatch.setattr(_report_write_chains, "test_verify_user_deletion", succeed)
+    monkeypatch.setattr(_report_write_chains, "test_add_schedule", return_schedule_id)
+    monkeypatch.setattr(_report_write_chains, "test_modify_schedule", succeed)
+    monkeypatch.setattr(_report_write_chains, "test_delete_schedule", succeed)
+    monkeypatch.setattr(_report_write_chains, "test_verify_schedule_deletion", succeed)
+    monkeypatch.setattr(_report_write_tests, "test_trigger_relay", succeed)
+    monkeypatch.setattr(_report_write_tests, "test_set_device_config", succeed)
+    monkeypatch.setattr(_report_write_chains, "test_add_group", return_group_id)
+    monkeypatch.setattr(_report_write_chains, "test_delete_group", succeed)
+    monkeypatch.setattr(_report_write_chains, "test_verify_group_deletion", succeed)
+    monkeypatch.setattr(_report_write_chains, "test_add_contact", return_contact_id)
+    monkeypatch.setattr(_report_write_chains, "test_modify_contact", succeed)
+    monkeypatch.setattr(_report_write_chains, "test_delete_contact", succeed)
+    monkeypatch.setattr(_report_write_chains, "test_verify_contact_deletion", succeed)
 
 
 def _patch_non_user_write_steps(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -351,20 +356,20 @@ def _patch_non_user_write_steps(monkeypatch: pytest.MonkeyPatch) -> None:
         """Skip diagnostic cooldown sleeps."""
         return None
 
-    monkeypatch.setattr(cast("Any", _report_steps).asyncio, "sleep", no_sleep)
-    monkeypatch.setattr(_report_steps, "test_add_schedule", return_id)
-    monkeypatch.setattr(_report_steps, "test_modify_schedule", succeed)
-    monkeypatch.setattr(_report_steps, "test_delete_schedule", succeed)
-    monkeypatch.setattr(_report_steps, "test_verify_schedule_deletion", succeed)
-    monkeypatch.setattr(_report_steps, "test_trigger_relay", succeed)
-    monkeypatch.setattr(_report_steps, "test_set_device_config", succeed)
-    monkeypatch.setattr(_report_steps, "test_add_group", return_id)
-    monkeypatch.setattr(_report_steps, "test_delete_group", succeed)
-    monkeypatch.setattr(_report_steps, "test_verify_group_deletion", succeed)
-    monkeypatch.setattr(_report_steps, "test_add_contact", return_id)
-    monkeypatch.setattr(_report_steps, "test_modify_contact", succeed)
-    monkeypatch.setattr(_report_steps, "test_delete_contact", succeed)
-    monkeypatch.setattr(_report_steps, "test_verify_contact_deletion", succeed)
+    monkeypatch.setattr(cast("Any", _report_write_tests).asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(_report_write_chains, "test_add_schedule", return_id)
+    monkeypatch.setattr(_report_write_chains, "test_modify_schedule", succeed)
+    monkeypatch.setattr(_report_write_chains, "test_delete_schedule", succeed)
+    monkeypatch.setattr(_report_write_chains, "test_verify_schedule_deletion", succeed)
+    monkeypatch.setattr(_report_write_tests, "test_trigger_relay", succeed)
+    monkeypatch.setattr(_report_write_tests, "test_set_device_config", succeed)
+    monkeypatch.setattr(_report_write_chains, "test_add_group", return_id)
+    monkeypatch.setattr(_report_write_chains, "test_delete_group", succeed)
+    monkeypatch.setattr(_report_write_chains, "test_verify_group_deletion", succeed)
+    monkeypatch.setattr(_report_write_chains, "test_add_contact", return_id)
+    monkeypatch.setattr(_report_write_chains, "test_modify_contact", succeed)
+    monkeypatch.setattr(_report_write_chains, "test_delete_contact", succeed)
+    monkeypatch.setattr(_report_write_chains, "test_verify_contact_deletion", succeed)
 
 
 def _run_parser_coroutine_without_loop(coro: Any) -> Any:
@@ -408,7 +413,7 @@ async def test_set_device_config_prefers_toggle_restore() -> None:
         m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
 
         async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
-            await _report_steps.test_set_device_config(device)
+            await _report_config_probe.test_set_device_config(device)
 
     posts = m.requests[("POST", _CONFIG_SET_URL)]
     assert _request_json(posts[0])["data"] == {
@@ -432,7 +437,7 @@ async def test_set_device_config_noop_fallback_attempts_set() -> None:
         m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
 
         async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
-            await _report_steps.test_set_device_config(device)
+            await _report_config_probe.test_set_device_config(device)
 
     posts = m.requests[("POST", _CONFIG_SET_URL)]
     assert len(posts) == 1
@@ -459,7 +464,7 @@ async def test_set_device_config_noop_prefers_web_title_anchor() -> None:
         m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
 
         async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
-            await _report_steps.test_set_device_config(device)
+            await _report_config_probe.test_set_device_config(device)
 
     posts = m.requests[("POST", _CONFIG_SET_URL)]
     assert len(posts) == 1
@@ -481,7 +486,7 @@ async def test_set_device_config_device_name_only_fallback() -> None:
         m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
 
         async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
-            await _report_steps.test_set_device_config(device)
+            await _report_config_probe.test_set_device_config(device)
 
     posts = m.requests[("POST", _CONFIG_SET_URL)]
     assert len(posts) == 1
@@ -513,7 +518,7 @@ async def test_set_device_config_rejected_key_tries_next() -> None:
         m.post(f"{BASE_URL}/api/config/set", payload=_SET_SUCCESS_RESPONSE)
 
         async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
-            await _report_steps.test_set_device_config(device)
+            await _report_config_probe.test_set_device_config(device)
 
     posts = m.requests[("POST", _CONFIG_SET_URL)]
     assert len(posts) == 2
@@ -562,13 +567,17 @@ async def test_set_device_config_all_rejected_records_unsupported() -> None:
         m.post(f"{BASE_URL}/api/config/set", status=501, payload=reject_response)
         m.post(f"{BASE_URL}/api/config/set", status=501, payload=reject_response)
 
-        async with _report_steps.create_device(device_kwargs, diagnostics) as device:
+        async with _report_instrumentation.create_device(
+            device_kwargs, diagnostics
+        ) as device:
             await _report_steps.step(
                 results=results,
                 name="set_device_config",
                 capability=Capability.DEVICE_CONFIG_SET,
                 capabilities=_all_supported_capabilities(),
-                coro_factory=lambda: _report_steps.test_set_device_config(device),
+                coro_factory=lambda: _report_config_probe.test_set_device_config(
+                    device
+                ),
             )
 
     tests = cast("list[dict[str, Any]]", diagnostics.to_json()["tests"])
@@ -610,7 +619,7 @@ async def test_set_device_config_transport_error_propagates() -> None:
 
         async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
             with pytest.raises(AkuvoxConnectionError):
-                await _report_steps.test_set_device_config(device)
+                await _report_config_probe.test_set_device_config(device)
 
     posts = m.requests[("POST", _CONFIG_SET_URL)]
     assert len(posts) == 1
@@ -633,7 +642,7 @@ async def test_set_device_config_restores_after_readback_mismatch() -> None:
 
         async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
             with pytest.raises(_report_steps.TestStepFailed, match="mismatch"):
-                await _report_steps.test_set_device_config(device)
+                await _report_config_probe.test_set_device_config(device)
 
     posts = m.requests[("POST", _CONFIG_SET_URL)]
     assert _request_json(posts[0])["data"] == {
@@ -667,7 +676,7 @@ async def test_set_device_config_suppresses_restore_failure_after_error() -> Non
 
         async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
             with pytest.raises(_report_steps.TestStepFailed, match="mismatch"):
-                await _report_steps.test_set_device_config(device)
+                await _report_config_probe.test_set_device_config(device)
 
 
 async def test_set_device_config_restore_failure_after_success_raises() -> None:
@@ -693,7 +702,7 @@ async def test_set_device_config_restore_failure_after_success_raises() -> None:
 
         async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
             with pytest.raises(AkuvoxDeviceError, match="restore failed"):
-                await _report_steps.test_set_device_config(device)
+                await _report_config_probe.test_set_device_config(device)
 
 
 async def test_set_device_config_last_resort_skip_without_safe_key() -> None:
@@ -707,7 +716,7 @@ async def test_set_device_config_last_resort_skip_without_safe_key() -> None:
 
         async with AkuvoxDevice("192.168.1.100", request_delay=0) as device:
             with pytest.raises(_report_steps.TestStepSkipped, match="fallback"):
-                await _report_steps.test_set_device_config(device)
+                await _report_config_probe.test_set_device_config(device)
 
     assert ("POST", _CONFIG_SET_URL) not in m.requests
 
@@ -916,10 +925,12 @@ async def test_write_tests_skip_open_door_without_opt_in(
         {},
         results,
         capabilities=_all_supported_capabilities(),
-        open_door=False,
-        open_door_user=None,
-        open_door_password=None,
-        redact_stdout=False,
+        options=_report_write_tests._WriteOptions(
+            open_door=False,
+            open_door_user=None,
+            open_door_password=None,
+            redact_stdout=False,
+        ),
     )
 
     assert device.calls == []
@@ -945,10 +956,12 @@ async def test_write_tests_attempt_open_door_once_with_credentials(
         {},
         results,
         capabilities=_all_supported_capabilities(),
-        open_door=True,
-        open_door_user="relay-user",
-        open_door_password="relay-secret",
-        redact_stdout=False,
+        options=_report_write_tests._WriteOptions(
+            open_door=True,
+            open_door_user="relay-user",
+            open_door_password="relay-secret",
+            redact_stdout=False,
+        ),
     )
 
     assert device.calls == [("relay-user", "relay-secret", 1)]
@@ -969,7 +982,7 @@ async def test_write_tests_retry_user_cleanup_after_delete_failure(
         """Pretend the diagnostic delete step failed."""
         raise mvp_test.TestStepFailed("delete failed")
 
-    monkeypatch.setattr(_report_steps, "test_delete_user", fail_delete)
+    monkeypatch.setattr(_report_write_chains, "test_delete_user", fail_delete)
     diagnostics = mvp_test.DiagnosticReport(
         host="192.0.2.10",
         auth_method="none",
@@ -982,10 +995,12 @@ async def test_write_tests_retry_user_cleanup_after_delete_failure(
         {},
         results,
         capabilities=_all_supported_capabilities(),
-        open_door=False,
-        open_door_user=None,
-        open_door_password=None,
-        redact_stdout=False,
+        options=_report_write_tests._WriteOptions(
+            open_door=False,
+            open_door_user=None,
+            open_door_password=None,
+            redact_stdout=False,
+        ),
     )
 
     assert ("user", "user-id") in device.cleanup_calls
@@ -1003,7 +1018,7 @@ async def test_write_tests_retry_user_cleanup_after_verify_failure(
         """Pretend the deleted user still appears in list results."""
         raise mvp_test.TestStepFailed("User still present after delete")
 
-    monkeypatch.setattr(_report_steps, "test_verify_user_deletion", fail_verify)
+    monkeypatch.setattr(_report_write_chains, "test_verify_user_deletion", fail_verify)
     diagnostics = mvp_test.DiagnosticReport(
         host="192.0.2.10",
         auth_method="none",
@@ -1016,10 +1031,12 @@ async def test_write_tests_retry_user_cleanup_after_verify_failure(
         {},
         results,
         capabilities=_all_supported_capabilities(),
-        open_door=False,
-        open_door_user=None,
-        open_door_password=None,
-        redact_stdout=False,
+        options=_report_write_tests._WriteOptions(
+            open_door=False,
+            open_door_user=None,
+            open_door_password=None,
+            redact_stdout=False,
+        ),
     )
 
     assert ("user", "user-id") in device.cleanup_calls
@@ -1053,7 +1070,7 @@ async def test_write_tests_retry_cleanup_after_unlisted_add_failure(
         """Pretend an add step failed after creating a record."""
         raise mvp_test.TestStepFailed("created record not listed")
 
-    monkeypatch.setattr(_report_steps, step_name, fail_add)
+    monkeypatch.setattr(_report_write_chains, step_name, fail_add)
     diagnostics = mvp_test.DiagnosticReport(
         host="192.0.2.10",
         auth_method="none",
@@ -1066,10 +1083,12 @@ async def test_write_tests_retry_cleanup_after_unlisted_add_failure(
         {},
         results,
         capabilities=_all_supported_capabilities(),
-        open_door=False,
-        open_door_user=None,
-        open_door_password=None,
-        redact_stdout=False,
+        options=_report_write_tests._WriteOptions(
+            open_door=False,
+            open_door_user=None,
+            open_door_password=None,
+            redact_stdout=False,
+        ),
     )
 
     assert (entity, entity_id) in device.cleanup_calls
@@ -1083,7 +1102,7 @@ async def test_best_effort_delete_suppresses_cleanup_error() -> None:
         """Raise a cleanup failure that should not escape."""
         raise AkuvoxDeviceError("cleanup failed")
 
-    await _report_steps._best_effort_delete(fail_cleanup)
+    await _report_write_cleanup._best_effort_delete(fail_cleanup)
 
 
 async def test_best_effort_delete_preserves_cancellation() -> None:
@@ -1094,7 +1113,7 @@ async def test_best_effort_delete_preserves_cancellation() -> None:
         raise asyncio.CancelledError
 
     with pytest.raises(asyncio.CancelledError):
-        await _report_steps._best_effort_delete(cancel_cleanup)
+        await _report_write_cleanup._best_effort_delete(cancel_cleanup)
 
 
 @pytest.mark.parametrize(
@@ -1113,7 +1132,7 @@ async def test_silent_cleanup_skips_when_add_failure_has_no_match(
     """Skip silent cleanup when the failed add step left no discoverable record."""
     device = _FakeOpenDoorDevice()
     device.discoverable_cleanup = False
-    cleanup = getattr(_report_steps, cleanup_name)
+    cleanup = getattr(_report_write_cleanup, cleanup_name)
 
     await cleanup(device, identifier)
 
@@ -1143,7 +1162,7 @@ async def test_write_tests_retry_other_cleanup_after_delete_failure(
         """Pretend the diagnostic delete step failed."""
         raise mvp_test.TestStepFailed("delete failed")
 
-    monkeypatch.setattr(_report_steps, step_name, fail_delete)
+    monkeypatch.setattr(_report_write_chains, step_name, fail_delete)
     diagnostics = mvp_test.DiagnosticReport(
         host="192.0.2.10",
         auth_method="none",
@@ -1156,10 +1175,12 @@ async def test_write_tests_retry_other_cleanup_after_delete_failure(
         {},
         results,
         capabilities=_all_supported_capabilities(),
-        open_door=False,
-        open_door_user=None,
-        open_door_password=None,
-        redact_stdout=False,
+        options=_report_write_tests._WriteOptions(
+            open_door=False,
+            open_door_user=None,
+            open_door_password=None,
+            redact_stdout=False,
+        ),
     )
 
     assert (entity, entity_id) in device.cleanup_calls
@@ -1199,7 +1220,7 @@ async def test_write_tests_retry_other_cleanup_after_verify_failure(
         """Pretend the deleted record still appears in list results."""
         raise mvp_test.TestStepFailed("Record still present after delete")
 
-    monkeypatch.setattr(_report_steps, step_name, fail_verify)
+    monkeypatch.setattr(_report_write_chains, step_name, fail_verify)
     diagnostics = mvp_test.DiagnosticReport(
         host="192.0.2.10",
         auth_method="none",
@@ -1212,10 +1233,12 @@ async def test_write_tests_retry_other_cleanup_after_verify_failure(
         {},
         results,
         capabilities=_all_supported_capabilities(),
-        open_door=False,
-        open_door_user=None,
-        open_door_password=None,
-        redact_stdout=False,
+        options=_report_write_tests._WriteOptions(
+            open_door=False,
+            open_door_user=None,
+            open_door_password=None,
+            redact_stdout=False,
+        ),
     )
 
     assert (entity, entity_id) in device.cleanup_calls
@@ -1233,7 +1256,7 @@ async def test_write_tests_cleanup_user_before_fatal_reraise(
         """Pretend the diagnostic modify step hit a fatal connection error."""
         raise AkuvoxConnectionError("connection lost")
 
-    monkeypatch.setattr(_report_steps, "test_modify_user", fail_modify)
+    monkeypatch.setattr(_report_write_chains, "test_modify_user", fail_modify)
     diagnostics = mvp_test.DiagnosticReport(
         host="192.0.2.10",
         auth_method="none",
@@ -1247,10 +1270,12 @@ async def test_write_tests_cleanup_user_before_fatal_reraise(
             {},
             results,
             capabilities=_all_supported_capabilities(),
-            open_door=False,
-            open_door_user=None,
-            open_door_password=None,
-            redact_stdout=False,
+            options=_report_write_tests._WriteOptions(
+                open_door=False,
+                open_door_user=None,
+                open_door_password=None,
+                redact_stdout=False,
+            ),
         )
 
     assert device.cleanup_calls == [("user", "user-id")]

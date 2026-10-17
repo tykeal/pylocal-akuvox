@@ -179,12 +179,25 @@ def test_device_public_symbol_in_top_level_all() -> None:
     assert "AkuvoxDevice" in pylocal_akuvox.__all__
 
 
+_REPORT_STEP_MODULES = (
+    "pylocal_akuvox._report_steps",
+    "pylocal_akuvox._report_instrumentation",
+    "pylocal_akuvox._report_read_tests",
+    "pylocal_akuvox._report_validation",
+    "pylocal_akuvox._report_write_steps",
+    "pylocal_akuvox._report_config_probe",
+    "pylocal_akuvox._report_write_cleanup",
+    "pylocal_akuvox._report_write_chains",
+    "pylocal_akuvox._report_write_tests",
+)
+
+
 def test_capability_report_modules_importable() -> None:
     """The capability-report split modules must import cleanly."""
     for name in (
         "pylocal_akuvox._diagnostic_redaction",
         "pylocal_akuvox._diagnostic_report",
-        "pylocal_akuvox._report_steps",
+        *_REPORT_STEP_MODULES,
         "pylocal_akuvox._capability_report",
     ):
         importlib.import_module(name)
@@ -370,3 +383,58 @@ def test_diagnostic_report_modules_under_aislop_limit() -> None:
         "pylocal_akuvox._diagnostic_redaction",
     ):
         assert _module_line_count(name) < 400
+
+
+def test_report_steps_split_keeps_framework_and_moves_steps() -> None:
+    """The step framework stays put; step groups live in focused siblings."""
+    expected = {
+        "pylocal_akuvox._report_steps": (
+            "TestResults",
+            "TestStepFailed",
+            "TestStepSkipped",
+            "run_step",
+            "step",
+        ),
+        "pylocal_akuvox._report_instrumentation": (
+            "_probe_device_capabilities",
+            "create_device",
+        ),
+        "pylocal_akuvox._report_read_tests": ("_run_read_tests",),
+        "pylocal_akuvox._report_validation": ("test_validation",),
+        "pylocal_akuvox._report_write_steps": ("test_add_user", "test_open_door"),
+        "pylocal_akuvox._report_config_probe": ("test_set_device_config",),
+        "pylocal_akuvox._report_write_cleanup": ("_best_effort_delete",),
+        "pylocal_akuvox._report_write_chains": ("_run_user_write_tests",),
+        "pylocal_akuvox._report_write_tests": ("_WriteOptions", "_run_write_tests"),
+    }
+    for module_name, names in expected.items():
+        module = importlib.import_module(module_name)
+        for name in names:
+            assert getattr(module, name).__module__ == module_name, name
+
+
+def test_write_options_bundle_write_test_options() -> None:
+    """The write-test runner takes a frozen options bundle, not loose kwargs."""
+    write_tests = importlib.import_module("pylocal_akuvox._report_write_tests")
+    options = write_tests._WriteOptions(
+        open_door=True,
+        open_door_user="relay-user",
+        open_door_password="relay-secret",
+        redact_stdout=True,
+    )
+
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        cast("Any", options).open_door = False
+    assert "relay-secret" not in repr(options)
+    assert list(inspect.signature(write_tests._run_write_tests).parameters) == [
+        "device_kwargs",
+        "results",
+        "capabilities",
+        "options",
+    ]
+
+
+def test_report_step_modules_under_aislop_limit() -> None:
+    """The report-step framework and its split modules stay below 400 lines."""
+    for name in _REPORT_STEP_MODULES:
+        assert _module_line_count(name) < 400, name
