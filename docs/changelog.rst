@@ -75,6 +75,12 @@ Changed
 
   Refs #302.
 
+* Bundled the capability report runner's internal options into a
+  private ``_ReportOptions`` dataclass; the public
+  ``run_capability_report()`` signature and report output are unchanged.
+
+  Refs #304.
+
 v1.3.0 (2026-07-06)
 -------------------
 
