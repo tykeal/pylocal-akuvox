@@ -81,6 +81,12 @@ Changed
 
   Refs #304.
 
+* Split the capability report's internal step module into focused
+  private modules and bundled the write-test options into a private
+  ``_WriteOptions`` dataclass; the report output is unchanged.
+
+  Refs #303.
+
 v1.3.0 (2026-07-06)
 -------------------
 
