@@ -34,9 +34,12 @@ silently undone:
 
 from __future__ import annotations
 
+import dataclasses
 import importlib
 import importlib.util
+import inspect
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -191,6 +194,42 @@ def test_capability_report_export_roundtrips() -> None:
     """The public report API must be re-exported from the package root."""
     assert pylocal_akuvox.run_capability_report is _report.run_capability_report
     assert "run_capability_report" in pylocal_akuvox.__all__
+
+
+def test_run_capability_report_signature_unchanged() -> None:
+    """The public report API keeps its keyword options and defaults."""
+    params = inspect.signature(_report.run_capability_report).parameters
+
+    assert {name: param.default for name, param in params.items()} == {
+        "device": inspect.Parameter.empty,
+        "write": False,
+        "open_door": False,
+        "open_door_user": None,
+        "open_door_password": None,
+        "timeout": None,
+        "redact_stdout": False,
+        "emit": None,
+    }
+
+
+def test_report_options_bundle_runner_options() -> None:
+    """The private runner takes a frozen options bundle, not loose kwargs."""
+    options = _report._ReportOptions(
+        write=True,
+        open_door=True,
+        open_door_user="relay-user",
+        open_door_password="relay-secret",
+        timeout=5.0,
+        redact_stdout=True,
+    )
+
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        cast("Any", options).write = False
+    assert "relay-secret" not in repr(options)
+    assert list(inspect.signature(_report._run_capability_report).parameters) == [
+        "device",
+        "options",
+    ]
 
 
 def test_device_underscore_modules_importable() -> None:

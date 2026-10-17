@@ -8,6 +8,7 @@ from __future__ import annotations
 import contextlib
 import io
 import sys
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TextIO
 
 from pylocal_akuvox._capability_defaults import DEFAULT_USER_FIELD_ALIASES
@@ -31,6 +32,18 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
     from pylocal_akuvox.device import AkuvoxDevice
+
+
+@dataclass(frozen=True, kw_only=True)
+class _ReportOptions:
+    """Option values forwarded from ``run_capability_report`` to the runner."""
+
+    write: bool
+    open_door: bool
+    open_door_user: str | None
+    open_door_password: str | None = field(repr=False)
+    timeout: float | None
+    redact_stdout: bool
 
 
 class _EmitWriter(io.TextIOBase):  # pragma: no cover
@@ -132,29 +145,25 @@ async def run_capability_report(
     with _stdout_context(emit):
         return await _run_capability_report(
             device,
-            write=write,
-            open_door=open_door,
-            open_door_user=open_door_user,
-            open_door_password=open_door_password,
-            timeout=timeout,
-            redact_stdout=redact_stdout,
+            _ReportOptions(
+                write=write,
+                open_door=open_door,
+                open_door_user=open_door_user,
+                open_door_password=open_door_password,
+                timeout=timeout,
+                redact_stdout=redact_stdout,
+            ),
         )
 
 
 async def _run_capability_report(
     device: AkuvoxDevice,
-    *,
-    write: bool,
-    open_door: bool,
-    open_door_user: str | None,
-    open_door_password: str | None,
-    timeout: float | None,
-    redact_stdout: bool,
+    options: _ReportOptions,
 ) -> dict[str, object]:
     """Assemble probe, optional writes, read tests, and summary output."""
     device_kwargs = device._connection_spec()  # noqa: SLF001
-    if timeout is not None:
-        device_kwargs["timeout"] = timeout
+    if options.timeout is not None:
+        device_kwargs["timeout"] = options.timeout
     diagnostics = DiagnosticReport(
         host=str(device_kwargs["host"]),
         auth_method=_auth_method(device_kwargs.get("auth")),
@@ -167,16 +176,16 @@ async def _run_capability_report(
     capabilities = await _probe_device_capabilities(device_kwargs, diagnostics)
     if device.attempt_unknown_capability:
         capabilities = _allow_unknown_capabilities(capabilities)
-    if write:
+    if options.write:
         write_capabilities = _with_report_write_alias_fallback(capabilities)
         await _run_write_tests(
             device_kwargs,
             results,
             capabilities=write_capabilities,
-            open_door=open_door,
-            open_door_user=open_door_user,
-            open_door_password=open_door_password,
-            redact_stdout=redact_stdout,
+            open_door=options.open_door,
+            open_door_user=options.open_door_user,
+            open_door_password=options.open_door_password,
+            redact_stdout=options.redact_stdout,
         )
 
     async with create_device(device_kwargs, diagnostics) as read_device:
@@ -184,10 +193,10 @@ async def _run_capability_report(
             read_device,
             results,
             capabilities=capabilities,
-            redact_stdout=redact_stdout,
+            redact_stdout=options.redact_stdout,
         )
-        if not write:
-            if open_door:
+        if not options.write:
+            if options.open_door:
                 skip_step(
                     results,
                     "open_door_http",

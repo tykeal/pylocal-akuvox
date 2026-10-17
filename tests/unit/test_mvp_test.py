@@ -1306,12 +1306,14 @@ async def test_report_attempt_unknown_allows_unknown_capabilities(
 
     await _capability_report._run_capability_report(
         cast("Any", _FakeReportTemplate(attempt_unknown_capability=True)),
-        write=False,
-        open_door=False,
-        open_door_user=None,
-        open_door_password=None,
-        timeout=None,
-        redact_stdout=False,
+        _capability_report._ReportOptions(
+            write=False,
+            open_door=False,
+            open_door_user=None,
+            open_door_password=None,
+            timeout=None,
+            redact_stdout=False,
+        ),
     )
 
     assert passed_capabilities["read"].status_of(Capability.USER_LIST) is (
@@ -1360,12 +1362,14 @@ async def test_report_open_door_read_only_skip_names_write_mode(
 
     report = await _capability_report._run_capability_report(
         cast("Any", _FakeReportTemplate(attempt_unknown_capability=False)),
-        write=False,
-        open_door=True,
-        open_door_user="relay-user",
-        open_door_password="relay-secret",
-        timeout=None,
-        redact_stdout=False,
+        _capability_report._ReportOptions(
+            write=False,
+            open_door=True,
+            open_door_user="relay-user",
+            open_door_password="relay-secret",
+            timeout=None,
+            redact_stdout=False,
+        ),
     )
 
     tests = cast("list[dict[str, object]]", report["tests"])
@@ -1515,12 +1519,14 @@ async def test_write_report_backfills_user_write_aliases(
 
         report = await _capability_report._run_capability_report(
             cast("Any", _FakeReportTemplate(attempt_unknown_capability=True)),
-            write=True,
-            open_door=False,
-            open_door_user=None,
-            open_door_password=None,
-            timeout=None,
-            redact_stdout=False,
+            _capability_report._ReportOptions(
+                write=True,
+                open_door=False,
+                open_door_user=None,
+                open_door_password=None,
+                timeout=None,
+                redact_stdout=False,
+            ),
         )
 
     post_key = ("POST", aiohttp.client.URL(f"{base_url}/api/user/set"))
