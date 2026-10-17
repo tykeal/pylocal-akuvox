@@ -12,8 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from pylocal_akuvox._capability_profile import DeviceCapabilities
 from pylocal_akuvox._capability_types import Capability, CapabilityStatus
-from pylocal_akuvox._diagnostic_report import (
-    DiagnosticReport,
+from pylocal_akuvox._diagnostic_redaction import (
     _decode_json_body,
     _display_value,
     _first_line,
@@ -35,6 +34,7 @@ if TYPE_CHECKING:
 
     import aiohttp
 
+    from pylocal_akuvox._diagnostic_report import DiagnosticReport
     from pylocal_akuvox.models import DeviceConfig
 
 SEPARATOR = "-" * 60
