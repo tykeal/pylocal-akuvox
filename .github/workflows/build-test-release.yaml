@@ -39,9 +39,9 @@ jobs:
       contents: write       # Create the GitHub release / attach assets
       id-token: write       # OIDC for build provenance attestations
       attestations: write   # Build provenance attestations
-    # Pinned to python-workflows v0.1.1 release commit
+    # Pinned to the python-workflows release commit
     # yamllint disable-line rule:line-length
-    uses: lfreleng-actions/python-workflows/.github/workflows/build-test-release.yaml@d9336718eea42197699c233134f3b34a69520012  # v0.7.0
+    uses: lfreleng-actions/python-workflows/.github/workflows/build-test-release.yaml@29e6dfbbf37206cc5334475969ca48d44f117af7  # v0.7.2
     with:
       audit_ignore_vulns: 'GHSA-58qw-9mgm-455v'
       audit_permit_fail: ${{ vars.NO_BLOCK_AUDIT_FAIL == 'true' }}
