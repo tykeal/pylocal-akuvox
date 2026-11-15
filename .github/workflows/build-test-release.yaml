@@ -30,7 +30,7 @@ env:
   # Harden-runner egress allow-list shared by the publish jobs (matches the
   # default used inside the reusable workflow).
   # yamllint disable-line rule:line-length
-  HARDEN_RUNNER_ALLOWLIST: 'lfreleng-actions//.github/harden-runner/lfreleng-actions/allow_list.txt@18d9c4446bea555d0783e850f6d295f844fe8f67'  # v0.1.1
+  HARDEN_RUNNER_ALLOWLIST: 'lfreleng-actions//.github/harden-runner/lfreleng-actions/allow_list.txt@6e6cab073a93c0d58e4e8846d44e1cbddbac975b'  # v0.21.0
 
 jobs:
   release:
@@ -39,9 +39,9 @@ jobs:
       contents: write       # Create the GitHub release / attach assets
       id-token: write       # OIDC for build provenance attestations
       attestations: write   # Build provenance attestations
-    # Pinned to python-workflows v0.1.1 release commit
+    # Pinned to the python-workflows release commit
     # yamllint disable-line rule:line-length
-    uses: lfreleng-actions/python-workflows/.github/workflows/build-test-release.yaml@d9336718eea42197699c233134f3b34a69520012  # v0.7.0
+    uses: lfreleng-actions/python-workflows/.github/workflows/build-test-release.yaml@29e6dfbbf37206cc5334475969ca48d44f117af7  # v0.7.2
     with:
       audit_ignore_vulns: 'GHSA-58qw-9mgm-455v'
       audit_permit_fail: ${{ vars.NO_BLOCK_AUDIT_FAIL == 'true' }}
@@ -60,7 +60,7 @@ jobs:
     steps:
       - name: 'Load egress allow-list (block mode)'
         # yamllint disable-line rule:line-length
-        uses: lfreleng-actions/harden-runner-block-action@f5a475661142cd2f1611ae6fbf8af2be0f36a9a7  # v0.16.3
+        uses: lfreleng-actions/harden-runner-block-action@65ff87957e1cac2de3203a85dbb07c31810321cb  # v0.16.4
         with:
           config: ${{ env.HARDEN_RUNNER_ALLOWLIST }}
       - name: 'Harden runner (block)'
@@ -95,7 +95,7 @@ jobs:
     steps:
       - name: 'Load egress allow-list (block mode)'
         # yamllint disable-line rule:line-length
-        uses: lfreleng-actions/harden-runner-block-action@f5a475661142cd2f1611ae6fbf8af2be0f36a9a7  # v0.16.3
+        uses: lfreleng-actions/harden-runner-block-action@65ff87957e1cac2de3203a85dbb07c31810321cb  # v0.16.4
         with:
           config: ${{ env.HARDEN_RUNNER_ALLOWLIST }}
       - name: 'Harden runner (block)'
