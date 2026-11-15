@@ -6,11 +6,21 @@ name: 'Autolabeler'
 
 # yamllint disable-line rule:truthy
 on:
+  # 'edited' is load-bearing. Every autolabeler rule in
+  # .github/release-drafter.yml matches on the pull request TITLE, so
+  # a title corrected after opening needs a fresh run to earn its
+  # label. Without it, the common sequence of opening without a
+  # Conventional Commits prefix, failing the semantic pull request
+  # check, then fixing the title, leaves the pull request unlabelled
+  # for good: no release-note category and no version increment.
+  # 'synchronize' does not cover this, firing on a push rather than on
+  # a metadata edit.
   pull_request:
     types:
       - opened
       - synchronize
       - reopened
+      - edited
   # SECURITY: pull_request_target is required so that labelling works on
   # pull requests from forks, where the 'pull_request' token is
   # read-only. It is safe here because no job in this workflow checks
@@ -22,13 +32,39 @@ on:
       - opened
       - synchronize
       - reopened
+      - edited
 
 permissions: {}
 
 concurrency:
+  # Keep 'github.event_name' in the group key. This workflow triggers
+  # on both 'pull_request' and 'pull_request_target' for the same pull
+  # request, so a shared group would have one lane stall the other.
   # yamllint disable-line rule:line-length
   group: ${{ format('al-{0}-pr-{1}', github.event_name, github.event.pull_request.number) }}
-  cancel-in-progress: true
+  # DIVERGENCE FROM UPSTREAM: the lfreleng-actions/dot-github template
+  # sets 'cancel-in-progress: true' here, on the grounds that this
+  # workflow "publishes no check run that a required status check
+  # names". That is a property of the consuming repository, and it is
+  # false for us: 'Autolabel PR' is a required status check in the
+  # 'Base rules' ruleset. Do not sync this block back.
+  #
+  # A cancelled run leaves a cancelled check run beside a successful
+  # one for the same head SHA, so the merge box reads "Some checks
+  # were not successful" and ruleset evaluation blocks even though the
+  # check passed. The 'edited' trigger makes the back-to-back burst
+  # that produces this common.
+  #
+  # Queue rather than replace, matching semantic-pull-request.yaml.
+  # The default queue is 'single', which holds one pending run and
+  # cancels it when a third event arrives, so a burst still leaves a
+  # cancellation behind. 'queue: max' holds up to 100 and runs them in
+  # order. The two settings are complementary: 'queue: max' cannot be
+  # combined with 'cancel-in-progress: true', which is a validation
+  # error. Labelling takes seconds, so running every superseded event
+  # through to completion costs almost nothing.
+  cancel-in-progress: false
+  queue: max
 
 jobs:
   autolabel:
