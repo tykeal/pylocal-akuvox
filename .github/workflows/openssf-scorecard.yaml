@@ -31,6 +31,10 @@ jobs:
     name: "OpenSSF Scorecard"
     # yamllint disable-line rule:line-length
     uses: lfit/releng-reusable-workflows/.github/workflows/reuse-openssf-scorecard.yaml@fb907909b12bbaf262de6b24fcafd181cabe6b24  # v0.10.4
+    # The 'branch_protection_rule' trigger is low-trust, so cap what the
+    # callee may request. Scorecard analyses the checked out tree and
+    # caches nothing, so denying all cache access costs nothing.
+    cache-mode: none
     permissions:
       # Needed to upload the results to code-scanning dashboard.
       security-events: write  # Upload Scorecard results to code scanning.
