@@ -22,9 +22,8 @@ name: 'Zizmor'
 # yamllint disable-line rule:truthy
 on:
   # 'edited' is deliberately absent. It fires on PR title/body changes,
-  # which cannot affect workflow security, and 'cancel-in-progress'
-  # would then kill the live run for the same SHA, leaving a cancelled
-  # check behind.
+  # which cannot affect workflow security, so it would only queue a
+  # redundant run for the same SHA.
   pull_request:
     types: [opened, reopened, synchronize]
     branches:
@@ -36,9 +35,18 @@ on:
 # filter would leave this required check permanently pending on any
 # PR that touches only excluded paths.
 
+# A literal group, so no other workflow sharing this name can collide
+# with it. This is a required status check, so never cancel: a
+# cancelled run left beside a successful one for the same head SHA
+# (for example after a reopen during a run) blocks ruleset evaluation
+# even though the check passed. The default 'single' queue cancels a
+# pending run when a third event arrives; 'queue: max' holds up to 100
+# and runs them in order. The audit takes seconds, so queueing costs
+# little.
 concurrency:
-  group: "${{ github.workflow }}-${{ github.ref }}"
-  cancel-in-progress: true
+  group: 'zizmor-${{ github.ref }}'
+  cancel-in-progress: false
+  queue: max
 
 permissions: {}
 
