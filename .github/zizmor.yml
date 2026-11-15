@@ -7,7 +7,11 @@
 # Only policy lives here. Suppressions for individual accepted findings
 # stay as inline '# zizmor: ignore[rule]' comments next to the code they
 # excuse, so the rationale travels with the exception and a suppression
-# cannot quietly outlive the line it was written for. There are none.
+# cannot quietly outlive the line it was written for. There is one:
+#
+#   * autolabeler.yaml, pull_request_target -> dangerous-triggers. No job
+#     in that workflow checks out pull request code; the autolabeler only
+#     reads the PR title and body over the API.
 
 # The persona is not settable here -- zizmor only accepts it on the
 # command line -- so it lives in two places that must agree: the
