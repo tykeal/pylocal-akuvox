@@ -39,6 +39,10 @@ categories:
       - "code-quality"
       - "CI"
       - "test"
+# Remove autolabeler-managed labels that no longer match, so a PR whose
+# title is corrected (e.g. Feat: to Fix:) drops the stale label instead
+# of keeping both and skewing the version resolver.
+sync-labels: true
 autolabeler:
   - label: "breaking-change"
     title:
