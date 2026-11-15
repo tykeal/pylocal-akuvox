@@ -87,6 +87,7 @@ The hooks may enforce (non-exhaustive list):
 - **yamllint** - YAML linting
 - **gitlint** - Commit message format validation
 - **actionlint** - GitHub Actions workflow validation
+- **zizmor** - GitHub Actions security audit (`auditor` persona, offline)
 - **aislop** - AI-slop / code-quality gate (full-tree, every commit)
 
 Additional hooks may be configured. Check `.pre-commit-config.yaml` for the

@@ -23,7 +23,7 @@ jobs:
   build-test:
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: read  # Repository metadata job reads the PR
     # yamllint disable-line rule:line-length
     uses: lfreleng-actions/python-workflows/.github/workflows/build-test.yaml@d9336718eea42197699c233134f3b34a69520012  # v0.7.0
     with:
