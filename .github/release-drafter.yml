@@ -8,37 +8,50 @@ change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
 sort-direction: ascending
 categories:
   - title: ":boom: Breaking Change :boom:"
-    labels:
-      - "breaking-change"
+    semver-increment: major
+    when:
+      label: "breaking-change"
   - title: ":sparkles: New Features :sparkles:"
-    labels:
-      - "enhancement"
-      - "feature"
+    semver-increment: minor
+    when:
+      labels:
+        - "enhancement"
+        - "feature"
   - title: ":bug: Bug Fixes :bug:"
-    labels:
-      - "fix"
-      - "bugfix"
-      - "bug"
+    semver-increment: patch
+    when:
+      labels:
+        - "fix"
+        - "bugfix"
+        - "bug"
   - title: ":zap: Performance :zap:"
-    labels:
-      - "performance"
+    semver-increment: patch
+    when:
+      label: "performance"
   - title: ":wrench: Maintenance :wrench:"
-    labels:
-      - "chore"
-      - "documentation"
-      - "maintenance"
-      - "repo"
-      - "dependencies"
-      - "github_actions"
-      - "refactor"
-      - "style"
-      - "build"
-      - "revert"
+    semver-increment: patch
+    when:
+      labels:
+        - "chore"
+        - "documentation"
+        - "maintenance"
+        - "repo"
+        - "dependencies"
+        - "github_actions"
+        - "refactor"
+        - "style"
+        - "build"
+        - "revert"
   - title: ":mortar_board: Code Quality :mortar_board:"
-    labels:
-      - "code-quality"
-      - "CI"
-      - "test"
+    semver-increment: patch
+    when:
+      labels:
+        - "code-quality"
+        - "CI"
+        - "test"
+  # Uncategorized changes retain the existing default patch increment.
+  - type: version-resolver
+    semver-increment: patch
 # Remove autolabeler-managed labels that no longer match, so a PR whose
 # title is corrected (e.g. Feat: to Fix:) drops the stale label instead
 # of keeping both and skewing the version resolver.
@@ -80,30 +93,6 @@ autolabeler:
   - label: "build"
     title:
       - '/^build(\([^)]+\))?:/i'
-version-resolver:
-  major:
-    labels:
-      - "breaking-change"
-  minor:
-    labels:
-      - "feature"
-      - "enhancement"
-  patch:
-    labels:
-      - "bug"
-      - "fix"
-      - "bugfix"
-      - "performance"
-      - "refactor"
-      - "style"
-      - "build"
-      - "chore"
-      - "documentation"
-      - "CI"
-      - "test"
-      - "code-quality"
-      - "revert"
-  default: patch
 # yamllint disable rule:line-length
 template: |
   $CHANGES
