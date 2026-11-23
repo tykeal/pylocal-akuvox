@@ -70,7 +70,7 @@ repos:
       - id: trailing-whitespace
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: cbcdc463be5464e25e3e955a511599a67b9b987f  # frozen: v0.50.0
+    rev: bf6d1792b8bc7f6cc93f10cc27735a4cb0c38e47  # frozen: v0.50.1
     hooks:
       - id: markdownlint
         args: ["--fix"]
@@ -110,7 +110,7 @@ repos:
   # run in CI. Keep 'rev' on the same zizmor release as the 'version:'
   # input in .github/workflows/zizmor.yaml.
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: 06a39750ec31860bb44f2acf67182c40016cd1e7  # frozen: v1.32.0
+    rev: c7d31dc612dffdd4d3b2f2b88b9660d3ab057ee8  # frozen: v1.33.1
     hooks:
       - id: zizmor
         # Must match the 'persona:' input on the 'Zizmor' workflow job.
@@ -131,7 +131,7 @@ repos:
           ]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: ef6cf06c079dd6b299dfc720b0f14400c9d168e1  # frozen: v0.17.5
+    rev: 9026c9127e153371d7a78dfcb0c45ae2046a3d10  # frozen: v0.17.6
     hooks:
       - id: ruff-check
         args: [--fix, --exit-non-zero-on-fix]
