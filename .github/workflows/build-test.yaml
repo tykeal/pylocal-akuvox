@@ -25,7 +25,7 @@ jobs:
       contents: read
       pull-requests: read  # Repository metadata job reads the PR
     # yamllint disable-line rule:line-length
-    uses: lfreleng-actions/python-workflows/.github/workflows/build-test.yaml@29e6dfbbf37206cc5334475969ca48d44f117af7  # v0.7.2
+    uses: lfreleng-actions/python-workflows/.github/workflows/build-test.yaml@7b88f25ac1acebfa74d94f18a657eb5e3bdb0a41  # v0.8.0
     with:
       audit_ignore_vulns: 'GHSA-58qw-9mgm-455v'
       audit_permit_fail: ${{ vars.NO_BLOCK_AUDIT_FAIL == 'true' }}
