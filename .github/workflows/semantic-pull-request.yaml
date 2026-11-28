@@ -50,7 +50,7 @@ jobs:
     # required to match the title. This caller therefore passes none.
     # See generic-workflows' docs/semantic-pull-request.md.
     # yamllint disable-line rule:line-length
-    uses: lfreleng-actions/generic-workflows/.github/workflows/semantic-pull-request.yaml@55a94482efee5f27ebb2de3e7f6c05339f02fad9  # v0.8.1
+    uses: lfreleng-actions/generic-workflows/.github/workflows/semantic-pull-request.yaml@7b5720020b61b6aead324badce794089cc2ae208  # v0.8.2
     permissions:
       contents: read  # Read the repository the check runs against.
       pull-requests: read  # Gate step queries the PR API (avoids 403)
